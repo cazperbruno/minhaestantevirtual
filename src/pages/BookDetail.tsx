@@ -54,7 +54,7 @@ export default function BookDetail() {
     };
     const { data, error } = await supabase
       .from("user_books")
-      .upsert(payload, { onConflict: "user_id,book_id" })
+      .upsert([payload], { onConflict: "user_id,book_id" })
       .select()
       .single();
     if (error) toast.error("Erro ao salvar");
