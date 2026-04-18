@@ -1,10 +1,11 @@
-import { Book, Library, Heart, User as UserIcon } from "lucide-react";
+import { Book, Library, ScanBarcode, Heart, User as UserIcon } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 const items = [
   { to: "/", label: "Descobrir", icon: Book },
   { to: "/biblioteca", label: "Biblioteca", icon: Library },
+  { to: "/scanner", label: "Scanner", icon: ScanBarcode },
   { to: "/desejos", label: "Desejos", icon: Heart },
   { to: "/perfil", label: "Perfil", icon: UserIcon },
 ];
@@ -17,7 +18,7 @@ export function BottomNav() {
       className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-border md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <ul className="grid grid-cols-4">
+      <ul className="grid grid-cols-5">
         {items.map(({ to, label, icon: Icon }) => {
           const active = pathname === to || (to !== "/" && pathname.startsWith(to));
           return (

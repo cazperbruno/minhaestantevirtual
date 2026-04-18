@@ -11,6 +11,8 @@ import WishlistPage from "./pages/WishlistPage";
 import ProfilePage from "./pages/ProfilePage";
 import SearchPage from "./pages/SearchPage";
 import BookDetail from "./pages/BookDetail";
+import ScannerPage from "./pages/ScannerPage";
+import LoansPage from "./pages/LoansPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,8 +27,10 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
           <Route path="/buscar" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
+          <Route path="/scanner" element={<ProtectedRoute><ScannerPage /></ProtectedRoute>} />
           <Route path="/biblioteca" element={<ProtectedRoute><LibraryPage /></ProtectedRoute>} />
           <Route path="/desejos" element={<ProtectedRoute><WishlistPage /></ProtectedRoute>} />
+          <Route path="/emprestimos" element={<ProtectedRoute><LoansPage /></ProtectedRoute>} />
           <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/livro/:id" element={<ProtectedRoute><BookDetail /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />

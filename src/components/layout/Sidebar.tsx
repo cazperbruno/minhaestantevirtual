@@ -1,4 +1,4 @@
-import { Book, Library, Heart, User as UserIcon, LogOut, Search } from "lucide-react";
+import { Book, Library, Heart, User as UserIcon, LogOut, Search, ScanBarcode, ArrowRightLeft } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ const items = [
   { to: "/", label: "Descobrir", icon: Book },
   { to: "/biblioteca", label: "Biblioteca", icon: Library },
   { to: "/desejos", label: "Lista de desejos", icon: Heart },
+  { to: "/emprestimos", label: "Empréstimos", icon: ArrowRightLeft },
+  { to: "/scanner", label: "Scanner", icon: ScanBarcode },
   { to: "/perfil", label: "Perfil", icon: UserIcon },
 ];
 

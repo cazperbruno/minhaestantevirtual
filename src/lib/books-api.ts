@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Book } from "@/types/book";
 
 const FN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/search-books`;
+const COVER_FN = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/recognize-cover`;
 const ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 async function authHeaders() {
@@ -39,4 +40,16 @@ export async function saveBook(book: Partial<Book>): Promise<Book | null> {
   if (!r.ok) return null;
   const j = await r.json();
   return j.book;
+}
+
+export async function recognizeCover(imageBase64: string): Promise<{ query: string; title?: string; author?: string; confidence: number }> {
+  const r = await fetch(COVER_FN, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify({ imageBase64 }),
+  });
+  if (r.status === 429) throw new Error("Muitas requisições. Tente em instantes.");
+  if (r.status === 402) throw new Error("Créditos AI insuficientes.");
+  if (!r.ok) throw new Error("Falha ao reconhecer capa");
+  return r.json();
 }

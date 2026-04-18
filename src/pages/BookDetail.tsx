@@ -10,10 +10,11 @@ import { StatusBadge } from "@/components/books/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
-import { Loader2, Heart, ShoppingBag, Share2, Instagram, Plus, Check } from "lucide-react";
+import { Loader2, Heart, ShoppingBag, Share2, Plus, Check } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { InstagramShareCard } from "@/components/books/InstagramShareCard";
 import { toast } from "sonner";
 
 export default function BookDetail() {
@@ -76,12 +77,7 @@ export default function BookDetail() {
     }
   };
 
-  const shareInstagram = async () => {
-    if (!book) return;
-    const text = encodeURIComponent(`📖 Estou lendo "${book.title}"${book.authors[0] ? ` de ${book.authors[0]}` : ""} — via @paginaapp`);
-    // Generic deep link; falls back to story share if available
-    window.open(`https://www.instagram.com/?text=${text}`, "_blank");
-  };
+  // Instagram share now uses InstagramShareCard component (image generation)
 
   const amazonUrl = book ? `https://www.amazon.com.br/s?k=${encodeURIComponent(
     book.isbn_13 || `${book.title} ${book.authors[0] || ""}`,
@@ -162,9 +158,11 @@ export default function BookDetail() {
                 <Button variant="outline" size="lg" onClick={share} className="gap-2">
                   <Share2 className="w-4 h-4" />
                 </Button>
-                <Button variant="outline" size="lg" onClick={shareInstagram} className="gap-2">
-                  <Instagram className="w-4 h-4" />
-                </Button>
+                <InstagramShareCard
+                  book={book}
+                  rating={ub?.rating}
+                  progress={book.page_count && ub?.current_page ? Math.round((ub.current_page / book.page_count) * 100) : null}
+                />
                 <a href={amazonUrl} target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" size="lg" className="gap-2">
                     <ShoppingBag className="w-4 h-4" /> Amazon
