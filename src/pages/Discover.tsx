@@ -5,9 +5,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { Book, UserBook } from "@/types/book";
 import { BookCard } from "@/components/books/BookCard";
 import { Link } from "react-router-dom";
-import { Search, Sparkles, TrendingUp, Library, ArrowRight } from "lucide-react";
+import { Search, Sparkles, TrendingUp, Library, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+
+interface AiRec { title: string; author: string; reason: string; }
 
 const FEATURED_QUERIES = [
   { label: "Ficção brasileira contemporânea", q: "ficção brasileira" },
@@ -21,6 +24,8 @@ export default function Discover() {
   const [shelves, setShelves] = useState<Record<string, Book[]>>({});
   const [loading, setLoading] = useState(true);
   const [reading, setReading] = useState<UserBook[]>([]);
+  const [recs, setRecs] = useState<AiRec[]>([]);
+  const [loadingRecs, setLoadingRecs] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -61,6 +66,35 @@ export default function Discover() {
     })();
   }, [user]);
 
+  const loadRecs = async () => {
+    if (!user) return;
+    setLoadingRecs(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/recommend-books`,
+        {
+          method: "POST",
+          headers: {
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${session?.access_token}`,
+            "Content-Type": "application/json",
+          },
+        },
+      );
+      const j = await r.json();
+      if (r.status === 429) toast.error("Limite de IA atingido. Tente em instantes.");
+      else if (r.status === 402) toast.error("Créditos AI insuficientes.");
+      else if (!r.ok) toast.error(j.error || "Erro nas recomendações");
+      else if (j.reason) toast.info(j.reason);
+      else setRecs(j.recommendations || []);
+    } catch {
+      toast.error("Erro ao gerar recomendações");
+    } finally {
+      setLoadingRecs(false);
+    }
+  };
+
   return (
     <AppShell>
       <div className="px-5 md:px-10 pt-8 md:pt-12 pb-16 max-w-7xl mx-auto">
@@ -97,6 +131,43 @@ export default function Discover() {
                 <BookCard key={ub.id} book={ub.book} size="md" />
               ))}
             </Shelf>
+          </Section>
+        )}
+
+        {/* Recomendações IA */}
+        {user && (
+          <Section title="Recomendações para você" icon={<Wand2 className="w-4 h-4 text-primary" />}>
+            {recs.length === 0 ? (
+              <div className="glass rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <Wand2 className="w-8 h-8 text-primary shrink-0" />
+                <div className="flex-1">
+                  <p className="font-display font-semibold">IA curadora</p>
+                  <p className="text-sm text-muted-foreground">
+                    Receba sugestões personalizadas com base na sua biblioteca.
+                  </p>
+                </div>
+                <Button variant="hero" onClick={loadRecs} disabled={loadingRecs} className="gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  {loadingRecs ? "Gerando..." : "Gerar"}
+                </Button>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {recs.map((r, i) => (
+                  <Link
+                    key={i}
+                    to={`/buscar?q=${encodeURIComponent(`${r.title} ${r.author}`)}`}
+                    className="glass rounded-xl p-4 hover:border-primary/50 transition-all group"
+                  >
+                    <p className="font-display font-semibold leading-tight group-hover:text-primary transition-colors">
+                      {r.title}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">{r.author}</p>
+                    <p className="text-xs mt-2 italic text-muted-foreground/80">"{r.reason}"</p>
+                  </Link>
+                ))}
+              </div>
+            )}
           </Section>
         )}
 

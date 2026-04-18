@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Trophy, Medal, Loader2, BookOpen, Star } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { FollowButton } from "@/components/social/FollowButton";
 
 interface RankRow {
   id: string;
@@ -21,15 +22,22 @@ interface RankRow {
 export default function RankingPage() {
   const { user } = useAuth();
   const [rows, setRows] = useState<RankRow[]>([]);
+  const [following, setFollowing] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("ranking_view").select("*").order("position").limit(100);
+      const [{ data }, { data: f }] = await Promise.all([
+        supabase.from("ranking_view").select("*").order("position").limit(100),
+        user
+          ? supabase.from("follows").select("following_id").eq("follower_id", user.id)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
       setRows((data as RankRow[]) || []);
+      setFollowing(new Set((f || []).map((x: any) => x.following_id)));
       setLoading(false);
     })();
-  }, []);
+  }, [user]);
 
   const podiumIcon = (pos: number) => {
     if (pos === 1) return <Trophy className="w-6 h-6 text-primary" />;
@@ -89,6 +97,7 @@ export default function RankingPage() {
                     <p className="font-display text-xl font-bold text-primary">{r.xp}</p>
                     <p className="text-xs text-muted-foreground">XP · nv {r.level}</p>
                   </div>
+                  {!isMe && <FollowButton targetUserId={r.id} initiallyFollowing={following.has(r.id)} />}
                 </li>
               );
             })}
