@@ -7,7 +7,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BookCover } from "@/components/books/BookCover";
 import { Rating } from "@/components/books/Rating";
 import { Button } from "@/components/ui/button";
-import { Heart, MessageSquare, Loader2 } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FollowButton } from "@/components/social/FollowButton";
+import { Heart, MessageSquare, Loader2, Users } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -23,41 +25,64 @@ interface FeedReview {
   book: any;
   profile: any;
   liked_by_me: boolean;
+  i_follow: boolean;
 }
 
 export default function FeedPage() {
   const { user } = useAuth();
+  const [tab, setTab] = useState<"all" | "following">("all");
   const [reviews, setReviews] = useState<FeedReview[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
     setLoading(true);
-    const { data: revs } = await supabase
+
+    let followingIds: string[] = [];
+    if (user) {
+      const { data: f } = await supabase.from("follows").select("following_id").eq("follower_id", user.id);
+      followingIds = (f || []).map((x: any) => x.following_id);
+    }
+
+    let q = supabase
       .from("reviews")
       .select("*, book:books(*)")
       .eq("is_public", true)
       .order("created_at", { ascending: false })
       .limit(50);
 
+    if (tab === "following") {
+      if (followingIds.length === 0) {
+        setReviews([]);
+        setLoading(false);
+        return;
+      }
+      q = q.in("user_id", followingIds);
+    }
+
+    const { data: revs } = await q;
     const list = revs || [];
     const userIds = [...new Set(list.map((r: any) => r.user_id))];
     const reviewIds = list.map((r: any) => r.id);
 
     const [{ data: profs }, { data: myLikes }] = await Promise.all([
-      supabase.from("profiles").select("id,display_name,username,avatar_url,level").in("id", userIds),
-      user
+      userIds.length
+        ? supabase.from("profiles").select("id,display_name,username,avatar_url,level").in("id", userIds)
+        : Promise.resolve({ data: [] as any[] }),
+      user && reviewIds.length
         ? supabase.from("review_likes").select("review_id").eq("user_id", user.id).in("review_id", reviewIds)
         : Promise.resolve({ data: [] as any[] }),
     ]);
 
     const profMap = new Map((profs || []).map((p: any) => [p.id, p]));
     const likedSet = new Set((myLikes || []).map((l: any) => l.review_id));
+    const followSet = new Set(followingIds);
 
     setReviews(
       list.map((r: any) => ({
         ...r,
         profile: profMap.get(r.user_id),
         liked_by_me: likedSet.has(r.id),
+        i_follow: followSet.has(r.user_id),
       })),
     );
     setLoading(false);
@@ -65,14 +90,13 @@ export default function FeedPage() {
 
   useEffect(() => {
     load();
-  }, [user]);
+  }, [user, tab]);
 
   const toggleLike = async (rev: FeedReview) => {
     if (!user) {
       toast.error("Entre para curtir");
       return;
     }
-    // optimistic
     setReviews((prev) =>
       prev.map((r) =>
         r.id === rev.id
@@ -94,10 +118,17 @@ export default function FeedPage() {
   return (
     <AppShell>
       <div className="px-5 md:px-10 pt-8 pb-16 max-w-2xl mx-auto">
-        <header className="mb-8 animate-fade-in">
+        <header className="mb-6 animate-fade-in">
           <h1 className="font-display text-4xl font-bold text-gradient-gold">Feed</h1>
           <p className="text-muted-foreground mt-1">Resenhas da comunidade</p>
         </header>
+
+        <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="mb-6">
+          <TabsList className="grid grid-cols-2 max-w-xs">
+            <TabsTrigger value="all" className="gap-2"><MessageSquare className="w-3.5 h-3.5" /> Todos</TabsTrigger>
+            <TabsTrigger value="following" className="gap-2"><Users className="w-3.5 h-3.5" /> Seguindo</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         {loading ? (
           <div className="flex justify-center py-20">
@@ -106,7 +137,9 @@ export default function FeedPage() {
         ) : reviews.length === 0 ? (
           <div className="glass rounded-2xl p-10 text-center">
             <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-            <p className="text-muted-foreground">Nenhuma resenha ainda. Seja o primeiro!</p>
+            <p className="text-muted-foreground">
+              {tab === "following" ? "Siga leitores para ver suas resenhas aqui." : "Nenhuma resenha ainda."}
+            </p>
           </div>
         ) : (
           <ul className="space-y-5">
@@ -126,6 +159,7 @@ export default function FeedPage() {
                       {formatDistanceToNow(new Date(r.created_at), { addSuffix: true, locale: ptBR })}
                     </p>
                   </div>
+                  <FollowButton targetUserId={r.user_id} initiallyFollowing={r.i_follow} />
                 </div>
 
                 <Link to={`/livro/${r.book_id}`} className="flex gap-3 mb-3 group">
