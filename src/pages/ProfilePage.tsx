@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { LogOut, BookOpen, Star, Trophy } from "lucide-react";
+import { AchievementsPanel } from "@/components/profile/AchievementsPanel";
+import { Progress } from "@/components/ui/progress";
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -69,6 +71,12 @@ export default function ProfilePage() {
               <Trophy className="w-4 h-4 text-primary" />
               <span className="text-sm">Nível {profile.level} · {profile.xp} XP</span>
             </div>
+            <div className="mt-2">
+              <Progress value={(profile.xp % 100)} className="h-1.5" />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {100 - (profile.xp % 100)} XP para o nível {profile.level + 1}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -76,6 +84,10 @@ export default function ProfilePage() {
           <Stat icon={<BookOpen className="w-4 h-4" />} value={stats.total} label="No acervo" />
           <Stat icon={<BookOpen className="w-4 h-4 text-status-read" />} value={stats.read} label="Lidos" />
           <Stat icon={<Star className="w-4 h-4 text-primary fill-primary" />} value={stats.avgRating ? stats.avgRating.toFixed(1) : "—"} label="Média" />
+        </div>
+
+        <div className="mb-6">
+          <AchievementsPanel userId={user!.id} />
         </div>
 
         <div className="glass rounded-2xl p-6 space-y-4">
