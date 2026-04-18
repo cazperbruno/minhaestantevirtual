@@ -5,9 +5,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { Book, UserBook } from "@/types/book";
 import { BookCard } from "@/components/books/BookCard";
 import { Link } from "react-router-dom";
-import { Search, Sparkles, TrendingUp, Library, ArrowRight } from "lucide-react";
+import { Search, Sparkles, TrendingUp, Library, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+
+interface AiRec { title: string; author: string; reason: string; }
 
 const FEATURED_QUERIES = [
   { label: "Ficção brasileira contemporânea", q: "ficção brasileira" },
@@ -21,6 +24,8 @@ export default function Discover() {
   const [shelves, setShelves] = useState<Record<string, Book[]>>({});
   const [loading, setLoading] = useState(true);
   const [reading, setReading] = useState<UserBook[]>([]);
+  const [recs, setRecs] = useState<AiRec[]>([]);
+  const [loadingRecs, setLoadingRecs] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -60,6 +65,35 @@ export default function Discover() {
       setLoading(false);
     })();
   }, [user]);
+
+  const loadRecs = async () => {
+    if (!user) return;
+    setLoadingRecs(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/recommend-books`,
+        {
+          method: "POST",
+          headers: {
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${session?.access_token}`,
+            "Content-Type": "application/json",
+          },
+        },
+      );
+      const j = await r.json();
+      if (r.status === 429) toast.error("Limite de IA atingido. Tente em instantes.");
+      else if (r.status === 402) toast.error("Créditos AI insuficientes.");
+      else if (!r.ok) toast.error(j.error || "Erro nas recomendações");
+      else if (j.reason) toast.info(j.reason);
+      else setRecs(j.recommendations || []);
+    } catch {
+      toast.error("Erro ao gerar recomendações");
+    } finally {
+      setLoadingRecs(false);
+    }
+  };
 
   return (
     <AppShell>
