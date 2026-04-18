@@ -16,6 +16,9 @@ import LoansPage from "./pages/LoansPage";
 import FeedPage from "./pages/FeedPage";
 import RankingPage from "./pages/RankingPage";
 import GoalsPage from "./pages/GoalsPage";
+import ClubsPage from "./pages/ClubsPage";
+import ClubDetailPage from "./pages/ClubDetailPage";
+import PublicProfile from "./pages/PublicProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +40,9 @@ const App = () => (
           <Route path="/feed" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
           <Route path="/ranking" element={<ProtectedRoute><RankingPage /></ProtectedRoute>} />
           <Route path="/metas" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
+          <Route path="/clubes" element={<ProtectedRoute><ClubsPage /></ProtectedRoute>} />
+          <Route path="/clubes/:id" element={<ProtectedRoute><ClubDetailPage /></ProtectedRoute>} />
+          <Route path="/u/:username" element={<ProtectedRoute><PublicProfile /></ProtectedRoute>} />
           <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/livro/:id" element={<ProtectedRoute><BookDetail /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />

@@ -44,6 +44,50 @@ export type Database = {
         }
         Relationships: []
       }
+      book_clubs: {
+        Row: {
+          cover_url: string | null
+          created_at: string
+          current_book_id: string | null
+          description: string | null
+          id: string
+          is_public: boolean
+          name: string
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          cover_url?: string | null
+          created_at?: string
+          current_book_id?: string | null
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name: string
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          cover_url?: string | null
+          created_at?: string
+          current_book_id?: string | null
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name?: string
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_clubs_current_book_id_fkey"
+            columns: ["current_book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       books: {
         Row: {
           authors: string[]
@@ -106,6 +150,67 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      club_members: {
+        Row: {
+          club_id: string
+          joined_at: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          club_id: string
+          joined_at?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          club_id?: string
+          joined_at?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_members_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "book_clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      club_messages: {
+        Row: {
+          club_id: string
+          content: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          club_id: string
+          content: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          club_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_messages_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "book_clubs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       follows: {
         Row: {
@@ -437,6 +542,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_club_member: {
+        Args: { _club: string; _user: string }
         Returns: boolean
       }
       reading_streak: { Args: { _user_id: string }; Returns: number }
