@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      achievements: {
+        Row: {
+          category: string
+          code: string
+          description: string
+          icon: string
+          threshold: number | null
+          title: string
+          xp_reward: number
+        }
+        Insert: {
+          category: string
+          code: string
+          description: string
+          icon: string
+          threshold?: number | null
+          title: string
+          xp_reward?: number
+        }
+        Update: {
+          category?: string
+          code?: string
+          description?: string
+          icon?: string
+          threshold?: number | null
+          title?: string
+          xp_reward?: number
+        }
+        Relationships: []
+      }
       books: {
         Row: {
           authors: string[]
@@ -74,6 +104,24 @@ export type Database = {
           subtitle?: string | null
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      follows: {
+        Row: {
+          created_at: string
+          follower_id: string
+          following_id: string
+        }
+        Insert: {
+          created_at?: string
+          follower_id: string
+          following_id: string
+        }
+        Update: {
+          created_at?: string
+          follower_id?: string
+          following_id?: string
         }
         Relationships: []
       }
@@ -160,6 +208,102 @@ export type Database = {
         }
         Relationships: []
       }
+      review_likes: {
+        Row: {
+          created_at: string
+          review_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          review_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          review_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_likes_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reviews: {
+        Row: {
+          book_id: string
+          content: string
+          created_at: string
+          id: string
+          is_public: boolean
+          likes_count: number
+          rating: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          book_id: string
+          content: string
+          created_at?: string
+          id?: string
+          is_public?: boolean
+          likes_count?: number
+          rating?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          book_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_public?: boolean
+          likes_count?: number
+          rating?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_achievements: {
+        Row: {
+          achievement_code: string
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          achievement_code: string
+          unlocked_at?: string
+          user_id: string
+        }
+        Update: {
+          achievement_code?: string
+          unlocked_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_achievements_achievement_code_fkey"
+            columns: ["achievement_code"]
+            isOneToOne: false
+            referencedRelation: "achievements"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       user_books: {
         Row: {
           book_id: string
@@ -233,9 +377,34 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      ranking_view: {
+        Row: {
+          avatar_url: string | null
+          books_read: number | null
+          display_name: string | null
+          id: string | null
+          level: number | null
+          position: number | null
+          reviews_count: number | null
+          username: string | null
+          xp: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      check_achievements: {
+        Args: { _user_id: string }
+        Returns: {
+          title: string
+          unlocked_code: string
+          xp_reward: number
+        }[]
+      }
+      grant_xp: {
+        Args: { _amount: number; _user_id: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

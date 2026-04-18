@@ -1,4 +1,4 @@
-import { Book, Library, ScanBarcode, Heart, User as UserIcon } from "lucide-react";
+import { Book, Library, ScanBarcode, MessageSquare, User as UserIcon } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -6,7 +6,7 @@ const items = [
   { to: "/", label: "Descobrir", icon: Book },
   { to: "/biblioteca", label: "Biblioteca", icon: Library },
   { to: "/scanner", label: "Scanner", icon: ScanBarcode },
-  { to: "/desejos", label: "Desejos", icon: Heart },
+  { to: "/feed", label: "Feed", icon: MessageSquare },
   { to: "/perfil", label: "Perfil", icon: UserIcon },
 ];
 

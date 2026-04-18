@@ -15,6 +15,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { InstagramShareCard } from "@/components/books/InstagramShareCard";
+import { ReviewSection } from "@/components/books/ReviewSection";
+import { checkAchievements } from "@/lib/gamification";
 import { toast } from "sonner";
 
 export default function BookDetail() {
@@ -62,6 +64,7 @@ export default function BookDetail() {
     else {
       setUb({ ...(data as UserBook), book });
       toast.success("Salvo");
+      checkAchievements(user.id);
     }
     setSaving(false);
   };
@@ -227,6 +230,10 @@ export default function BookDetail() {
             )}
           </aside>
         )}
+      </div>
+
+      <div className="px-5 md:px-10 pb-20 max-w-6xl mx-auto">
+        <ReviewSection bookId={book.id} />
       </div>
     </AppShell>
   );

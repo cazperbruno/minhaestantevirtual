@@ -7,13 +7,14 @@ interface Props {
   onChange?: (v: number) => void;
   size?: number;
   readOnly?: boolean;
+  className?: string;
 }
 
-export function Rating({ value, onChange, size = 20, readOnly = false }: Props) {
+export function Rating({ value, onChange, size = 20, readOnly = false, className }: Props) {
   const [hover, setHover] = useState(0);
   const display = hover || value;
   return (
-    <div className="flex items-center gap-0.5" role="radiogroup" aria-label="Avaliação">
+    <div className={cn("flex items-center gap-0.5", className)} role="radiogroup" aria-label="Avaliação">
       {[1, 2, 3, 4, 5].map((n) => (
         <button
           key={n}
