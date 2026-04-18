@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { InstagramShareCard } from "@/components/books/InstagramShareCard";
 import { ReviewSection } from "@/components/books/ReviewSection";
+import { BookChat } from "@/components/books/BookChat";
 import { checkAchievements } from "@/lib/gamification";
 import { toast } from "sonner";
 
