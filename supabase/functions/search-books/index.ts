@@ -256,12 +256,12 @@ Deno.serve(async (req) => {
           });
         }
       }
-      // Open Library priority, fallback Google Books
-      let results = await searchOpenLibrary(q, "por");
-      if (results.length < 5) {
-        const g = await searchGoogleBooks(q, "pt");
-        results = [...results, ...g];
-      }
+      // Run both providers in parallel; whoever returns wins (slow one is ignored gracefully)
+      const [ol, gb] = await Promise.all([
+        searchOpenLibrary(q, "por"),
+        searchGoogleBooks(q, "pt"),
+      ]);
+      const results = [...ol, ...gb];
       // Dedup by title+first author
       const seen = new Set<string>();
       const dedup: NormalizedBook[] = [];
