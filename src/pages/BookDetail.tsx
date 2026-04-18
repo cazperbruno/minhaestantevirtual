@@ -39,13 +39,13 @@ export default function BookDetail() {
     })();
   }, [id, user]);
 
-  const upsert = async (patch: Partial<UserBook>) => {
+  const upsert = async (patch: Partial<Omit<UserBook, "book">>) => {
     if (!user || !book) return;
     setSaving(true);
     const payload = {
       user_id: user.id,
       book_id: book.id,
-      status: ub?.status || "not_read",
+      status: (ub?.status || "not_read") as BookStatus,
       rating: ub?.rating ?? null,
       notes: ub?.notes ?? null,
       current_page: ub?.current_page ?? 0,
@@ -54,12 +54,12 @@ export default function BookDetail() {
     };
     const { data, error } = await supabase
       .from("user_books")
-      .upsert([payload], { onConflict: "user_id,book_id" })
+      .upsert(payload, { onConflict: "user_id,book_id" })
       .select()
       .single();
     if (error) toast.error("Erro ao salvar");
     else {
-      setUb(data as UserBook);
+      setUb({ ...(data as UserBook), book });
       toast.success("Salvo");
     }
     setSaving(false);
