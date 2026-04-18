@@ -102,41 +102,61 @@ function normalizeGoogleBook(item: any): NormalizedBook {
   };
 }
 
+async function fetchWithTimeout(url: string, ms = 6000): Promise<Response | null> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const r = await fetch(url, {
+      signal: ctrl.signal,
+      headers: { "User-Agent": "PaginaApp/1.0 (contact@pagina.app)", Accept: "application/json" },
+    });
+    return r;
+  } catch (e) {
+    console.warn("fetch failed", url, (e as Error).message);
+    return null;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 async function searchOpenLibrary(query: string, lang = "por"): Promise<NormalizedBook[]> {
   const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&language=${lang}&limit=20`;
-  const r = await fetch(url);
-  if (!r.ok) return [];
-  const j = await r.json();
-  return (j.docs || []).map(normalizeOpenLibraryDoc);
+  const r = await fetchWithTimeout(url, 6000);
+  if (!r || !r.ok) return [];
+  try {
+    const j = await r.json();
+    return (j.docs || []).map(normalizeOpenLibraryDoc);
+  } catch { return []; }
 }
 
 async function searchGoogleBooks(query: string, lang = "pt"): Promise<NormalizedBook[]> {
   const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&langRestrict=${lang}&maxResults=20`;
-  const r = await fetch(url);
-  if (!r.ok) return [];
-  const j = await r.json();
-  return (j.items || []).map(normalizeGoogleBook);
+  const r = await fetchWithTimeout(url, 6000);
+  if (!r || !r.ok) return [];
+  try {
+    const j = await r.json();
+    return (j.items || []).map(normalizeGoogleBook);
+  } catch { return []; }
 }
 
 async function lookupIsbn(isbn: string): Promise<NormalizedBook | null> {
   // Open Library books API
-  try {
-    const url = `https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`;
-    const r = await fetch(url);
-    if (r.ok) {
-      const j = await r.json();
+  const r1 = await fetchWithTimeout(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`, 6000);
+  if (r1 && r1.ok) {
+    try {
+      const j = await r1.json();
       const k = `ISBN:${isbn}`;
       if (j[k]) return normalizeOpenLibraryWork(j[k], isbn);
-    }
-  } catch (_) { /* ignore */ }
+    } catch { /* ignore */ }
+  }
   // Google fallback
-  try {
-    const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
-    if (r.ok) {
-      const j = await r.json();
+  const r2 = await fetchWithTimeout(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`, 6000);
+  if (r2 && r2.ok) {
+    try {
+      const j = await r2.json();
       if (j.items?.[0]) return normalizeGoogleBook(j.items[0]);
-    }
-  } catch (_) { /* ignore */ }
+    } catch { /* ignore */ }
+  }
   return null;
 }
 
