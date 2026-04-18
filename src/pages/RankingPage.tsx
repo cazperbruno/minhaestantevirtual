@@ -34,7 +34,7 @@ export default function RankingPage() {
   const podiumIcon = (pos: number) => {
     if (pos === 1) return <Trophy className="w-6 h-6 text-primary" />;
     if (pos === 2) return <Medal className="w-6 h-6 text-muted-foreground" />;
-    if (pos === 3) return <Medal className="w-6 h-6 text-amber-700" />;
+    if (pos === 3) return <Medal className="w-6 h-6 text-primary/60" />;
     return null;
   };
 
