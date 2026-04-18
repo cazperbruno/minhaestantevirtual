@@ -167,6 +167,7 @@ export default function BookDetail() {
                   rating={ub?.rating}
                   progress={book.page_count && ub?.current_page ? Math.round((ub.current_page / book.page_count) * 100) : null}
                 />
+                <BookChat bookId={book.id} bookTitle={book.title} />
                 <a href={amazonUrl} target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" size="lg" className="gap-2">
                     <ShoppingBag className="w-4 h-4" /> Amazon
