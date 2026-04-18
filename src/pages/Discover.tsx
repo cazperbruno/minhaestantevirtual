@@ -134,6 +134,43 @@ export default function Discover() {
           </Section>
         )}
 
+        {/* Recomendações IA */}
+        {user && (
+          <Section title="Recomendações para você" icon={<Wand2 className="w-4 h-4 text-primary" />}>
+            {recs.length === 0 ? (
+              <div className="glass rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <Wand2 className="w-8 h-8 text-primary shrink-0" />
+                <div className="flex-1">
+                  <p className="font-display font-semibold">IA curadora</p>
+                  <p className="text-sm text-muted-foreground">
+                    Receba sugestões personalizadas com base na sua biblioteca.
+                  </p>
+                </div>
+                <Button variant="hero" onClick={loadRecs} disabled={loadingRecs} className="gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  {loadingRecs ? "Gerando..." : "Gerar"}
+                </Button>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {recs.map((r, i) => (
+                  <Link
+                    key={i}
+                    to={`/buscar?q=${encodeURIComponent(`${r.title} ${r.author}`)}`}
+                    className="glass rounded-xl p-4 hover:border-primary/50 transition-all group"
+                  >
+                    <p className="font-display font-semibold leading-tight group-hover:text-primary transition-colors">
+                      {r.title}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">{r.author}</p>
+                    <p className="text-xs mt-2 italic text-muted-foreground/80">"{r.reason}"</p>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </Section>
+        )}
+
         {/* Shelves */}
         {loading
           ? FEATURED_QUERIES.map((s) => (
