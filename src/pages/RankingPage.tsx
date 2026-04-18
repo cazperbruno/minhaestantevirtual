@@ -97,6 +97,7 @@ export default function RankingPage() {
                     <p className="font-display text-xl font-bold text-primary">{r.xp}</p>
                     <p className="text-xs text-muted-foreground">XP · nv {r.level}</p>
                   </div>
+                  {!isMe && <FollowButton targetUserId={r.id} initiallyFollowing={following.has(r.id)} />}
                 </li>
               );
             })}
