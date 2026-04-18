@@ -114,8 +114,8 @@ export default function Discover() {
           : Object.entries(shelves).map(([label, books]) => (
               <Section key={label} title={label}>
                 <Shelf>
-                  {books.map((b) => (
-                    <BookCard key={b.id} book={b} size="md" />
+                  {books.map((b, i) => (
+                    <BookCard key={b.id ?? `${label}-${i}`} book={b} size="md" />
                   ))}
                 </Shelf>
               </Section>
