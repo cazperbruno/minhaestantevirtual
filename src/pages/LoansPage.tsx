@@ -186,18 +186,26 @@ export default function LoansPage() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+          <ListRowSkeleton count={4} />
         ) : filtered.length === 0 ? (
-          <div className="glass rounded-2xl p-12 text-center">
-            <BookOpen className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-            <p className="text-muted-foreground">Nenhum empréstimo {filter !== "all" ? "neste filtro" : "registrado"}.</p>
-          </div>
+          <EmptyState
+            icon={<BookOpen />}
+            title={filter !== "all" ? "Sem registros neste filtro" : "Nenhum empréstimo"}
+            description={filter !== "all" ? "Tente outro filtro acima." : "Empreste um livro e acompanhe quem está com ele e até quando."}
+            action={
+              filter === "all" && (
+                <Button variant="hero" onClick={() => setOpen(true)} className="gap-2 tap-scale">
+                  <Plus className="w-4 h-4" /> Registrar empréstimo
+                </Button>
+              )
+            }
+          />
         ) : (
-          <ul className="space-y-3">
+          <ul className="space-y-3 animate-stagger">
             {filtered.map((l) => (
-              <li key={l.id} className="glass rounded-xl p-4 flex gap-4 items-center animate-fade-in">
+              <li key={l.id} className="glass rounded-xl p-4 flex gap-4 items-center hover:border-primary/30 transition-all">
                 {l.book && (
-                  <Link to={`/livro/${l.book.id}`} className="shrink-0">
+                  <Link to={`/livro/${l.book.id}`} className="shrink-0 tap-scale">
                     <BookCover book={l.book} size="sm" />
                   </Link>
                 )}
@@ -212,7 +220,7 @@ export default function LoansPage() {
                 <div className="flex flex-col items-end gap-2">
                   <StatusPill status={l.status} />
                   {l.status !== "returned" && (
-                    <Button size="sm" variant="outline" onClick={() => markReturned(l.id)}>Devolvido</Button>
+                    <Button size="sm" variant="outline" onClick={() => markReturned(l.id)} className="tap-scale">Devolvido</Button>
                   )}
                 </div>
               </li>
