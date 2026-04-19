@@ -9,7 +9,8 @@ import { Rating } from "@/components/books/Rating";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FollowButton } from "@/components/social/FollowButton";
-import { Heart, MessageSquare, Loader2, Users } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Heart, MessageSquare, Users, Sparkles, Search } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -90,6 +91,7 @@ export default function FeedPage() {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, tab]);
 
   const toggleLike = async (rev: FeedReview) => {
@@ -117,13 +119,15 @@ export default function FeedPage() {
 
   return (
     <AppShell>
-      <div className="px-5 md:px-10 pt-8 pb-16 max-w-2xl mx-auto">
+      <div className="px-5 md:px-10 pt-8 md:pt-12 pb-20 max-w-2xl mx-auto">
         <header className="mb-6 animate-fade-in">
-          <h1 className="font-display text-4xl font-bold text-gradient-gold">Feed</h1>
-          <p className="text-muted-foreground mt-1">Resenhas da comunidade</p>
+          <h1 className="font-display text-4xl md:text-5xl font-bold">Feed</h1>
+          <p className="text-muted-foreground mt-1.5 text-sm md:text-base">
+            Resenhas frescas da comunidade leitora
+          </p>
         </header>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="mb-6">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="mb-6 sticky top-0 z-10 -mx-5 px-5 md:mx-0 md:px-0 py-2 bg-background/80 backdrop-blur-md">
           <TabsList className="grid grid-cols-2 max-w-xs">
             <TabsTrigger value="all" className="gap-2"><MessageSquare className="w-3.5 h-3.5" /> Todos</TabsTrigger>
             <TabsTrigger value="following" className="gap-2"><Users className="w-3.5 h-3.5" /> Seguindo</TabsTrigger>
@@ -131,29 +135,47 @@ export default function FeedPage() {
         </Tabs>
 
         {loading ? (
-          <div className="flex justify-center py-20">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-          </div>
+          <ul className="space-y-5">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <li key={i} className="glass rounded-2xl p-5 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="w-10 h-10 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-3 w-32" />
+                    <Skeleton className="h-2.5 w-24" />
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <Skeleton className="w-16 h-24 rounded-md" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                </div>
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-5/6" />
+              </li>
+            ))}
+          </ul>
         ) : reviews.length === 0 ? (
-          <div className="glass rounded-2xl p-10 text-center">
-            <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-            <p className="text-muted-foreground">
-              {tab === "following" ? "Siga leitores para ver suas resenhas aqui." : "Nenhuma resenha ainda."}
-            </p>
-          </div>
+          <EmptyFeed tab={tab} />
         ) : (
           <ul className="space-y-5">
             {reviews.map((r) => (
-              <li key={r.id} className="glass rounded-2xl p-5 animate-fade-in">
-                <div className="flex items-start gap-3 mb-3">
-                  <Avatar className="w-10 h-10">
-                    <AvatarImage src={r.profile?.avatar_url} />
-                    <AvatarFallback className="bg-gradient-gold text-primary-foreground text-sm font-display">
-                      {(r.profile?.display_name || "?").charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
+              <li key={r.id} className="glass rounded-2xl p-5 animate-fade-in hover:border-primary/30 transition-colors">
+                <div className="flex items-start gap-3 mb-4">
+                  <Link to={`/u/${r.profile?.username}`} className="shrink-0">
+                    <Avatar className="w-10 h-10 ring-2 ring-transparent hover:ring-primary/40 transition-all">
+                      <AvatarImage src={r.profile?.avatar_url} />
+                      <AvatarFallback className="bg-gradient-gold text-primary-foreground text-sm font-display">
+                        {(r.profile?.display_name || "?").charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Link>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate">{r.profile?.display_name || "Leitor"}</p>
+                    <Link to={`/u/${r.profile?.username}`} className="font-semibold text-sm truncate hover:text-primary transition-colors block leading-tight">
+                      {r.profile?.display_name || "Leitor"}
+                    </Link>
                     <p className="text-xs text-muted-foreground">
                       Nível {r.profile?.level ?? 1} ·{" "}
                       {formatDistanceToNow(new Date(r.created_at), { addSuffix: true, locale: ptBR })}
@@ -162,28 +184,28 @@ export default function FeedPage() {
                   <FollowButton targetUserId={r.user_id} initiallyFollowing={r.i_follow} />
                 </div>
 
-                <Link to={`/livro/${r.book_id}`} className="flex gap-3 mb-3 group">
+                <Link to={`/livro/${r.book_id}`} className="flex gap-4 mb-4 group/book">
                   <BookCover book={r.book} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-display font-semibold leading-tight group-hover:text-primary transition-colors">
+                  <div className="flex-1 min-w-0 self-center">
+                    <p className="font-display font-semibold leading-tight group-hover/book:text-primary transition-colors">
                       {r.book?.title}
                     </p>
-                    <p className="text-xs text-muted-foreground truncate">{r.book?.authors?.[0]}</p>
-                    {r.rating && <Rating value={r.rating} readOnly className="mt-2" />}
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">{r.book?.authors?.[0]}</p>
+                    {r.rating && <Rating value={r.rating} readOnly className="mt-2" size={14} />}
                   </div>
                 </Link>
 
-                <p className="text-sm leading-relaxed whitespace-pre-line">{r.content}</p>
+                <p className="text-sm leading-relaxed whitespace-pre-line text-foreground/90">{r.content}</p>
 
-                <div className="flex items-center gap-4 mt-4 pt-3 border-t border-border/40">
+                <div className="flex items-center gap-1 mt-4 pt-3 border-t border-border/40">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => toggleLike(r)}
-                    className={`gap-2 ${r.liked_by_me ? "text-primary" : "text-muted-foreground"}`}
+                    className={`gap-2 transition-colors ${r.liked_by_me ? "text-primary" : "text-muted-foreground"}`}
                   >
-                    <Heart className={`w-4 h-4 ${r.liked_by_me ? "fill-primary" : ""}`} />
-                    {r.likes_count}
+                    <Heart className={`w-4 h-4 transition-all ${r.liked_by_me ? "fill-primary scale-110" : ""}`} />
+                    <span className="tabular-nums">{r.likes_count}</span>
                   </Button>
                 </div>
               </li>
@@ -192,5 +214,31 @@ export default function FeedPage() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+function EmptyFeed({ tab }: { tab: "all" | "following" }) {
+  return (
+    <div className="text-center py-16 px-6 max-w-md mx-auto animate-fade-in">
+      <div className="w-20 h-20 rounded-3xl bg-gradient-spine border border-border mx-auto mb-5 flex items-center justify-center shadow-book">
+        {tab === "following"
+          ? <Users className="w-9 h-9 text-primary/60" />
+          : <Sparkles className="w-9 h-9 text-primary/60" />}
+      </div>
+      <h2 className="font-display text-2xl font-semibold mb-2">
+        {tab === "following" ? "Você ainda não segue ninguém" : "O feed está silencioso"}
+      </h2>
+      <p className="text-muted-foreground text-sm mb-6">
+        {tab === "following"
+          ? "Encontre leitores e siga suas resenhas para ver tudo aqui."
+          : "Seja a primeira pessoa a publicar uma resenha hoje."}
+      </p>
+      <Link to={tab === "following" ? "/ranking" : "/buscar"}>
+        <Button variant="hero" className="gap-2">
+          {tab === "following" ? <><Users className="w-4 h-4" /> Descobrir leitores</>
+            : <><Search className="w-4 h-4" /> Buscar livros</>}
+        </Button>
+      </Link>
+    </div>
   );
 }

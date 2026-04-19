@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Auth from "./pages/Auth";
+import Onboarding from "./pages/Onboarding";
 import Discover from "./pages/Discover";
 import LibraryPage from "./pages/LibraryPage";
 import WishlistPage from "./pages/WishlistPage";
@@ -31,6 +32,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={<Auth />} />
+          <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
           <Route path="/" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
           <Route path="/buscar" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
           <Route path="/scanner" element={<ProtectedRoute><ScannerPage /></ProtectedRoute>} />
