@@ -25,8 +25,113 @@ type NormalizedBook = {
   raw?: any;
 };
 
-const cleanIsbn = (s: string) => s.replace(/[^0-9Xx]/g, "");
+// ============================================================
+// 1) ISBN normalization & validation
+// ============================================================
+const cleanIsbn = (s: string) => (s || "").replace(/[^0-9Xx]/g, "").toUpperCase();
 
+function isValidIsbn10(isbn: string): boolean {
+  if (!/^\d{9}[\dX]$/.test(isbn)) return false;
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += (i + 1) * parseInt(isbn[i], 10);
+  const last = isbn[9] === "X" ? 10 : parseInt(isbn[9], 10);
+  sum += 10 * last;
+  return sum % 11 === 0;
+}
+
+function isValidIsbn13(isbn: string): boolean {
+  if (!/^\d{13}$/.test(isbn)) return false;
+  let sum = 0;
+  for (let i = 0; i < 13; i++) {
+    const d = parseInt(isbn[i], 10);
+    sum += i % 2 === 0 ? d : d * 3;
+  }
+  return sum % 10 === 0;
+}
+
+function isbn10To13(isbn10: string): string | null {
+  if (!/^\d{9}[\dX]$/.test(isbn10)) return null;
+  const core = "978" + isbn10.slice(0, 9);
+  let sum = 0;
+  for (let i = 0; i < 12; i++) {
+    const d = parseInt(core[i], 10);
+    sum += i % 2 === 0 ? d : d * 3;
+  }
+  const check = (10 - (sum % 10)) % 10;
+  return core + check;
+}
+
+function isbn13To10(isbn13: string): string | null {
+  if (!/^\d{13}$/.test(isbn13) || !isbn13.startsWith("978")) return null;
+  const core = isbn13.slice(3, 12);
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += (i + 1) * parseInt(core[i], 10);
+  const checkNum = sum % 11;
+  const check = checkNum === 10 ? "X" : String(checkNum);
+  return core + check;
+}
+
+/** Returns { isbn13, isbn10 } from any valid input, or null if invalid. */
+function normalizeIsbn(input: string): { isbn13: string | null; isbn10: string | null } | null {
+  const c = cleanIsbn(input);
+  if (c.length === 10 && isValidIsbn10(c)) {
+    return { isbn10: c, isbn13: isbn10To13(c) };
+  }
+  if (c.length === 13 && isValidIsbn13(c)) {
+    return { isbn13: c, isbn10: isbn13To10(c) };
+  }
+  return null;
+}
+
+// ============================================================
+// 2) Robust fetch with timeout + retry
+// ============================================================
+async function fetchWithRetry(
+  url: string,
+  opts: { timeoutMs?: number; retries?: number; label?: string } = {},
+): Promise<{ res: Response | null; ms: number; attempt: number }> {
+  const { timeoutMs = 6000, retries = 1, label = url } = opts;
+  let attempt = 0;
+  const start = Date.now();
+  while (attempt <= retries) {
+    attempt++;
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const r = await fetch(url, {
+        signal: ctrl.signal,
+        headers: {
+          "User-Agent": "PaginaApp/1.0 (contact@pagina.app)",
+          Accept: "application/json",
+        },
+      });
+      clearTimeout(t);
+      const ms = Date.now() - start;
+      if (r.status === 429) {
+        console.warn(`[${label}] 429 rate-limited (attempt ${attempt}, ${ms}ms)`);
+        if (attempt <= retries) {
+          await new Promise((res) => setTimeout(res, 400));
+          continue;
+        }
+        return { res: r, ms, attempt };
+      }
+      if (!r.ok) {
+        console.warn(`[${label}] HTTP ${r.status} (attempt ${attempt}, ${ms}ms)`);
+        if (attempt <= retries) continue;
+      }
+      return { res: r, ms, attempt };
+    } catch (e) {
+      clearTimeout(t);
+      console.warn(`[${label}] fetch error (attempt ${attempt}): ${(e as Error).message}`);
+      if (attempt > retries) return { res: null, ms: Date.now() - start, attempt };
+    }
+  }
+  return { res: null, ms: Date.now() - start, attempt };
+}
+
+// ============================================================
+// 3) Normalizers per source
+// ============================================================
 function normalizeOpenLibraryDoc(doc: any): NormalizedBook {
   const isbnList: string[] = doc.isbn || [];
   const isbn13 = isbnList.find((i) => i.length === 13) || null;
@@ -52,7 +157,6 @@ function normalizeOpenLibraryDoc(doc: any): NormalizedBook {
 }
 
 function normalizeOpenLibraryWork(work: any, isbn?: string): NormalizedBook {
-  const ids = work.identifiers || {};
   const isbn13 = (work.isbn_13 && work.isbn_13[0]) || (isbn && isbn.length === 13 ? isbn : null);
   const isbn10 = (work.isbn_10 && work.isbn_10[0]) || (isbn && isbn.length === 10 ? isbn : null);
   return {
@@ -61,16 +165,36 @@ function normalizeOpenLibraryWork(work: any, isbn?: string): NormalizedBook {
     title: work.title || "Sem título",
     subtitle: work.subtitle || null,
     authors: (work.authors || []).map((a: any) => a.name).filter(Boolean),
-    publisher: (work.publishers && work.publishers[0]?.name) || null,
+    publisher: (work.publishers && (work.publishers[0]?.name || work.publishers[0])) || null,
     published_year: work.publish_date ? parseInt(String(work.publish_date).slice(-4)) || null : null,
     description: typeof work.notes === "string" ? work.notes : work.notes?.value || null,
     cover_url: work.cover?.large || work.cover?.medium || null,
     page_count: work.number_of_pages || null,
     language: null,
-    categories: (work.subjects || []).map((s: any) => s.name).slice(0, 8),
+    categories: (work.subjects || []).map((s: any) => s.name || s).slice(0, 8),
     source: "openlibrary",
     source_id: work.key || null,
     raw: work,
+  };
+}
+
+function normalizeOpenLibraryIsbnEndpoint(data: any, isbn: string): NormalizedBook {
+  return {
+    isbn_13: isbn.length === 13 ? isbn : null,
+    isbn_10: isbn.length === 10 ? isbn : null,
+    title: data.title || "Sem título",
+    subtitle: data.subtitle || null,
+    authors: [], // /isbn/ returns author refs only; resolved later if needed
+    publisher: Array.isArray(data.publishers) ? data.publishers[0] : data.publishers || null,
+    published_year: data.publish_date ? parseInt(String(data.publish_date).slice(-4)) || null : null,
+    description: typeof data.description === "string" ? data.description : data.description?.value || null,
+    cover_url: null,
+    page_count: data.number_of_pages || null,
+    language: null,
+    categories: (data.subjects || []).slice(0, 8),
+    source: "openlibrary",
+    source_id: data.key || null,
+    raw: data,
   };
 }
 
@@ -102,66 +226,210 @@ function normalizeGoogleBook(item: any): NormalizedBook {
   };
 }
 
-async function fetchWithTimeout(url: string, ms = 6000): Promise<Response | null> {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), ms);
+function normalizeIsbnDb(item: any): NormalizedBook {
+  return {
+    isbn_13: item.isbn13 || null,
+    isbn_10: item.isbn || null,
+    title: item.title || item.title_long || "Sem título",
+    subtitle: null,
+    authors: item.authors || [],
+    publisher: item.publisher || null,
+    published_year: item.date_published ? parseInt(String(item.date_published).slice(0, 4)) || null : null,
+    description: item.synopsys || item.overview || null,
+    cover_url: item.image || null,
+    page_count: item.pages || null,
+    language: item.language || null,
+    categories: item.subjects || [],
+    source: "isbndb",
+    source_id: item.isbn13 || item.isbn || null,
+    raw: item,
+  };
+}
+
+// ============================================================
+// 4) ISBN cascade lookup (multi-source)
+// ============================================================
+async function lookupOpenLibraryBibkeys(isbn: string): Promise<NormalizedBook | null> {
+  const url = `https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`;
+  const { res, ms, attempt } = await fetchWithRetry(url, { label: `OL-bibkeys:${isbn}` });
+  if (!res || !res.ok) return null;
   try {
-    const r = await fetch(url, {
-      signal: ctrl.signal,
-      headers: { "User-Agent": "PaginaApp/1.0 (contact@pagina.app)", Accept: "application/json" },
-    });
-    return r;
-  } catch (e) {
-    console.warn("fetch failed", url, (e as Error).message);
+    const j = await res.json();
+    const k = `ISBN:${isbn}`;
+    if (j[k]) {
+      console.log(`[OL-bibkeys] hit ISBN ${isbn} in ${ms}ms (attempt ${attempt})`);
+      return normalizeOpenLibraryWork(j[k], isbn);
+    }
     return null;
-  } finally {
+  } catch {
+    return null;
+  }
+}
+
+async function lookupOpenLibraryIsbnEndpoint(isbn: string): Promise<NormalizedBook | null> {
+  const { res, ms, attempt } = await fetchWithRetry(`https://openlibrary.org/isbn/${isbn}.json`, {
+    label: `OL-isbn:${isbn}`,
+  });
+  if (!res || !res.ok) return null;
+  try {
+    const j = await res.json();
+    if (!j || !j.title) return null;
+    console.log(`[OL-isbn] hit ISBN ${isbn} in ${ms}ms (attempt ${attempt})`);
+    return normalizeOpenLibraryIsbnEndpoint(j, isbn);
+  } catch {
+    return null;
+  }
+}
+
+async function lookupGoogleBooks(isbn: string): Promise<NormalizedBook | null> {
+  const { res, ms, attempt } = await fetchWithRetry(
+    `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`,
+    { label: `Google:${isbn}` },
+  );
+  if (!res || !res.ok) return null;
+  try {
+    const j = await res.json();
+    if (j.error) {
+      console.warn(`[Google] body error: ${j.error.message}`);
+      return null;
+    }
+    if (j.items?.[0]) {
+      console.log(`[Google] hit ISBN ${isbn} in ${ms}ms (attempt ${attempt})`);
+      return normalizeGoogleBook(j.items[0]);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function lookupIsbnDb(isbn: string): Promise<NormalizedBook | null> {
+  const key = Deno.env.get("ISBNDB_API_KEY");
+  if (!key) return null;
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 6000);
+  const start = Date.now();
+  try {
+    const r = await fetch(`https://api2.isbndb.com/book/${isbn}`, {
+      signal: ctrl.signal,
+      headers: { Authorization: key, Accept: "application/json" },
+    });
     clearTimeout(t);
+    if (!r.ok) {
+      console.warn(`[ISBNdb] HTTP ${r.status}`);
+      return null;
+    }
+    const j = await r.json();
+    if (j?.book) {
+      console.log(`[ISBNdb] hit ISBN ${isbn} in ${Date.now() - start}ms`);
+      return normalizeIsbnDb(j.book);
+    }
+    return null;
+  } catch (e) {
+    clearTimeout(t);
+    console.warn(`[ISBNdb] error: ${(e as Error).message}`);
+    return null;
   }
 }
 
-async function searchOpenLibrary(query: string, lang = "por"): Promise<NormalizedBook[]> {
-  const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&language=${lang}&limit=20`;
-  const r = await fetchWithTimeout(url, 6000);
-  if (!r || !r.ok) return [];
-  try {
-    const j = await r.json();
-    return (j.docs || []).map(normalizeOpenLibraryDoc);
-  } catch { return []; }
-}
-
-async function searchGoogleBooks(query: string, lang = "pt"): Promise<NormalizedBook[]> {
-  const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&langRestrict=${lang}&maxResults=20`;
-  const r = await fetchWithTimeout(url, 6000);
-  if (!r || !r.ok) return [];
-  try {
-    const j = await r.json();
-    return (j.items || []).map(normalizeGoogleBook);
-  } catch { return []; }
-}
-
-async function lookupIsbn(isbn: string): Promise<NormalizedBook | null> {
-  // Open Library books API
-  const r1 = await fetchWithTimeout(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`, 6000);
-  if (r1 && r1.ok) {
-    try {
-      const j = await r1.json();
-      const k = `ISBN:${isbn}`;
-      if (j[k]) return normalizeOpenLibraryWork(j[k], isbn);
-    } catch { /* ignore */ }
+/** Try both ISBN variants on a given lookup. */
+async function tryBothVariants(
+  fn: (isbn: string) => Promise<NormalizedBook | null>,
+  v: { isbn13: string | null; isbn10: string | null },
+): Promise<NormalizedBook | null> {
+  if (v.isbn13) {
+    const r = await fn(v.isbn13);
+    if (r) return r;
   }
-  // Google fallback
-  const r2 = await fetchWithTimeout(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`, 6000);
-  if (r2 && r2.ok) {
-    try {
-      const j = await r2.json();
-      if (j.items?.[0]) return normalizeGoogleBook(j.items[0]);
-    } catch { /* ignore */ }
+  if (v.isbn10) {
+    const r = await fn(v.isbn10);
+    if (r) return r;
   }
   return null;
 }
 
+/** Best-effort cover fallback via Open Library Covers API. */
+async function ensureCover(book: NormalizedBook): Promise<NormalizedBook> {
+  if (book.cover_url) return book;
+  const isbn = book.isbn_13 || book.isbn_10;
+  if (!isbn) return book;
+  // Open Library covers (no API key, returns 1x1 if missing — use default=false to 404 instead)
+  const url = `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false`;
+  const { res } = await fetchWithRetry(url, { label: `OL-cover:${isbn}`, retries: 0, timeoutMs: 4000 });
+  if (res && res.ok) {
+    book.cover_url = `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg`;
+    console.log(`[Cover] OL fallback found for ${isbn}`);
+  }
+  return book;
+}
+
+/** Cascade lookup with logs and fallback. */
+async function lookupIsbnCascade(
+  variants: { isbn13: string | null; isbn10: string | null },
+): Promise<{ book: NormalizedBook | null; sourcesTried: string[] }> {
+  const sourcesTried: string[] = [];
+  const isbnLabel = variants.isbn13 || variants.isbn10 || "?";
+  console.log(`[Cascade] start ISBN ${isbnLabel}`);
+
+  const sources: Array<{ name: string; fn: (isbn: string) => Promise<NormalizedBook | null> }> = [
+    { name: "openlibrary-bibkeys", fn: lookupOpenLibraryBibkeys },
+    { name: "google-books", fn: lookupGoogleBooks },
+    { name: "openlibrary-isbn", fn: lookupOpenLibraryIsbnEndpoint },
+    { name: "isbndb", fn: lookupIsbnDb },
+  ];
+
+  for (const s of sources) {
+    sourcesTried.push(s.name);
+    try {
+      const found = await tryBothVariants(s.fn, variants);
+      if (found && found.title && found.title !== "Sem título") {
+        // Always store both variants when possible
+        if (!found.isbn_13 && variants.isbn13) found.isbn_13 = variants.isbn13;
+        if (!found.isbn_10 && variants.isbn10) found.isbn_10 = variants.isbn10;
+        const withCover = await ensureCover(found);
+        console.log(`[Cascade] resolved by ${s.name} for ${isbnLabel}`);
+        return { book: withCover, sourcesTried };
+      }
+    } catch (e) {
+      console.warn(`[Cascade] source ${s.name} threw: ${(e as Error).message}`);
+    }
+  }
+  console.warn(`[Cascade] no source resolved ISBN ${isbnLabel}`);
+  return { book: null, sourcesTried };
+}
+
+// ============================================================
+// 5) Search (text query)
+// ============================================================
+async function searchOpenLibrary(query: string, lang = "por"): Promise<NormalizedBook[]> {
+  const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&language=${lang}&limit=20`;
+  const { res } = await fetchWithRetry(url, { label: `OL-search:${query}` });
+  if (!res || !res.ok) return [];
+  try {
+    const j = await res.json();
+    return (j.docs || []).map(normalizeOpenLibraryDoc);
+  } catch {
+    return [];
+  }
+}
+
+async function searchGoogleBooks(query: string, lang = "pt"): Promise<NormalizedBook[]> {
+  const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&langRestrict=${lang}&maxResults=20`;
+  const { res } = await fetchWithRetry(url, { label: `Google-search:${query}` });
+  if (!res || !res.ok) return [];
+  try {
+    const j = await res.json();
+    if (j.error) return [];
+    return (j.items || []).map(normalizeGoogleBook);
+  } catch {
+    return [];
+  }
+}
+
+// ============================================================
+// 6) Persistence (cache layer)
+// ============================================================
 async function persistBook(supabase: any, book: NormalizedBook) {
-  // Try find by isbn_13, then isbn_10
   if (book.isbn_13) {
     const { data } = await supabase.from("books").select("*").eq("isbn_13", book.isbn_13).maybeSingle();
     if (data) return data;
@@ -198,6 +466,24 @@ async function persistBook(supabase: any, book: NormalizedBook) {
   return data;
 }
 
+async function findCachedByVariants(
+  supabase: any,
+  v: { isbn13: string | null; isbn10: string | null },
+) {
+  if (v.isbn13) {
+    const { data } = await supabase.from("books").select("*").eq("isbn_13", v.isbn13).maybeSingle();
+    if (data) return data;
+  }
+  if (v.isbn10) {
+    const { data } = await supabase.from("books").select("*").eq("isbn_10", v.isbn10).maybeSingle();
+    if (data) return data;
+  }
+  return null;
+}
+
+// ============================================================
+// 7) HTTP entrypoint
+// ============================================================
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
@@ -212,30 +498,35 @@ Deno.serve(async (req) => {
 
     if (action === "isbn") {
       const isbnRaw = url.searchParams.get("isbn") || "";
-      const isbn = cleanIsbn(isbnRaw);
-      if (!isbn) {
-        return new Response(JSON.stringify({ error: "ISBN obrigatório" }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      const variants = normalizeIsbn(isbnRaw);
+      if (!variants) {
+        return new Response(
+          JSON.stringify({ error: "ISBN inválido. Verifique e tente novamente." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
       }
-      // Check cache first
-      const col = isbn.length === 13 ? "isbn_13" : "isbn_10";
-      const { data: cached } = await supabase.from("books").select("*").eq(col, isbn).maybeSingle();
+      console.log(`[ISBN] request ISBN13=${variants.isbn13} ISBN10=${variants.isbn10}`);
+
+      const cached = await findCachedByVariants(supabase, variants);
       if (cached) {
-        return new Response(JSON.stringify({ book: cached, cached: true }), {
+        console.log(`[ISBN] cache hit`);
+        return new Response(JSON.stringify({ book: cached, cached: true, source: "cache" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const found = await lookupIsbn(isbn);
-      if (!found) {
-        return new Response(JSON.stringify({ book: null }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+
+      const { book, sourcesTried } = await lookupIsbnCascade(variants);
+      if (!book) {
+        return new Response(
+          JSON.stringify({ book: null, sourcesTried, error: "Livro não encontrado em nenhuma fonte." }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
       }
-      const saved = await persistBook(supabase, found);
-      return new Response(JSON.stringify({ book: saved, cached: false }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const saved = await persistBook(supabase, book);
+      return new Response(
+        JSON.stringify({ book: saved, cached: false, source: book.source, sourcesTried }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     if (action === "search") {
@@ -245,24 +536,29 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      // If query is an ISBN, treat as ISBN
-      const onlyDigits = cleanIsbn(q);
-      if (onlyDigits.length === 10 || onlyDigits.length === 13) {
-        const found = await lookupIsbn(onlyDigits);
-        if (found) {
-          const saved = await persistBook(supabase, found);
+      // If query looks like an ISBN, route to cascade
+      const variants = normalizeIsbn(q);
+      if (variants) {
+        const cached = await findCachedByVariants(supabase, variants);
+        if (cached) {
+          return new Response(JSON.stringify({ results: [cached] }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const { book } = await lookupIsbnCascade(variants);
+        if (book) {
+          const saved = await persistBook(supabase, book);
           return new Response(JSON.stringify({ results: saved ? [saved] : [] }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
+        return new Response(JSON.stringify({ results: [] }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
-      // Run both providers in parallel; whoever returns wins (slow one is ignored gracefully)
-      const [ol, gb] = await Promise.all([
-        searchOpenLibrary(q, "por"),
-        searchGoogleBooks(q, "pt"),
-      ]);
+
+      const [ol, gb] = await Promise.all([searchOpenLibrary(q, "por"), searchGoogleBooks(q, "pt")]);
       const results = [...ol, ...gb];
-      // Dedup by title+first author
       const seen = new Set<string>();
       const dedup: NormalizedBook[] = [];
       for (const r of results) {
@@ -286,12 +582,14 @@ Deno.serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ error: "Ação inválida" }), {
-      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("search-books error", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erro" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
