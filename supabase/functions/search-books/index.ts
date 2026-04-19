@@ -507,11 +507,13 @@ async function lookupIsbnCascade(
   console.log(`[Cascade] start ISBN ${isbnLabel}`);
 
   const sources: Array<{ name: string; fn: (isbn: string) => Promise<NormalizedBook | null> }> = [
+    { name: "brasilapi", fn: lookupBrasilApi },
     { name: "openlibrary-bibkeys", fn: lookupOpenLibraryBibkeys },
-    { name: "google-books", fn: lookupGoogleBooks },
+    { name: "openlibrary-isbn-search", fn: lookupOpenLibrarySearch },
     { name: "openlibrary-isbn", fn: lookupOpenLibraryIsbnEndpoint },
     { name: "library-of-congress", fn: lookupLibraryOfCongress },
     { name: "worldcat-classify", fn: lookupWorldcatClassify },
+    { name: "google-books", fn: lookupGoogleBooks },
   ];
 
   for (const s of sources) {
