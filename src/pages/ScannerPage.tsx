@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Camera, Loader2, ScanBarcode, Upload, Sparkles, X } from "lucide-react";
+import { Camera, Loader2, ScanBarcode, Upload, Sparkles, X, Search, BookX } from "lucide-react";
 import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 import { lookupIsbn, recognizeCover, searchBooksGet } from "@/lib/books-api";
@@ -24,6 +24,7 @@ export default function ScannerPage() {
   const [manualIsbn, setManualIsbn] = useState("");
   const [results, setResults] = useState<Book[]>([]);
   const [recognized, setRecognized] = useState<{ title?: string; author?: string } | null>(null);
+  const [notFoundIsbn, setNotFoundIsbn] = useState<string | null>(null);
 
   useEffect(() => () => { controlsRef.current?.stop(); }, []);
 
@@ -58,13 +59,15 @@ export default function ScannerPage() {
 
   const resolveIsbn = async (isbn: string) => {
     setBusy(true);
+    setNotFoundIsbn(null);
     try {
       const book = await lookupIsbn(isbn);
       if (book?.id) {
         toast.success("Livro encontrado");
         navigate(`/livro/${book.id}`);
       } else {
-        toast.error("ISBN não encontrado nos catálogos");
+        setNotFoundIsbn(isbn);
+        toast.error("ISBN não encontrado. Tente buscar por título.");
       }
     } catch (e: any) {
       toast.error(e.message || "Erro");
@@ -172,6 +175,37 @@ export default function ScannerPage() {
                 <Button type="submit" disabled={busy} variant="hero">Buscar</Button>
               </div>
             </form>
+
+            {notFoundIsbn && (
+              <div className="glass rounded-2xl p-5 border border-destructive/40 animate-fade-in">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-destructive/15 text-destructive flex items-center justify-center shrink-0">
+                    <BookX className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-display font-semibold text-lg leading-tight">
+                      ISBN não encontrado
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Não localizamos <span className="font-mono text-foreground">{notFoundIsbn}</span> nos catálogos.
+                      Tente buscar pelo título ou autor — às vezes o livro está cadastrado com outro código.
+                    </p>
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      <Button
+                        variant="hero"
+                        onClick={() => navigate(`/buscar?q=${encodeURIComponent(notFoundIsbn)}`)}
+                        className="gap-2"
+                      >
+                        <Search className="w-4 h-4" /> Buscar por título/autor
+                      </Button>
+                      <Button variant="outline" onClick={() => setNotFoundIsbn(null)}>
+                        Tentar outro ISBN
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </section>
         )}
 
