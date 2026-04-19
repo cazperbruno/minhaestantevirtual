@@ -1,15 +1,24 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Book } from "@/types/book";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Camera, Loader2, RefreshCw, Upload, Wand2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { resolveCover } from "@/lib/cover-fallback";
+import { resolveCover, invalidateCover } from "@/lib/cover-fallback";
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 interface Props {
-  book: Pick<Book, "title" | "authors" | "cover_url" | "isbn_10" | "isbn_13">;
+  book: Pick<Book, "id" | "title" | "authors" | "cover_url" | "isbn_10" | "isbn_13">;
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
   /** Disable async fallback (e.g. inside lists for perf). Defaults to true. */
   fallback?: boolean;
+  /** Allow click-to-fix interactive menu. Defaults to true when there's a book.id. */
+  interactive?: boolean;
+  onCoverChange?: (url: string) => void;
 }
 
 const SIZES = {
@@ -19,47 +28,108 @@ const SIZES = {
   xl: "w-52 h-80 text-base",
 };
 
-export function BookCover({ book, size = "md", className, fallback = true }: Props) {
+export function BookCover({
+  book, size = "md", className, fallback = true, interactive, onCoverChange,
+}: Props) {
+  const { user } = useAuth();
   const [src, setSrc] = useState<string | null>(book.cover_url ?? null);
   const [errored, setErrored] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+
+  const allowInteractive = (interactive ?? !!book.id) && !!user;
 
   useEffect(() => {
     setSrc(book.cover_url ?? null);
     setErrored(false);
   }, [book.cover_url]);
 
-  // If no URL and fallback enabled, try to resolve from OpenLibrary/Google
+  // Auto-resolve when no cover or current source failed
   useEffect(() => {
     if (!fallback) return;
     if (src && !errored) return;
     let cancelled = false;
     resolveCover(book).then((u) => {
-      if (cancelled) return;
-      if (u && u !== src) {
-        setErrored(false);
-        setSrc(u);
-      }
+      if (cancelled || !u) return;
+      setErrored(false);
+      setSrc(u);
+      onCoverChange?.(u);
     });
     return () => { cancelled = true; };
-  }, [book.isbn_13, book.isbn_10, errored, fallback]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [book.isbn_13, book.isbn_10, book.id, errored, fallback]);
 
-  if (src && !errored) {
-    return (
-      <div className={cn("book-cover", SIZES[size], className)}>
-        <img
-          src={src}
-          alt={`Capa de ${book.title}`}
-          loading="lazy"
-          decoding="async"
-          className="w-full h-full object-cover"
-          onError={() => setErrored(true)}
-        />
-      </div>
-    );
-  }
+  const reSearch = async () => {
+    setSearching(true);
+    invalidateCover(book);
+    try {
+      const u = await resolveCover({ ...book, cover_url: null }, { persist: !!book.id });
+      if (u) {
+        setSrc(u);
+        setErrored(false);
+        onCoverChange?.(u);
+        toast.success("Capa encontrada");
+      } else {
+        toast.error("Nenhuma capa encontrada — tente upload");
+      }
+    } finally {
+      setSearching(false);
+      setMenuOpen(false);
+    }
+  };
 
-  // Premium editorial placeholder
-  return (
+  const uploadFile = async (file: File) => {
+    if (!user || !book.id) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Imagem muito grande (máx 5MB)");
+      return;
+    }
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${user.id}/${book.id}-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("book-covers").upload(path, file, { cacheControl: "3600", upsert: true });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from("book-covers").getPublicUrl(path);
+      const { error: dbErr } = await supabase.from("books").update({ cover_url: data.publicUrl }).eq("id", book.id);
+      if (dbErr) throw dbErr;
+      invalidateCover(book);
+      setSrc(data.publicUrl);
+      setErrored(false);
+      onCoverChange?.(data.publicUrl);
+      toast.success("Capa atualizada");
+    } catch (e: any) {
+      toast.error(e?.message || "Erro no upload");
+    } finally {
+      setUploading(false);
+      setMenuOpen(false);
+    }
+  };
+
+  const showImage = src && !errored;
+  const overlay = (searching || uploading) && (
+    <div className="absolute inset-0 bg-background/70 backdrop-blur-sm flex items-center justify-center z-10 rounded-[inherit]">
+      <Loader2 className="w-5 h-5 animate-spin text-primary" />
+    </div>
+  );
+
+  const inner = showImage ? (
+    <div className={cn("book-cover relative", SIZES[size], className)}>
+      <img
+        src={src!}
+        alt={`Capa de ${book.title}`}
+        loading="lazy"
+        decoding="async"
+        className="w-full h-full object-cover"
+        onError={() => setErrored(true)}
+      />
+      {overlay}
+    </div>
+  ) : (
     <div
       className={cn(
         "book-cover relative flex flex-col items-center justify-center text-center p-3 border border-border/60",
@@ -83,6 +153,78 @@ export function BookCover({ book, size = "md", className, fallback = true }: Pro
           {book.authors[0]}
         </p>
       )}
+      {allowInteractive && (
+        <div className="absolute bottom-1.5 right-1.5 z-10 px-1.5 py-0.5 rounded-full bg-primary/90 text-primary-foreground text-[9px] font-medium uppercase tracking-wider opacity-90 group-hover:opacity-100 transition pointer-events-none">
+          Adicionar
+        </div>
+      )}
+      {overlay}
     </div>
+  );
+
+  if (!allowInteractive) return inner;
+
+  return (
+    <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label="Opções de capa"
+          className="group relative outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-md transition-transform hover:scale-[1.02] active:scale-[0.98]"
+        >
+          {inner}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="center" className="w-56 p-1.5">
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => e.target.files?.[0] && uploadFile(e.target.files[0])}
+        />
+        <input
+          ref={cameraRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => e.target.files?.[0] && uploadFile(e.target.files[0])}
+        />
+        <button
+          onClick={reSearch}
+          disabled={searching}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-muted transition-colors text-left"
+        >
+          {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4 text-primary" />}
+          <span>Buscar automaticamente</span>
+        </button>
+        <button
+          onClick={() => cameraRef.current?.click()}
+          disabled={uploading}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-muted transition-colors text-left"
+        >
+          <Camera className="w-4 h-4 text-primary" />
+          <span>Tirar foto</span>
+        </button>
+        <button
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-muted transition-colors text-left"
+        >
+          {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4 text-primary" />}
+          <span>Enviar imagem</span>
+        </button>
+        {showImage && (
+          <button
+            onClick={() => { setErrored(true); setSrc(null); reSearch(); }}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-muted transition-colors text-left text-muted-foreground"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Substituir capa atual</span>
+          </button>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
