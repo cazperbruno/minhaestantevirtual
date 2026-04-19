@@ -8,6 +8,7 @@ import { BookCard } from "@/components/books/BookCard";
 import { SearchAutocomplete } from "@/components/search/SearchAutocomplete";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { AddBookManualDialog } from "@/components/books/AddBookManualDialog";
 import { toast } from "sonner";
 
 const TRENDING = [
@@ -165,6 +166,12 @@ export default function SearchPage() {
                 </Button>
               </Link>
             </div>
+            <div className="mt-8 pt-6 border-t border-border/40 max-w-md mx-auto">
+              <p className="text-xs text-muted-foreground mb-3">
+                Não encontrou? Adicione você mesmo — entra direto na sua biblioteca.
+              </p>
+              <AddBookManualDialog initialTitle={activeQuery} />
+            </div>
           </div>
         )}
 
@@ -179,6 +186,10 @@ export default function SearchPage() {
               {results.map((b) => (
                 <BookCard key={b.id || b.source_id || `${b.title}-${b.authors?.[0] || ""}`} book={b} />
               ))}
+            </div>
+            <div className="mt-10 pt-6 border-t border-border/40 text-center">
+              <p className="text-sm text-muted-foreground mb-3">Não é nenhum desses?</p>
+              <AddBookManualDialog initialTitle={activeQuery} />
             </div>
           </div>
         )}

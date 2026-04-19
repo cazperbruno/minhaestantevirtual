@@ -126,6 +126,7 @@ export default function BookDetail() {
         onStatusChange={(s) => commit({ status: s })}
         onAddWishlist={() => commit({ status: "wishlist" })}
         onShare={share}
+        onBookUpdated={(b) => setBook(b)}
       />
 
       <div className="px-5 md:px-10 pb-20 max-w-6xl mx-auto grid md:grid-cols-[1fr_340px] gap-10 md:gap-14 mt-4">
