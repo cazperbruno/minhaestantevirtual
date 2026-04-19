@@ -8,7 +8,7 @@ import { BookHero } from "@/components/books/BookHero";
 import { BookSynopsis } from "@/components/books/BookSynopsis";
 import { BookSidePanel } from "@/components/books/BookSidePanel";
 import { ReviewSection } from "@/components/books/ReviewSection";
-import { Loader2 } from "lucide-react";
+import { BookDetailSkeleton } from "@/components/ui/skeletons";
 import { checkAchievements } from "@/lib/gamification";
 import { toast } from "sonner";
 
@@ -102,9 +102,7 @@ export default function BookDetail() {
   if (loading) {
     return (
       <AppShell>
-        <div className="flex items-center justify-center py-32">
-          <Loader2 className="w-7 h-7 animate-spin text-primary" />
-        </div>
+        <BookDetailSkeleton />
       </AppShell>
     );
   }

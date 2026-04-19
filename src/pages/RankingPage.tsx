@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Trophy, Medal, Loader2, BookOpen, Star } from "lucide-react";
+import { Trophy, Medal, BookOpen, Star } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { FollowButton } from "@/components/social/FollowButton";
+import { RankingSkeleton } from "@/components/ui/skeletons";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface RankRow {
   id: string;
@@ -57,13 +59,13 @@ export default function RankingPage() {
         </header>
 
         {loading ? (
-          <div className="flex justify-center py-20">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-          </div>
+          <RankingSkeleton count={8} />
         ) : rows.length === 0 ? (
-          <div className="glass rounded-2xl p-10 text-center">
-            <p className="text-muted-foreground">Ranking vazio. Seja o primeiro a ganhar XP!</p>
-          </div>
+          <EmptyState
+            icon={<Trophy />}
+            title="Ranking vazio"
+            description="Ainda não há leitores no ranking. Seja o primeiro a ganhar XP lendo e avaliando livros."
+          />
         ) : (
           <ol className="space-y-2">
             {rows.map((r) => {

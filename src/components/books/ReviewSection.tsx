@@ -131,7 +131,11 @@ export function ReviewSection({ bookId }: { bookId: string }) {
       )}
 
       {reviews.length === 0 ? (
-        <p className="text-muted-foreground italic text-sm">Nenhuma resenha ainda.</p>
+        <div className="glass rounded-2xl p-10 text-center">
+          <MessageSquare className="w-8 h-8 mx-auto text-primary/40 mb-3" />
+          <p className="font-display text-lg">Nenhuma resenha ainda</p>
+          <p className="text-muted-foreground text-sm mt-1">Seja a primeira pessoa a opinar sobre este livro.</p>
+        </div>
       ) : (
         <ul className="space-y-4">
           {reviews.map((r) => (

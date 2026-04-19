@@ -40,19 +40,40 @@ export default function ProfilePage() {
   const save = async () => {
     if (!user) return;
     setSaving(true);
+    const cleanUsername = (profile.username || "").trim().replace(/^@+/, "").toLowerCase();
     const { error } = await supabase.from("profiles").update({
       display_name: profile.display_name,
       bio: profile.bio,
-      username: profile.username,
+      username: cleanUsername || null,
     }).eq("id", user.id);
     if (error) toast.error("Erro ao salvar");
-    else toast.success("Perfil atualizado");
+    else {
+      setProfile({ ...profile, username: cleanUsername });
+      toast.success("Perfil atualizado");
+    }
     setSaving(false);
   };
 
   const logout = async () => { await supabase.auth.signOut(); window.location.href = "/auth"; };
 
-  if (!profile) return <AppShell><div className="p-10 text-muted-foreground">Carregando…</div></AppShell>;
+  if (!profile) return (
+    <AppShell>
+      <div className="px-5 md:px-10 pt-8 pb-16 max-w-3xl mx-auto space-y-6 animate-fade-in">
+        <div className="flex items-center gap-5">
+          <div className="w-20 h-20 rounded-full skeleton-shimmer" />
+          <div className="flex-1 space-y-3">
+            <div className="h-7 w-48 rounded skeleton-shimmer" />
+            <div className="h-3 w-40 rounded skeleton-shimmer" />
+            <div className="h-3 w-32 rounded skeleton-shimmer" />
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {[0,1,2].map(i => <div key={i} className="h-20 rounded-xl skeleton-shimmer" />)}
+        </div>
+        <div className="h-64 rounded-2xl skeleton-shimmer" />
+      </div>
+    </AppShell>
+  );
 
   return (
     <AppShell>

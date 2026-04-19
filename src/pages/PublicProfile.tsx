@@ -26,8 +26,9 @@ export default function PublicProfile() {
     if (!username) return;
     (async () => {
       setLoading(true);
+      const lookup = username.replace(/^@+/, "").toLowerCase();
       const { data: p } = await supabase
-        .from("profiles").select("*").eq("username", username).maybeSingle();
+        .from("profiles").select("*").eq("username", lookup).maybeSingle();
       if (!p) { setLoading(false); return; }
 
       const [{ data: lib }, { data: revs }, { count: followers }, { count: following }, { data: myFollow }] = await Promise.all([
@@ -114,7 +115,7 @@ export default function PublicProfile() {
               <h1 className="font-display text-3xl md:text-4xl font-bold leading-tight">
                 {profile.display_name || "Leitor"}
               </h1>
-              <p className="text-muted-foreground text-sm">@{profile.username}</p>
+              {profile.username && <p className="text-muted-foreground text-sm">@{profile.username.replace(/^@+/, "")}</p>}
               {profile.bio && <p className="text-sm md:text-base mt-3 max-w-xl text-foreground/80">{profile.bio}</p>}
             </div>
             <FollowButton targetUserId={profile.id} initiallyFollowing={stats.iFollow} size="default" />
