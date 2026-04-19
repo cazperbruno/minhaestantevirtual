@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { UserBook, BookStatus, STATUS_LABEL } from "@/types/book";
 import { LibraryShelf } from "@/components/books/LibraryShelf";
 import { BookCard } from "@/components/books/BookCard";
-import { Skeleton } from "@/components/ui/skeleton";
+import { ShelfSkeleton } from "@/components/ui/skeletons";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -136,16 +136,9 @@ export default function LibraryPage() {
 
         {/* Loading */}
         {loading ? (
-          <div className="space-y-10">
+          <div className="space-y-10 animate-fade-in">
             {[0, 1].map((i) => (
-              <div key={i} className="space-y-3">
-                <Skeleton className="h-7 w-48" />
-                <div className="flex gap-4 overflow-hidden">
-                  {Array.from({ length: 6 }).map((_, j) => (
-                    <Skeleton key={j} className="flex-none w-[140px] h-[210px] rounded-md" />
-                  ))}
-                </div>
-              </div>
+              <ShelfSkeleton key={i} />
             ))}
           </div>
         ) : totalCount === 0 ? (
