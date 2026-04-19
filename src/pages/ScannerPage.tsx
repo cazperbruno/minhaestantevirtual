@@ -106,8 +106,7 @@ export default function ScannerPage() {
         const track = stream?.getVideoTracks()[0];
         if (track) {
           trackRef.current = track;
-          // @ts-expect-error - getCapabilities is browser-specific
-          const caps = track.getCapabilities?.() || {};
+          const caps = (track.getCapabilities?.() ?? {}) as MediaTrackCapabilities & { torch?: boolean };
           if (caps.torch) setTorchSupported(true);
         }
       });
