@@ -728,6 +728,71 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Autocomplete: cache-first, then Open Library light search.
+    // Returns up to 8 suggestions ultra-fast for typeahead UX.
+    if (action === "suggest") {
+      const q = (url.searchParams.get("q") || "").trim();
+      if (q.length < 2) {
+        return new Response(JSON.stringify({ suggestions: [] }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // 1) Internal catalog first — instant, zero network
+      const { data: cached } = await supabase
+        .from("books")
+        .select("id,title,subtitle,authors,cover_url,published_year,isbn_13")
+        .or(`title.ilike.%${q}%,authors.cs.{${q}}`)
+        .limit(6);
+
+      const fromCache = (cached || []).map((b: any) => ({
+        id: b.id,
+        title: b.title,
+        subtitle: b.subtitle,
+        authors: b.authors || [],
+        cover_url: b.cover_url,
+        published_year: b.published_year,
+        source: "cache" as const,
+      }));
+
+      // 2) If we already have 6 from cache, return immediately
+      if (fromCache.length >= 6) {
+        return new Response(JSON.stringify({ suggestions: fromCache }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // 3) Top-up from Open Library (lightweight fields)
+      try {
+        const olUrl = `https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=${8 - fromCache.length}&fields=key,title,author_name,first_publish_year,cover_i,isbn`;
+        const { res } = await fetchWithRetry(olUrl, { label: `OL-suggest:${q}`, timeoutMs: 3500, retries: 0 });
+        const fromOL: any[] = [];
+        if (res && res.ok) {
+          const j = await res.json();
+          for (const d of (j.docs || [])) {
+            fromOL.push({
+              id: null,
+              title: d.title || "Sem título",
+              subtitle: null,
+              authors: d.author_name || [],
+              cover_url: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg` : null,
+              published_year: d.first_publish_year || null,
+              source: "openlibrary" as const,
+              isbn: (d.isbn || [])[0] || null,
+            });
+          }
+        }
+        return new Response(
+          JSON.stringify({ suggestions: [...fromCache, ...fromOL].slice(0, 8) }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      } catch {
+        return new Response(JSON.stringify({ suggestions: fromCache }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     return new Response(JSON.stringify({ error: "Ação inválida" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

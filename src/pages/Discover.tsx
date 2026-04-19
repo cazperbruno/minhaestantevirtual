@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Book, UserBook } from "@/types/book";
 import { BookCard } from "@/components/books/BookCard";
-import { Link } from "react-router-dom";
-import { Search, Sparkles, TrendingUp, Library, Wand2 } from "lucide-react";
+import { BookCover } from "@/components/books/BookCover";
+import { SearchAutocomplete } from "@/components/search/SearchAutocomplete";
+import { Sparkles, TrendingUp, Wand2, ChevronRight, Library, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -29,7 +31,6 @@ export default function Discover() {
 
   useEffect(() => {
     (async () => {
-      // Fetch user's currently reading
       if (user) {
         const { data } = await supabase
           .from("user_books")
@@ -40,7 +41,6 @@ export default function Discover() {
           .limit(8);
         setReading((data as UserBook[]) || []);
       }
-      // Fetch shelves in parallel
       const shelvesData: Record<string, Book[]> = {};
       await Promise.all(
         FEATURED_QUERIES.map(async ({ label, q }) => {
@@ -95,39 +95,91 @@ export default function Discover() {
     }
   };
 
+  const featured = reading[0]?.book ?? shelves["Clássicos universais"]?.[0] ?? null;
+
   return (
     <AppShell>
-      <div className="px-5 md:px-10 pt-8 md:pt-12 pb-16 max-w-7xl mx-auto">
-        {/* Hero */}
+      <div className="px-5 md:px-10 pt-8 md:pt-12 pb-20 max-w-7xl mx-auto">
+        {/* Hero — Apple Books style */}
         <header className="mb-10 animate-fade-in">
           <p className="text-sm text-primary font-medium mb-2 flex items-center gap-2">
-            <Sparkles className="w-4 h-4" /> Bem-vindo à Página
+            <Sparkles className="w-4 h-4" /> Bem-vindo
           </p>
-          <h1 className="font-display text-4xl md:text-6xl font-bold leading-[1.05] mb-4">
+          <h1 className="font-display text-4xl md:text-6xl font-bold leading-[1.05] mb-4 max-w-3xl">
             Cada livro merece <span className="text-gradient-gold italic">um lugar</span>
           </h1>
-          <p className="text-muted-foreground text-lg max-w-xl">
-            Descubra, organize e celebre suas leituras em um único lugar. Curado para quem ama livros.
+          <p className="text-muted-foreground text-lg max-w-xl mb-6">
+            Descubra, organize e celebre suas leituras em um único lugar.
           </p>
-          <div className="flex flex-wrap gap-3 mt-6">
-            <Link to="/buscar">
-              <Button variant="hero" size="lg" className="gap-2">
-                <Search className="w-4 h-4" /> Buscar livros
+
+          <div className="max-w-2xl">
+            <SearchAutocomplete placeholder="Buscar livros, autores ou ISBN…" />
+          </div>
+
+          <div className="flex flex-wrap gap-2 mt-4">
+            <Link to="/biblioteca">
+              <Button variant="outline" size="sm" className="gap-1.5 rounded-full">
+                <Library className="w-3.5 h-3.5" /> Minha biblioteca
               </Button>
             </Link>
-            <Link to="/biblioteca">
-              <Button variant="outline" size="lg" className="gap-2">
-                <Library className="w-4 h-4" /> Minha biblioteca
+            <Link to="/scanner">
+              <Button variant="outline" size="sm" className="gap-1.5 rounded-full">
+                <ScanLine className="w-3.5 h-3.5" /> Scanner
               </Button>
             </Link>
           </div>
         </header>
 
-        {/* Continue lendo */}
-        {reading.length > 0 && (
+        {/* Editorial featured card */}
+        {featured && !loading && (
+          <Link
+            to={featured.id ? `/livro/${featured.id}` : "/biblioteca"}
+            className="block mb-12 group animate-slide-up"
+          >
+            <div className="relative overflow-hidden rounded-2xl glass p-6 md:p-8">
+              {featured.cover_url && (
+                <div
+                  aria-hidden
+                  className="absolute inset-0 -z-10 opacity-30"
+                  style={{
+                    backgroundImage: `url(${featured.cover_url})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    filter: "blur(60px) saturate(140%)",
+                  }}
+                />
+              )}
+              <div className="grid md:grid-cols-[160px_1fr] gap-6 items-center">
+                <BookCover book={featured} size="lg" className="shrink-0 group-hover:scale-105 transition-transform" />
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-primary mb-2">
+                    {reading[0] ? "Continue lendo" : "Em destaque"}
+                  </p>
+                  <h2 className="font-display text-2xl md:text-3xl font-bold leading-tight group-hover:text-primary transition-colors">
+                    {featured.title}
+                  </h2>
+                  {featured.authors?.[0] && (
+                    <p className="text-muted-foreground mt-1">{featured.authors.join(", ")}</p>
+                  )}
+                  {featured.description && (
+                    <p className="text-sm text-muted-foreground mt-3 line-clamp-2 max-w-xl">
+                      {featured.description}
+                    </p>
+                  )}
+                  <span className="inline-flex items-center gap-1 mt-4 text-sm text-primary font-medium">
+                    Abrir <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                  </span>
+                </div>
+              </div>
+            </div>
+          </Link>
+        )}
+
+        {/* Continue lendo (se mais de 1) */}
+        {reading.length > 1 && (
           <Section title="Continue lendo" icon={<TrendingUp className="w-4 h-4 text-primary" />}>
             <Shelf>
-              {reading.map((ub) => ub.book && (
+              {reading.slice(1).map((ub) => ub.book && (
                 <BookCard key={ub.id} book={ub.book} size="md" />
               ))}
             </Shelf>
@@ -177,32 +229,50 @@ export default function Discover() {
               <Section key={s.label} title={s.label}>
                 <Shelf>
                   {Array.from({ length: 6 }).map((_, i) => (
-                    <Skeleton key={i} className="w-28 h-44 rounded-md" />
+                    <Skeleton key={i} className="w-28 h-44 rounded-md shrink-0" />
                   ))}
                 </Shelf>
               </Section>
             ))
           : Object.entries(shelves).map(([label, books]) => (
-              <Section key={label} title={label}>
-                <Shelf>
-                  {books.map((b, i) => (
-                    <BookCard key={b.id ?? `${label}-${i}`} book={b} size="md" />
-                  ))}
-                </Shelf>
-              </Section>
+              books.length > 0 && (
+                <Section
+                  key={label}
+                  title={label}
+                  action={
+                    <Link
+                      to={`/buscar?q=${encodeURIComponent(FEATURED_QUERIES.find((f) => f.label === label)?.q || label)}`}
+                      className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
+                    >
+                      Ver mais <ChevronRight className="w-3.5 h-3.5" />
+                    </Link>
+                  }
+                >
+                  <Shelf>
+                    {books.map((b, i) => (
+                      <div key={b.id ?? `${label}-${i}`} className="shrink-0 w-28 md:w-auto">
+                        <BookCard book={b} size="md" />
+                      </div>
+                    ))}
+                  </Shelf>
+                </Section>
+              )
             ))}
       </div>
     </AppShell>
   );
 }
 
-function Section({ title, icon, children }: { title: string; icon?: React.ReactNode; children: React.ReactNode }) {
+function Section({
+  title, icon, action, children,
+}: { title: string; icon?: React.ReactNode; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="mb-10 animate-slide-up">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-display text-2xl font-semibold flex items-center gap-2">
           {icon} {title}
         </h2>
+        {action}
       </div>
       {children}
     </section>
@@ -210,6 +280,7 @@ function Section({ title, icon, children }: { title: string; icon?: React.ReactN
 }
 
 function Shelf({ children }: { children: React.ReactNode }) {
+  // "Peek" effect: last items partially visible to suggest scrollability
   return (
     <div className="flex gap-5 overflow-x-auto scrollbar-hide -mx-5 px-5 md:mx-0 md:px-0 md:grid md:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] pb-2">
       {children}

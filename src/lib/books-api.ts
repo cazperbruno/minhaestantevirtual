@@ -44,6 +44,32 @@ export async function saveBook(book: Partial<Book>): Promise<Book | null> {
   return j.book;
 }
 
+export interface SearchSuggestion {
+  id: string | null;
+  title: string;
+  subtitle?: string | null;
+  authors: string[];
+  cover_url: string | null;
+  published_year?: number | null;
+  source: "cache" | "openlibrary";
+  isbn?: string | null;
+}
+
+export async function suggestBooks(query: string, signal?: AbortSignal): Promise<SearchSuggestion[]> {
+  if (!query || query.trim().length < 2) return [];
+  try {
+    const r = await fetch(`${FN_URL}?action=suggest&q=${encodeURIComponent(query)}`, {
+      headers: await authHeaders(),
+      signal,
+    });
+    if (!r.ok) return [];
+    const j = await r.json();
+    return j.suggestions || [];
+  } catch {
+    return [];
+  }
+}
+
 export async function recognizeCover(imageBase64: string): Promise<{ query: string; title?: string; author?: string; confidence: number }> {
   const r = await fetch(COVER_FN, {
     method: "POST",
