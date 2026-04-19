@@ -21,30 +21,24 @@ export function FollowButton({ targetUserId, initiallyFollowing = false, size = 
   if (!user || user.id === targetUserId) return null;
 
   const toggle = async () => {
+    if (loading) return;
+    const wasFollowing = following;
+    // optimistic
+    setFollowing(!wasFollowing);
+    onChange?.(!wasFollowing);
     setLoading(true);
-    if (following) {
-      const { error } = await supabase
-        .from("follows")
-        .delete()
-        .eq("follower_id", user.id)
-        .eq("following_id", targetUserId);
-      if (error) toast.error("Erro ao deixar de seguir");
-      else {
-        setFollowing(false);
-        onChange?.(false);
-      }
-    } else {
-      const { error } = await supabase
-        .from("follows")
-        .insert({ follower_id: user.id, following_id: targetUserId });
-      if (error) toast.error("Erro ao seguir");
-      else {
-        setFollowing(true);
-        onChange?.(true);
-        toast.success("Seguindo");
-      }
-    }
+    const { error } = wasFollowing
+      ? await supabase.from("follows").delete().eq("follower_id", user.id).eq("following_id", targetUserId)
+      : await supabase.from("follows").insert({ follower_id: user.id, following_id: targetUserId });
     setLoading(false);
+    if (error) {
+      // rollback
+      setFollowing(wasFollowing);
+      onChange?.(wasFollowing);
+      toast.error(wasFollowing ? "Erro ao deixar de seguir" : "Erro ao seguir");
+    } else if (!wasFollowing) {
+      toast.success("Seguindo");
+    }
   };
 
   return (
@@ -53,10 +47,9 @@ export function FollowButton({ targetUserId, initiallyFollowing = false, size = 
       variant={following ? "outline" : "hero"}
       onClick={toggle}
       disabled={loading}
-      className={cn("gap-1.5", size === "sm" && "h-8 text-xs")}
+      className={cn("gap-1.5 tap-scale", size === "sm" && "h-8 text-xs")}
     >
-      {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> :
-        following ? <UserCheck className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
+      {following ? <UserCheck className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
       {following ? "Seguindo" : "Seguir"}
     </Button>
   );
