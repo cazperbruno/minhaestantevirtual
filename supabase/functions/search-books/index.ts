@@ -84,8 +84,16 @@ function normalizeIsbn(input: string): { isbn13: string | null; isbn10: string |
 }
 
 // ============================================================
-// 2) Robust fetch with timeout + retry
+// 2) Robust fetch with timeout + retry + circuit breaker
 // ============================================================
+// In-memory circuit breaker to avoid hammering rate-limited APIs across requests
+// (the runtime reuses isolates, so this state persists across invocations on the same instance).
+const breaker: Record<string, { until: number }> = {};
+const isBreakerOpen = (key: string) => (breaker[key]?.until ?? 0) > Date.now();
+const tripBreaker = (key: string, ms: number) => {
+  breaker[key] = { until: Date.now() + ms };
+  console.warn(`[breaker] ${key} OPEN for ${ms}ms`);
+};
 async function fetchWithRetry(
   url: string,
   opts: { timeoutMs?: number; retries?: number; label?: string } = {},
