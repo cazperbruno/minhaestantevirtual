@@ -433,7 +433,8 @@ async function lookupIsbnCascade(
     { name: "openlibrary-bibkeys", fn: lookupOpenLibraryBibkeys },
     { name: "google-books", fn: lookupGoogleBooks },
     { name: "openlibrary-isbn", fn: lookupOpenLibraryIsbnEndpoint },
-    { name: "isbndb", fn: lookupIsbnDb },
+    { name: "library-of-congress", fn: lookupLibraryOfCongress },
+    { name: "worldcat-classify", fn: lookupWorldcatClassify },
   ];
 
   for (const s of sources) {
