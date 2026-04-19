@@ -552,9 +552,18 @@ async function searchOpenLibrary(query: string, lang = "por"): Promise<Normalize
 }
 
 async function searchGoogleBooks(query: string, lang = "pt"): Promise<NormalizedBook[]> {
+  if (isBreakerOpen("google-books")) {
+    console.log(`[Google-search] breaker OPEN, skipping query "${query}"`);
+    return [];
+  }
   const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&langRestrict=${lang}&maxResults=20`;
   const { res } = await fetchWithRetry(url, { label: `Google-search:${query}` });
-  if (!res || !res.ok) return [];
+  if (!res) return [];
+  if (res.status === 429 || res.status === 503) {
+    tripBreaker("google-books", 90_000);
+    return [];
+  }
+  if (!res.ok) return [];
   try {
     const j = await res.json();
     if (j.error) return [];
