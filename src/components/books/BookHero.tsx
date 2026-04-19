@@ -8,7 +8,8 @@ import {
 } from "@/components/ui/select";
 import { InstagramShareCard } from "./InstagramShareCard";
 import { BookChat } from "./BookChat";
-import { Heart, ShoppingBag, Share2, Plus, Loader2 } from "lucide-react";
+import { EditBookDialog } from "./EditBookDialog";
+import { Heart, ShoppingBag, Share2, Plus, Loader2, Pencil } from "lucide-react";
 
 interface Props {
   book: Book;
@@ -17,9 +18,10 @@ interface Props {
   onStatusChange: (s: BookStatus) => void;
   onAddWishlist: () => void;
   onShare: () => void;
+  onBookUpdated?: (b: Book) => void;
 }
 
-export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onShare }: Props) {
+export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onShare, onBookUpdated }: Props) {
   const amazonUrl = `https://www.amazon.com.br/s?k=${encodeURIComponent(
     book.isbn_13 || `${book.title} ${book.authors[0] || ""}`,
   )}&tag=`;
@@ -160,6 +162,17 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
                   <span className="hidden sm:inline">Amazon</span>
                 </Button>
               </a>
+
+              <EditBookDialog
+                book={book}
+                onUpdated={onBookUpdated}
+                trigger={
+                  <Button variant="outline" size="lg" className="gap-2" aria-label="Editar livro">
+                    <Pencil className="w-4 h-4" />
+                    <span className="hidden sm:inline">Editar</span>
+                  </Button>
+                }
+              />
             </div>
           </div>
         </div>
