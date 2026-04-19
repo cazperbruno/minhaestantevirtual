@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Trophy, Medal, Loader2, BookOpen, Star } from "lucide-react";
+import { Trophy, Medal, BookOpen, Star } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { FollowButton } from "@/components/social/FollowButton";
+import { RankingSkeleton } from "@/components/ui/skeletons";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface RankRow {
   id: string;

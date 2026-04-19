@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
-import { Target, Flame, Calendar, Loader2, BookOpen } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Target, Flame, Calendar, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 
 export default function GoalsPage() {
@@ -77,8 +78,10 @@ export default function GoalsPage() {
         </header>
 
         {loading ? (
-          <div className="flex justify-center py-20">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <div className="space-y-6 animate-fade-in">
+            <Skeleton className="h-40 rounded-2xl" />
+            <Skeleton className="h-24 rounded-2xl" />
+            <Skeleton className="h-44 rounded-2xl" />
           </div>
         ) : (
           <div className="space-y-6">
