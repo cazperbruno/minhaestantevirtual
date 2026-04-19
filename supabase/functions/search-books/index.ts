@@ -84,8 +84,16 @@ function normalizeIsbn(input: string): { isbn13: string | null; isbn10: string |
 }
 
 // ============================================================
-// 2) Robust fetch with timeout + retry
+// 2) Robust fetch with timeout + retry + circuit breaker
 // ============================================================
+// In-memory circuit breaker to avoid hammering rate-limited APIs across requests
+// (the runtime reuses isolates, so this state persists across invocations on the same instance).
+const breaker: Record<string, { until: number }> = {};
+const isBreakerOpen = (key: string) => (breaker[key]?.until ?? 0) > Date.now();
+const tripBreaker = (key: string, ms: number) => {
+  breaker[key] = { until: Date.now() + ms };
+  console.warn(`[breaker] ${key} OPEN for ${ms}ms`);
+};
 async function fetchWithRetry(
   url: string,
   opts: { timeoutMs?: number; retries?: number; label?: string } = {},
@@ -282,11 +290,20 @@ async function lookupOpenLibraryIsbnEndpoint(isbn: string): Promise<NormalizedBo
 }
 
 async function lookupGoogleBooks(isbn: string): Promise<NormalizedBook | null> {
+  if (isBreakerOpen("google-books")) {
+    console.log(`[Google] breaker OPEN, skipping ISBN ${isbn}`);
+    return null;
+  }
   const { res, ms, attempt } = await fetchWithRetry(
     `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`,
     { label: `Google:${isbn}` },
   );
-  if (!res || !res.ok) return null;
+  if (!res) return null;
+  if (res.status === 429 || res.status === 503) {
+    tripBreaker("google-books", 90_000);
+    return null;
+  }
+  if (!res.ok) return null;
   try {
     const j = await res.json();
     if (j.error) {
@@ -298,6 +315,66 @@ async function lookupGoogleBooks(isbn: string): Promise<NormalizedBook | null> {
       return normalizeGoogleBook(j.items[0]);
     }
     return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * BrasilAPI — agrega CBL, Mercado Editorial, Open Library e Google Books.
+ * Cobertura excelente para livros brasileiros. Sem chave, sem rate-limit agressivo.
+ */
+async function lookupBrasilApi(isbn: string): Promise<NormalizedBook | null> {
+  const { res, ms, attempt } = await fetchWithRetry(
+    `https://brasilapi.com.br/api/isbn/v1/${isbn}`,
+    { label: `BrasilAPI:${isbn}`, timeoutMs: 7000 },
+  );
+  if (!res || !res.ok) return null;
+  try {
+    const j = await res.json();
+    if (!j?.title) return null;
+    console.log(`[BrasilAPI] hit ISBN ${isbn} via ${j.provider || "?"} in ${ms}ms (attempt ${attempt})`);
+    const yearStr = j.year ?? j.publish_date ?? null;
+    const year = yearStr ? parseInt(String(yearStr).slice(0, 4)) || null : null;
+    return {
+      isbn_13: j.isbn?.length === 13 ? j.isbn : (isbn.length === 13 ? isbn : null),
+      isbn_10: j.isbn?.length === 10 ? j.isbn : (isbn.length === 10 ? isbn : null),
+      title: j.title,
+      subtitle: j.subtitle || null,
+      authors: Array.isArray(j.authors) ? j.authors : (j.authors ? [j.authors] : []),
+      publisher: j.publisher || null,
+      published_year: year,
+      description: j.synopsis || null,
+      cover_url: j.cover_url || null,
+      page_count: j.page_count || null,
+      language: j.language || null,
+      categories: Array.isArray(j.subjects) ? j.subjects.slice(0, 8) : [],
+      source: `brasilapi:${j.provider || "agg"}`,
+      source_id: j.isbn || isbn,
+      raw: j,
+    };
+  } catch (e) {
+    console.warn(`[BrasilAPI] parse error: ${(e as Error).message}`);
+    return null;
+  }
+}
+
+/**
+ * Open Library Search by ISBN — mais tolerante que /api/books quando há
+ * variações de edição. Retorna doc com possíveis covers e metadata mesmo
+ * quando /isbn/<X>.json devolve 404.
+ */
+async function lookupOpenLibrarySearch(isbn: string): Promise<NormalizedBook | null> {
+  const { res, ms, attempt } = await fetchWithRetry(
+    `https://openlibrary.org/search.json?isbn=${isbn}&limit=1`,
+    { label: `OL-isbn-search:${isbn}` },
+  );
+  if (!res || !res.ok) return null;
+  try {
+    const j = await res.json();
+    if (!j?.docs?.[0]) return null;
+    console.log(`[OL-isbn-search] hit ISBN ${isbn} in ${ms}ms (attempt ${attempt})`);
+    return normalizeOpenLibraryDoc(j.docs[0]);
   } catch {
     return null;
   }
@@ -430,11 +507,13 @@ async function lookupIsbnCascade(
   console.log(`[Cascade] start ISBN ${isbnLabel}`);
 
   const sources: Array<{ name: string; fn: (isbn: string) => Promise<NormalizedBook | null> }> = [
+    { name: "brasilapi", fn: lookupBrasilApi },
     { name: "openlibrary-bibkeys", fn: lookupOpenLibraryBibkeys },
-    { name: "google-books", fn: lookupGoogleBooks },
+    { name: "openlibrary-isbn-search", fn: lookupOpenLibrarySearch },
     { name: "openlibrary-isbn", fn: lookupOpenLibraryIsbnEndpoint },
     { name: "library-of-congress", fn: lookupLibraryOfCongress },
     { name: "worldcat-classify", fn: lookupWorldcatClassify },
+    { name: "google-books", fn: lookupGoogleBooks },
   ];
 
   for (const s of sources) {
@@ -473,9 +552,18 @@ async function searchOpenLibrary(query: string, lang = "por"): Promise<Normalize
 }
 
 async function searchGoogleBooks(query: string, lang = "pt"): Promise<NormalizedBook[]> {
+  if (isBreakerOpen("google-books")) {
+    console.log(`[Google-search] breaker OPEN, skipping query "${query}"`);
+    return [];
+  }
   const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&langRestrict=${lang}&maxResults=20`;
   const { res } = await fetchWithRetry(url, { label: `Google-search:${query}` });
-  if (!res || !res.ok) return [];
+  if (!res) return [];
+  if (res.status === 429 || res.status === 503) {
+    tripBreaker("google-books", 90_000);
+    return [];
+  }
+  if (!res.ok) return [];
   try {
     const j = await res.json();
     if (j.error) return [];
