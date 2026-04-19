@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Camera, Loader2, ScanBarcode, Upload, Sparkles, X } from "lucide-react";
+import { Camera, Loader2, ScanBarcode, Upload, Sparkles, X, Search, BookX } from "lucide-react";
 import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 import { lookupIsbn, recognizeCover, searchBooksGet } from "@/lib/books-api";
@@ -24,6 +24,7 @@ export default function ScannerPage() {
   const [manualIsbn, setManualIsbn] = useState("");
   const [results, setResults] = useState<Book[]>([]);
   const [recognized, setRecognized] = useState<{ title?: string; author?: string } | null>(null);
+  const [notFoundIsbn, setNotFoundIsbn] = useState<string | null>(null);
 
   useEffect(() => () => { controlsRef.current?.stop(); }, []);
 
@@ -58,13 +59,15 @@ export default function ScannerPage() {
 
   const resolveIsbn = async (isbn: string) => {
     setBusy(true);
+    setNotFoundIsbn(null);
     try {
       const book = await lookupIsbn(isbn);
       if (book?.id) {
         toast.success("Livro encontrado");
         navigate(`/livro/${book.id}`);
       } else {
-        toast.error("ISBN não encontrado nos catálogos");
+        setNotFoundIsbn(isbn);
+        toast.error("ISBN não encontrado. Tente buscar por título.");
       }
     } catch (e: any) {
       toast.error(e.message || "Erro");
