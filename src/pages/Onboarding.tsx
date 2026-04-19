@@ -116,6 +116,7 @@ export default function Onboarding() {
     await supabase.from("profiles").update({
       onboarded_at: new Date().toISOString(),
     }).eq("id", user.id);
+    window.dispatchEvent(new CustomEvent("onboarding:completed"));
     navigate("/", { replace: true });
   };
 
