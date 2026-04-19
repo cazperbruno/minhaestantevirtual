@@ -12,12 +12,19 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) { setOnboardedKnown(null); return; }
     let cancelled = false;
-    (async () => {
+    const check = async () => {
       const { data } = await supabase.from("profiles")
         .select("onboarded_at").eq("id", user.id).maybeSingle();
       if (!cancelled) setOnboardedKnown(!!data?.onboarded_at);
-    })();
-    return () => { cancelled = true; };
+    };
+    check();
+    // Re-check when onboarding completes (custom event dispatched by Onboarding.tsx)
+    const handler = () => check();
+    window.addEventListener("onboarding:completed", handler);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("onboarding:completed", handler);
+    };
   }, [user]);
 
   if (loading || (user && onboardedKnown === null)) {
