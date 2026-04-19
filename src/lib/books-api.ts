@@ -26,8 +26,8 @@ export async function lookupIsbn(isbn: string): Promise<Book | null> {
   const r = await fetch(`${FN_URL}?action=isbn&isbn=${encodeURIComponent(isbn)}`, {
     headers: await authHeaders(),
   });
-  const j = await r.json().catch(() => ({}));
-  if (r.status === 404) return null; // não encontrado em nenhuma fonte
+  const j: any = await r.json().catch(() => ({}));
+  if (r.status === 404 || j?.notFound || j?.book === null) return null;
   if (r.status === 400) throw new Error(j.error || "ISBN inválido");
   if (!r.ok) throw new Error(j.error || "Falha na busca por ISBN");
   return j.book ?? null;

@@ -665,8 +665,8 @@ Deno.serve(async (req) => {
       const { book, sourcesTried } = await lookupIsbnCascade(variants);
       if (!book) {
         return new Response(
-          JSON.stringify({ book: null, sourcesTried, error: "Livro não encontrado em nenhuma fonte." }),
-          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          JSON.stringify({ book: null, notFound: true, sourcesTried, error: "Livro não encontrado em nenhuma fonte." }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
       const saved = await persistBook(supabase, book);
