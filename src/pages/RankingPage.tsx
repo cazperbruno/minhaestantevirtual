@@ -59,13 +59,13 @@ export default function RankingPage() {
         </header>
 
         {loading ? (
-          <div className="flex justify-center py-20">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-          </div>
+          <RankingSkeleton count={8} />
         ) : rows.length === 0 ? (
-          <div className="glass rounded-2xl p-10 text-center">
-            <p className="text-muted-foreground">Ranking vazio. Seja o primeiro a ganhar XP!</p>
-          </div>
+          <EmptyState
+            icon={<Trophy />}
+            title="Ranking vazio"
+            description="Ainda não há leitores no ranking. Seja o primeiro a ganhar XP lendo e avaliando livros."
+          />
         ) : (
           <ol className="space-y-2">
             {rows.map((r) => {
