@@ -100,6 +100,7 @@ export default function Onboarding() {
           target_books: goal,
         }, { onConflict: "user_id,year" } as any),
       ]);
+      window.dispatchEvent(new CustomEvent("onboarding:completed"));
       toast.success("Tudo pronto!");
       navigate("/", { replace: true });
     } catch (e) {
@@ -115,6 +116,7 @@ export default function Onboarding() {
     await supabase.from("profiles").update({
       onboarded_at: new Date().toISOString(),
     }).eq("id", user.id);
+    window.dispatchEvent(new CustomEvent("onboarding:completed"));
     navigate("/", { replace: true });
   };
 
