@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { checkAchievements } from "@/lib/gamification";
+import { ReviewListSkeleton } from "@/components/ui/skeletons";
 
 interface Review {
   id: string;
@@ -29,8 +30,10 @@ export function ReviewSection({ bookId }: { bookId: string }) {
   const [text, setText] = useState("");
   const [rating, setRating] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const load = async () => {
+    setLoading(true);
     const { data: revs } = await supabase
       .from("reviews")
       .select("*")
@@ -58,6 +61,7 @@ export function ReviewSection({ bookId }: { bookId: string }) {
       setText(mine.content);
       setRating(mine.rating ?? 0);
     }
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -130,14 +134,16 @@ export function ReviewSection({ bookId }: { bookId: string }) {
         </div>
       )}
 
-      {reviews.length === 0 ? (
-        <div className="glass rounded-2xl p-10 text-center">
+      {loading ? (
+        <ReviewListSkeleton count={3} />
+      ) : reviews.length === 0 ? (
+        <div className="glass rounded-2xl p-10 text-center animate-fade-in">
           <MessageSquare className="w-8 h-8 mx-auto text-primary/40 mb-3" />
           <p className="font-display text-lg">Nenhuma resenha ainda</p>
           <p className="text-muted-foreground text-sm mt-1">Seja a primeira pessoa a opinar sobre este livro.</p>
         </div>
       ) : (
-        <ul className="space-y-4">
+        <ul className="space-y-4 animate-stagger">
           {reviews.map((r) => (
             <li key={r.id} className="glass rounded-xl p-4">
               <div className="flex items-start gap-3 mb-2">

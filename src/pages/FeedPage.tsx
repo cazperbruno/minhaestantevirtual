@@ -99,21 +99,28 @@ export default function FeedPage() {
       toast.error("Entre para curtir");
       return;
     }
+    const wasLiked = rev.liked_by_me;
+    // optimistic
     setReviews((prev) =>
       prev.map((r) =>
         r.id === rev.id
-          ? {
-              ...r,
-              liked_by_me: !r.liked_by_me,
-              likes_count: r.likes_count + (r.liked_by_me ? -1 : 1),
-            }
+          ? { ...r, liked_by_me: !wasLiked, likes_count: r.likes_count + (wasLiked ? -1 : 1) }
           : r,
       ),
     );
-    if (rev.liked_by_me) {
-      await supabase.from("review_likes").delete().eq("review_id", rev.id).eq("user_id", user.id);
-    } else {
-      await supabase.from("review_likes").insert({ review_id: rev.id, user_id: user.id });
+    const { error } = wasLiked
+      ? await supabase.from("review_likes").delete().eq("review_id", rev.id).eq("user_id", user.id)
+      : await supabase.from("review_likes").insert({ review_id: rev.id, user_id: user.id });
+    if (error) {
+      // rollback
+      setReviews((prev) =>
+        prev.map((r) =>
+          r.id === rev.id
+            ? { ...r, liked_by_me: wasLiked, likes_count: r.likes_count + (wasLiked ? 1 : -1) }
+            : r,
+        ),
+      );
+      toast.error("Não foi possível atualizar o like");
     }
   };
 

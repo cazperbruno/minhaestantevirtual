@@ -282,7 +282,7 @@ function Section({
 function Shelf({ children }: { children: React.ReactNode }) {
   // "Peek" effect: last items partially visible to suggest scrollability
   return (
-    <div className="flex gap-5 overflow-x-auto scrollbar-hide -mx-5 px-5 md:mx-0 md:px-0 md:grid md:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] pb-2">
+    <div className="flex gap-5 overflow-x-auto scrollbar-hide scroll-snap-x animate-stagger -mx-5 px-5 md:mx-0 md:px-0 md:grid md:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] pb-2 gpu">
       {children}
     </div>
   );
