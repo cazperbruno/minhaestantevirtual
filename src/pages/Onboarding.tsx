@@ -100,6 +100,7 @@ export default function Onboarding() {
           target_books: goal,
         }, { onConflict: "user_id,year" } as any),
       ]);
+      window.dispatchEvent(new CustomEvent("onboarding:completed"));
       toast.success("Tudo pronto!");
       navigate("/", { replace: true });
     } catch (e) {
