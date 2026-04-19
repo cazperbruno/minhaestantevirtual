@@ -5,7 +5,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { UserBook } from "@/types/book";
 import { BookCard } from "@/components/books/BookCard";
 import { Button } from "@/components/ui/button";
-import { Heart, Share2, ShoppingBag, ExternalLink } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ListRowSkeleton } from "@/components/ui/skeletons";
+import { Heart, Share2, ShoppingBag, ExternalLink, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -51,18 +53,24 @@ export default function WishlistPage() {
         </header>
 
         {loading ? (
-          <div className="text-muted-foreground">Carregando…</div>
+          <ListRowSkeleton count={5} />
         ) : items.length === 0 ? (
-          <div className="text-center py-20">
-            <Heart className="w-12 h-12 text-status-wishlist/40 mx-auto mb-4" />
-            <p className="font-display text-xl">Nenhum desejo ainda</p>
-            <p className="text-muted-foreground mb-4">Adicione livros que quer ler em breve.</p>
-            <Link to="/buscar"><Button variant="hero">Buscar livros</Button></Link>
-          </div>
+          <EmptyState
+            icon={<Heart />}
+            title="Nenhum desejo ainda"
+            description="Salve aqui os livros que você quer ler em breve. Acompanhe-os e compartilhe com quem quiser presentear você."
+            action={
+              <Link to="/buscar">
+                <Button variant="hero" className="gap-2 tap-scale">
+                  <Search className="w-4 h-4" /> Buscar livros
+                </Button>
+              </Link>
+            }
+          />
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3 animate-stagger">
             {items.map((ub) => ub.book && (
-              <div key={ub.id} className="glass rounded-xl p-4 flex gap-4 items-center hover:shadow-card transition-shadow animate-fade-in">
+              <div key={ub.id} className="glass rounded-xl p-4 flex gap-4 items-center hover:border-primary/30 hover:shadow-card transition-all tap-scale">
                 <Link to={`/livro/${ub.book.id}`} className="shrink-0">
                   <BookCard book={ub.book} size="sm" showMeta={false} />
                 </Link>
@@ -76,7 +84,7 @@ export default function WishlistPage() {
                   href={`https://www.amazon.com.br/s?k=${encodeURIComponent(ub.book.isbn_13 || ub.book.title)}`}
                   target="_blank" rel="noopener noreferrer"
                 >
-                  <Button variant="outline" size="sm" className="gap-2">
+                  <Button variant="outline" size="sm" className="gap-2 tap-scale">
                     <ShoppingBag className="w-3.5 h-3.5" /> Amazon <ExternalLink className="w-3 h-3" />
                   </Button>
                 </a>

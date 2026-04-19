@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import { Book } from "@/types/book";
 import { BookCover } from "@/components/books/BookCover";
 import { Link } from "react-router-dom";
+import { ListRowSkeleton, StatsRowSkeleton } from "@/components/ui/skeletons";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type Loan = {
   id: string;
