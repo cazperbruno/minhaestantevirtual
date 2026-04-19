@@ -144,7 +144,7 @@ export function AddBookManualDialog({ initialTitle, trigger, onCreated }: Props)
 
         <div className="grid md:grid-cols-[160px_1fr] gap-5 pt-2">
           <div className="space-y-2">
-            <BookCover book={previewBook} size="lg" fallback={false} className="mx-auto" />
+            <BookCover book={previewBook} size="lg" fallback={false} interactive={false} className="mx-auto" />
             <label className="cursor-pointer block">
               <input type="file" accept="image/*" className="hidden"
                 onChange={(e) => e.target.files?.[0] && uploadCover(e.target.files[0])} />

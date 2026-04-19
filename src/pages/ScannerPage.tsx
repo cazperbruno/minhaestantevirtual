@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Camera, Loader2, ScanBarcode, Upload, Sparkles, X, Search, BookX } from "lucide-react";
+import { Camera, Loader2, ScanBarcode, Upload, Sparkles, X, Search, BookX, Zap, ZapOff } from "lucide-react";
 import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 import { lookupIsbn, recognizeCover, searchBooksGet } from "@/lib/books-api";
@@ -13,49 +13,121 @@ import type { Book } from "@/types/book";
 
 type Mode = "barcode" | "cover";
 
+// Haptic feedback helper (works on iOS PWA + Android via Vibration API)
+function vibrate(pattern: number | number[]) {
+  try { navigator.vibrate?.(pattern); } catch { /* noop */ }
+}
+
 export default function ScannerPage() {
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
+  const trackRef = useRef<MediaStreamTrack | null>(null);
+  const lastScanRef = useRef<{ code: string; ts: number }>({ code: "", ts: 0 });
+  const lockRef = useRef(false);
   const [mode, setMode] = useState<Mode>("barcode");
   const [active, setActive] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
+  const [torchSupported, setTorchSupported] = useState(false);
   const [manualIsbn, setManualIsbn] = useState("");
   const [results, setResults] = useState<Book[]>([]);
   const [recognized, setRecognized] = useState<{ title?: string; author?: string } | null>(null);
   const [notFoundIsbn, setNotFoundIsbn] = useState<string | null>(null);
+  const [detected, setDetected] = useState<string | null>(null);
 
-  useEffect(() => () => { controlsRef.current?.stop(); }, []);
+  useEffect(() => () => stop(), []);
+
+  const stop = () => {
+    try { controlsRef.current?.stop(); } catch { /* noop */ }
+    controlsRef.current = null;
+    trackRef.current = null;
+    setActive(false);
+    setTorchOn(false);
+    setTorchSupported(false);
+    lockRef.current = false;
+  };
 
   const startBarcode = async () => {
     try {
       setActive(true);
+      setDetected(null);
+      setNotFoundIsbn(null);
+      lockRef.current = false;
+
       const hints = new Map();
-      hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.UPC_E]);
-      const reader = new BrowserMultiFormatReader(hints);
-      const devices = await BrowserMultiFormatReader.listVideoInputDevices();
-      const back = devices.find((d) => /back|rear|environment/i.test(d.label)) || devices[0];
-      controlsRef.current = await reader.decodeFromVideoDevice(
-        back?.deviceId,
+      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+        BarcodeFormat.EAN_13, BarcodeFormat.EAN_8,
+        BarcodeFormat.UPC_A, BarcodeFormat.UPC_E,
+      ]);
+      hints.set(DecodeHintType.TRY_HARDER, true);
+      const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 80 });
+
+      // Prefer the rear camera with sensible resolution constraints
+      const constraints: MediaStreamConstraints = {
+        audio: false,
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          // @ts-expect-error - browser-specific hint for continuous focus
+          focusMode: "continuous",
+        },
+      };
+
+      controlsRef.current = await reader.decodeFromConstraints(
+        constraints,
         videoRef.current!,
-        async (result) => {
-          if (!result) return;
-          const code = result.getText().replace(/[^0-9Xx]/g, "");
+        async (result, _err, controls) => {
+          if (!result || lockRef.current) return;
+          const raw = result.getText();
+          const code = raw.replace(/[^0-9Xx]/g, "");
           if (code.length !== 10 && code.length !== 13) return;
-          controlsRef.current?.stop();
+
+          // Debounce: ignore same code within 1.5s window (anti-jitter)
+          const now = Date.now();
+          if (lastScanRef.current.code === code && now - lastScanRef.current.ts < 1500) return;
+          lastScanRef.current = { code, ts: now };
+
+          // Lock to prevent multiple concurrent reads
+          lockRef.current = true;
+          vibrate(40);
+          setDetected(code);
+          controls.stop();
           setActive(false);
           await resolveIsbn(code);
         },
       );
+
+      // Detect torch capability post-attach
+      requestAnimationFrame(() => {
+        const stream = (videoRef.current?.srcObject as MediaStream | null);
+        const track = stream?.getVideoTracks()[0];
+        if (track) {
+          trackRef.current = track;
+          const caps = (track.getCapabilities?.() ?? {}) as MediaTrackCapabilities & { torch?: boolean };
+          if (caps.torch) setTorchSupported(true);
+        }
+      });
     } catch (e) {
       console.error(e);
       toast.error("Não foi possível acessar a câmera");
-      setActive(false);
+      stop();
     }
   };
 
-  const stop = () => { controlsRef.current?.stop(); setActive(false); };
+  const toggleTorch = async () => {
+    const track = trackRef.current;
+    if (!track) return;
+    try {
+      // @ts-expect-error - torch is browser-specific
+      await track.applyConstraints({ advanced: [{ torch: !torchOn }] });
+      setTorchOn((v) => !v);
+    } catch {
+      toast.error("Lanterna indisponível neste dispositivo");
+    }
+  };
 
   const resolveIsbn = async (isbn: string) => {
     setBusy(true);
@@ -63,15 +135,20 @@ export default function ScannerPage() {
     try {
       const book = await lookupIsbn(isbn);
       if (book?.id) {
+        vibrate([20, 30, 60]); // success pattern
         toast.success("Livro encontrado");
         navigate(`/livro/${book.id}`);
       } else {
+        vibrate([100, 50, 100]); // error pattern
         setNotFoundIsbn(isbn);
         toast.error("ISBN não encontrado. Tente buscar por título.");
       }
     } catch (e: any) {
       toast.error(e.message || "Erro");
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+      lockRef.current = false;
+    }
   };
 
   const submitManual = (e: React.FormEvent) => {
@@ -138,25 +215,56 @@ export default function ScannerPage() {
           <section className="space-y-6">
             <div className="glass rounded-2xl overflow-hidden border border-border">
               <div className="relative aspect-[4/3] bg-black">
-                <video ref={videoRef} className="w-full h-full object-cover" muted playsInline />
-                {!active && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Button variant="hero" size="lg" onClick={startBarcode} disabled={busy} className="gap-2">
+                <video ref={videoRef} className="w-full h-full object-cover" muted playsInline autoPlay />
+                {!active && !busy && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-transparent to-black/40">
+                    <Button variant="hero" size="lg" onClick={startBarcode} className="gap-2 shadow-glow">
                       <Camera className="w-4 h-4" /> Ativar câmera
                     </Button>
                   </div>
                 )}
+
                 {active && (
                   <>
-                    <div className="absolute inset-x-8 top-1/2 h-0.5 bg-primary/80 shadow-glow -translate-y-1/2 animate-pulse" />
-                    <Button variant="outline" size="sm" onClick={stop} className="absolute top-3 right-3 gap-1">
-                      <X className="w-3 h-3" /> Parar
-                    </Button>
+                    {/* Reading frame: corners + scanning line */}
+                    <div className="absolute inset-0 pointer-events-none">
+                      <div className="absolute inset-x-[12%] inset-y-[28%] border-2 border-primary/80 rounded-2xl shadow-glow">
+                        <span className="absolute -top-1 -left-1 w-5 h-5 border-t-4 border-l-4 border-primary rounded-tl-xl" />
+                        <span className="absolute -top-1 -right-1 w-5 h-5 border-t-4 border-r-4 border-primary rounded-tr-xl" />
+                        <span className="absolute -bottom-1 -left-1 w-5 h-5 border-b-4 border-l-4 border-primary rounded-bl-xl" />
+                        <span className="absolute -bottom-1 -right-1 w-5 h-5 border-b-4 border-r-4 border-primary rounded-br-xl" />
+                        <div className="absolute inset-x-3 top-1/2 h-0.5 bg-primary/90 shadow-glow -translate-y-1/2 animate-pulse" />
+                      </div>
+                      <p className="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs text-white/90 font-medium tracking-wide bg-black/40 px-3 py-1 rounded-full backdrop-blur-sm">
+                        Centralize o código de barras
+                      </p>
+                    </div>
+
+                    <div className="absolute top-3 right-3 flex gap-2">
+                      {torchSupported && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={toggleTorch}
+                          className="gap-1 h-8 bg-background/80 backdrop-blur-sm"
+                          aria-label="Alternar lanterna"
+                        >
+                          {torchOn ? <ZapOff className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />}
+                        </Button>
+                      )}
+                      <Button variant="outline" size="sm" onClick={stop} className="gap-1 h-8 bg-background/80 backdrop-blur-sm">
+                        <X className="w-3 h-3" /> Parar
+                      </Button>
+                    </div>
                   </>
                 )}
+
                 {busy && (
-                  <div className="absolute inset-0 bg-background/70 flex items-center justify-center">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 animate-fade-in">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    <p className="text-sm text-foreground/90 font-medium">
+                      {detected ? `Buscando ISBN ${detected}…` : "Buscando…"}
+                    </p>
                   </div>
                 )}
               </div>
@@ -198,7 +306,7 @@ export default function ScannerPage() {
                       >
                         <Search className="w-4 h-4" /> Buscar por título/autor
                       </Button>
-                      <Button variant="outline" onClick={() => setNotFoundIsbn(null)}>
+                      <Button variant="outline" onClick={() => { setNotFoundIsbn(null); startBarcode(); }}>
                         Tentar outro ISBN
                       </Button>
                     </div>

@@ -1,60 +1,67 @@
 /**
  * Smart cover URL resolution with multi-source fallback.
- * Order: provided URL → OpenLibrary by ISBN → Google Books cover → null.
+ * Delegates to the `cover-search` edge function which validates URLs server-side
+ * (avoiding CORS issues) and persists the found cover to the books table.
  */
 
+import { supabase } from "@/integrations/supabase/client";
 import type { Book } from "@/types/book";
 
-const memo = new Map<string, string | null>();
+const FN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cover-search`;
+const ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-async function urlExists(url: string): Promise<boolean> {
-  try {
-    // OpenLibrary returns a tiny 1x1 grey gif when ISBN doesn't exist.
-    // We probe via HEAD when possible; on CORS failure assume valid.
-    const res = await fetch(url, { method: "HEAD", mode: "no-cors" });
-    // no-cors: opaque response — we can't read status. Trust it.
-    return !!res;
-  } catch {
-    return false;
-  }
+/** In-memory cache: avoids re-querying the same book in a session. */
+const memo = new Map<string, string | null>();
+const inflight = new Map<string, Promise<string | null>>();
+
+interface CoverInput extends Pick<Book, "cover_url" | "isbn_10" | "isbn_13" | "title" | "authors"> {
+  id?: string;
 }
 
-export async function resolveCover(book: Pick<Book, "cover_url" | "isbn_10" | "isbn_13" | "title" | "authors">): Promise<string | null> {
-  const key = book.cover_url || book.isbn_13 || book.isbn_10 || book.title;
+export async function resolveCover(book: CoverInput, opts: { persist?: boolean } = {}): Promise<string | null> {
+  // 1. Already has a URL — trust it
+  if (book.cover_url) return book.cover_url;
+
+  const key = book.id || book.isbn_13 || book.isbn_10 || book.title;
   if (memo.has(key)) return memo.get(key)!;
+  if (inflight.has(key)) return inflight.get(key)!;
 
-  // 1. Already has a URL
-  if (book.cover_url) {
-    memo.set(key, book.cover_url);
-    return book.cover_url;
-  }
-
-  // 2. Try OpenLibrary by ISBN
-  const isbn = book.isbn_13 || book.isbn_10;
-  if (isbn) {
-    const ol = `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false`;
-    if (await urlExists(ol)) {
-      memo.set(key, ol);
-      return ol;
-    }
-  }
-
-  // 3. Try Google Books cover by ISBN (no API key needed for basic cover)
-  if (isbn) {
+  const promise = (async () => {
     try {
-      const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&fields=items(volumeInfo/imageLinks)&maxResults=1`);
-      if (r.ok) {
-        const j = await r.json();
-        const link = j.items?.[0]?.volumeInfo?.imageLinks;
-        const url = (link?.extraLarge || link?.large || link?.thumbnail || "").replace("http://", "https://").replace("&edge=curl", "");
-        if (url) {
-          memo.set(key, url);
-          return url;
-        }
-      }
-    } catch { /* ignore */ }
-  }
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch(FN_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: ANON,
+          Authorization: session ? `Bearer ${session.access_token}` : `Bearer ${ANON}`,
+        },
+        body: JSON.stringify({
+          bookId: book.id,
+          isbn_13: book.isbn_13,
+          isbn_10: book.isbn_10,
+          title: book.title,
+          authors: book.authors,
+          persist: opts.persist ?? !!book.id,
+        }),
+      });
+      if (!r.ok) return null;
+      const j = await r.json();
+      return (j.cover_url as string | null) ?? null;
+    } catch {
+      return null;
+    }
+  })();
 
-  memo.set(key, null);
-  return null;
+  inflight.set(key, promise);
+  const result = await promise;
+  inflight.delete(key);
+  memo.set(key, result);
+  return result;
+}
+
+/** Clears memo for a specific book — call after manual edit so re-fetch picks up new URL. */
+export function invalidateCover(book: CoverInput) {
+  const key = book.id || book.isbn_13 || book.isbn_10 || book.title;
+  memo.delete(key);
 }
