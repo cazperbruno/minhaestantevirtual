@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,24 +10,36 @@ import { BookCard } from "@/components/books/BookCard";
 import { toast } from "sonner";
 
 export default function SearchPage() {
-  const [q, setQ] = useState("");
+  const [params] = useSearchParams();
+  const initialQ = params.get("q") ?? "";
+  const [q, setQ] = useState(initialQ);
   const [results, setResults] = useState<Book[]>([]);
   const [busy, setBusy] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const autoRan = useRef(false);
 
   const isIsbn = useMemo(() => /^\d{10}(\d{3})?$/.test(q.replace(/\D/g, "")) && (q.replace(/\D/g, "").length === 10 || q.replace(/\D/g, "").length === 13), [q]);
 
-  const submit = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!q.trim()) return;
+  const runQuery = async (raw: string) => {
+    const value = raw.trim();
+    if (!value) return;
     setBusy(true);
     setSubmitted(true);
     try {
-      if (isIsbn) {
-        const b = await lookupIsbn(q.replace(/\D/g, ""));
-        setResults(b ? [b] : []);
+      const digits = value.replace(/\D/g, "");
+      const looksLikeIsbn = digits.length === 10 || digits.length === 13;
+      if (looksLikeIsbn) {
+        const b = await lookupIsbn(digits);
+        if (b) {
+          setResults([b]);
+        } else {
+          // ISBN not found — fallback to text search using the raw value
+          const list = await searchBooksGet(value);
+          setResults(list);
+          if (list.length === 0) toast.info("Nada encontrado para este ISBN");
+        }
       } else {
-        const list = await searchBooksGet(q);
+        const list = await searchBooksGet(value);
         setResults(list);
       }
     } catch (err: any) {
@@ -35,6 +48,21 @@ export default function SearchPage() {
       setBusy(false);
     }
   };
+
+  const submit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    await runQuery(q);
+  };
+
+  // Auto-run when arriving with ?q= in the URL (e.g. from scanner fallback)
+  useEffect(() => {
+    if (autoRan.current) return;
+    if (initialQ.trim()) {
+      autoRan.current = true;
+      runQuery(initialQ);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQ]);
 
   return (
     <AppShell>
