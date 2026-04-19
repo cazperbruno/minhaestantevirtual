@@ -303,31 +303,89 @@ async function lookupGoogleBooks(isbn: string): Promise<NormalizedBook | null> {
   }
 }
 
-async function lookupIsbnDb(isbn: string): Promise<NormalizedBook | null> {
-  const key = Deno.env.get("ISBNDB_API_KEY");
-  if (!key) return null;
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 6000);
-  const start = Date.now();
+/**
+ * Library of Congress — free public catalog (no API key).
+ * Uses the SRU endpoint with Dublin Core XML response (lighter than MODS).
+ */
+async function lookupLibraryOfCongress(isbn: string): Promise<NormalizedBook | null> {
+  const url = `https://lx2.loc.gov/sru/?version=1.1&operation=searchRetrieve&query=bath.isbn=${isbn}&maximumRecords=1&recordSchema=dc`;
+  const { res, ms, attempt } = await fetchWithRetry(url, { label: `LoC:${isbn}` });
+  if (!res || !res.ok) return null;
   try {
-    const r = await fetch(`https://api2.isbndb.com/book/${isbn}`, {
-      signal: ctrl.signal,
-      headers: { Authorization: key, Accept: "application/json" },
-    });
-    clearTimeout(t);
-    if (!r.ok) {
-      console.warn(`[ISBNdb] HTTP ${r.status}`);
-      return null;
-    }
-    const j = await r.json();
-    if (j?.book) {
-      console.log(`[ISBNdb] hit ISBN ${isbn} in ${Date.now() - start}ms`);
-      return normalizeIsbnDb(j.book);
-    }
-    return null;
+    const xml = await res.text();
+    // Cheap XML scraping — avoids pulling a parser dep
+    const pick = (tag: string): string | null => {
+      const m = xml.match(new RegExp(`<dc:${tag}[^>]*>([\\s\\S]*?)</dc:${tag}>`, "i"));
+      return m ? m[1].replace(/<[^>]+>/g, "").trim() : null;
+    };
+    const pickAll = (tag: string): string[] => {
+      const re = new RegExp(`<dc:${tag}[^>]*>([\\s\\S]*?)</dc:${tag}>`, "gi");
+      const out: string[] = [];
+      let m;
+      while ((m = re.exec(xml)) !== null) out.push(m[1].replace(/<[^>]+>/g, "").trim());
+      return out;
+    };
+    const title = pick("title");
+    if (!title) return null;
+    console.log(`[LoC] hit ISBN ${isbn} in ${ms}ms (attempt ${attempt})`);
+    const date = pick("date");
+    const year = date ? parseInt(date.match(/\d{4}/)?.[0] || "", 10) : null;
+    return {
+      title,
+      authors: pickAll("creator").concat(pickAll("contributor")),
+      publisher: pick("publisher"),
+      published_year: year && !Number.isNaN(year) ? year : null,
+      description: pick("description"),
+      language: pick("language"),
+      categories: pickAll("subject"),
+      cover_url: null,
+      page_count: null,
+      isbn_13: isbn.length === 13 ? isbn : null,
+      isbn_10: isbn.length === 10 ? isbn : null,
+      source: "library-of-congress",
+      source_id: isbn,
+      raw: { sru_xml_excerpt: xml.slice(0, 800) },
+    };
   } catch (e) {
-    clearTimeout(t);
-    console.warn(`[ISBNdb] error: ${(e as Error).message}`);
+    console.warn(`[LoC] parse error: ${(e as Error).message}`);
+    return null;
+  }
+}
+
+/**
+ * Worldcat / classify.oclc.org — free public endpoint, no key.
+ * Returns title + author summary used as last-resort metadata.
+ */
+async function lookupWorldcatClassify(isbn: string): Promise<NormalizedBook | null> {
+  const url = `http://classify.oclc.org/classify2/Classify?isbn=${isbn}&summary=true`;
+  const { res, ms, attempt } = await fetchWithRetry(url, { label: `Worldcat:${isbn}` });
+  if (!res || !res.ok) return null;
+  try {
+    const xml = await res.text();
+    const work = xml.match(/<work[^>]*\stitle="([^"]+)"[^>]*\sauthor="([^"]*)"[^>]*\/>/i);
+    if (!work) return null;
+    console.log(`[Worldcat] hit ISBN ${isbn} in ${ms}ms (attempt ${attempt})`);
+    const authors = work[2]
+      ? work[2].split("|").map((a) => a.replace(/\s*\[.*?\]\s*/g, "").trim()).filter(Boolean)
+      : [];
+    return {
+      title: work[1],
+      authors,
+      publisher: null,
+      published_year: null,
+      description: null,
+      language: null,
+      categories: [],
+      cover_url: null,
+      page_count: null,
+      isbn_13: isbn.length === 13 ? isbn : null,
+      isbn_10: isbn.length === 10 ? isbn : null,
+      source: "worldcat-classify",
+      source_id: isbn,
+      raw: { xml_excerpt: xml.slice(0, 500) },
+    };
+  } catch (e) {
+    console.warn(`[Worldcat] parse error: ${(e as Error).message}`);
     return null;
   }
 }
@@ -375,7 +433,8 @@ async function lookupIsbnCascade(
     { name: "openlibrary-bibkeys", fn: lookupOpenLibraryBibkeys },
     { name: "google-books", fn: lookupGoogleBooks },
     { name: "openlibrary-isbn", fn: lookupOpenLibraryIsbnEndpoint },
-    { name: "isbndb", fn: lookupIsbnDb },
+    { name: "library-of-congress", fn: lookupLibraryOfCongress },
+    { name: "worldcat-classify", fn: lookupWorldcatClassify },
   ];
 
   for (const s of sources) {
