@@ -17,6 +17,7 @@ import LoansPage from "./pages/LoansPage";
 import FeedPage from "./pages/FeedPage";
 import RankingPage from "./pages/RankingPage";
 import GoalsPage from "./pages/GoalsPage";
+import StatsPage from "./pages/StatsPage";
 import ClubsPage from "./pages/ClubsPage";
 import ClubDetailPage from "./pages/ClubDetailPage";
 import PublicProfile from "./pages/PublicProfile";
@@ -42,6 +43,7 @@ const App = () => (
           <Route path="/feed" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
           <Route path="/ranking" element={<ProtectedRoute><RankingPage /></ProtectedRoute>} />
           <Route path="/metas" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
+          <Route path="/estatisticas" element={<ProtectedRoute><StatsPage /></ProtectedRoute>} />
           <Route path="/clubes" element={<ProtectedRoute><ClubsPage /></ProtectedRoute>} />
           <Route path="/clubes/:id" element={<ProtectedRoute><ClubDetailPage /></ProtectedRoute>} />
           <Route path="/u/:username" element={<ProtectedRoute><PublicProfile /></ProtectedRoute>} />
