@@ -283,8 +283,10 @@ export type Database = {
           bio: string | null
           created_at: string
           display_name: string | null
+          favorite_genres: string[] | null
           id: string
           level: number
+          onboarded_at: string | null
           updated_at: string
           username: string | null
           xp: number
@@ -294,8 +296,10 @@ export type Database = {
           bio?: string | null
           created_at?: string
           display_name?: string | null
+          favorite_genres?: string[] | null
           id: string
           level?: number
+          onboarded_at?: string | null
           updated_at?: string
           username?: string | null
           xp?: number
@@ -305,8 +309,10 @@ export type Database = {
           bio?: string | null
           created_at?: string
           display_name?: string | null
+          favorite_genres?: string[] | null
           id?: string
           level?: number
+          onboarded_at?: string | null
           updated_at?: string
           username?: string | null
           xp?: number
