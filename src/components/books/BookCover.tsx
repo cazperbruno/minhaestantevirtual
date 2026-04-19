@@ -11,7 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 interface Props {
-  book: Pick<Book, "id" | "title" | "authors" | "cover_url" | "isbn_10" | "isbn_13">;
+  book: Pick<Book, "title" | "authors" | "cover_url" | "isbn_10" | "isbn_13"> & { id?: string };
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
   /** Disable async fallback (e.g. inside lists for perf). Defaults to true. */
