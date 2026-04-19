@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { booksApi } from "@/lib/books-api";
+import { searchBooksGet, saveBook } from "@/lib/books-api";
 import { Book } from "@/types/book";
 import { BookCover } from "@/components/books/BookCover";
 import { Loader2, Sparkles, Check, ArrowRight, Target } from "lucide-react";
@@ -46,8 +46,10 @@ export default function Onboarding() {
     const t = setTimeout(async () => {
       setSearching(true);
       try {
-        const r = await booksApi.search(search, { limit: 12 });
-        setResults(r.items.slice(0, 12));
+        const r = await searchBooksGet(search);
+        setResults(r.slice(0, 12));
+      } catch {
+        setResults([]);
       } finally { setSearching(false); }
     }, 350);
     return () => clearTimeout(t);
@@ -68,17 +70,24 @@ export default function Onboarding() {
     setSaving(true);
     try {
       const year = new Date().getFullYear();
-      // Save genres + onboarded_at, library picks, and reading goal in parallel
+
+      // Ensure picks are persisted to books table (search results may be transient)
+      const persistedIds: string[] = [];
+      for (const b of picks) {
+        const saved = b.id && !b.id.startsWith("ext_") ? b : await saveBook(b);
+        if (saved?.id) persistedIds.push(saved.id);
+      }
+
       await Promise.all([
         supabase.from("profiles").update({
           favorite_genres: genres,
           onboarded_at: new Date().toISOString(),
         }).eq("id", user.id),
-        picks.length > 0
+        persistedIds.length > 0
           ? supabase.from("user_books").upsert(
-              picks.map((b) => ({
+              persistedIds.map((book_id) => ({
                 user_id: user.id,
-                book_id: b.id,
+                book_id,
                 status: "wishlist" as const,
                 is_public: true,
               })),
