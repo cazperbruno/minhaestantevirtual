@@ -93,13 +93,20 @@ export default function LoansPage() {
   };
 
   const markReturned = async (id: string) => {
+    // optimistic
+    const prev = loans;
+    const today = new Date().toISOString().slice(0, 10);
+    setLoans((arr) => arr.map((l) => l.id === id ? { ...l, status: "returned", returned_at: today } : l));
     const { error } = await supabase
       .from("loans")
-      .update({ status: "returned", returned_at: new Date().toISOString().slice(0, 10) })
+      .update({ status: "returned", returned_at: today })
       .eq("id", id);
-    if (error) { toast.error("Erro"); return; }
+    if (error) {
+      setLoans(prev);
+      toast.error("Erro");
+      return;
+    }
     toast.success("Marcado como devolvido");
-    load();
   };
 
   const filtered = loans.filter((l) => filter === "all" ? true : l.status === filter);
