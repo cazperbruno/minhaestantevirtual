@@ -35,6 +35,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <BottomNav />
       <XpBurstHost />
       <UpdatePrompt />
+      <OfflineBanner />
     </div>
   );
 }
