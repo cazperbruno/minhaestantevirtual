@@ -172,6 +172,12 @@ export function useFeed(tab: "all" | "following") {
       };
     },
     ...CACHE.SOCIAL,
+    // Polling leve a cada 15s — só refetch quando a aba está visível.
+    // Combinado com Realtime + refetchOnWindowFocus, garante feed sempre fresco
+    // sem custo perceptível (cache de 30s evita request desnecessário).
+    staleTime: 30_000,
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
   });
 }
 
