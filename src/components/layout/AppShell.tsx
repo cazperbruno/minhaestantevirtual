@@ -33,6 +33,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
       <BottomNav />
       <XpBurstHost />
+      <UpdatePrompt />
     </div>
   );
 }
