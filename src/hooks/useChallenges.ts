@@ -50,7 +50,9 @@ export function useChallenges(userId: string | undefined) {
 
 export function useClaimChallenge(userId: string) {
   return useMutation({
-    mutationFn: async (challengeId: string) => {
+    mutationFn: async (challenge: string | { id: string; category?: string }) => {
+      const challengeId = typeof challenge === "string" ? challenge : challenge.id;
+      const category = typeof challenge === "string" ? undefined : challenge.category;
       const { data, error } = await supabase.rpc("claim_challenge", {
         _user_id: userId,
         _challenge_id: challengeId,
@@ -58,12 +60,13 @@ export function useClaimChallenge(userId: string) {
       if (error) throw error;
       const result = (data as any)?.[0];
       if (!result?.success) throw new Error(result?.message || "claim_failed");
-      return result;
+      return { ...result, category };
     },
-    onSuccess: (result) => {
+    onSuccess: (result: any) => {
       toast.success(`+${result.xp_granted} XP coletado!`, {
         description: "Próximo desafio te espera",
       });
+      if (result.category === "epic") goldenBurst();
       queryClient.invalidateQueries({ queryKey: qk.challenges(userId) });
       queryClient.invalidateQueries({ queryKey: ["profile", userId] });
       queryClient.invalidateQueries({ queryKey: qk.ranking() });
