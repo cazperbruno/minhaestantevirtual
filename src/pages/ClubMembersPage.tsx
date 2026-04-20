@@ -137,7 +137,7 @@ export default function ClubMembersPage() {
           {members.map((m) => {
             const isClubOwner = m.role === "owner" || m.user_id === club.owner_id;
             const name = m.profile?.display_name || m.profile?.username || "Leitor";
-            const link = profilePath(m.profile?.username || null, m.user_id);
+            const link = profilePath({ username: m.profile?.username, id: m.user_id });
             const canRemove = isOwner && !isClubOwner && m.user_id !== user?.id;
 
             return (
