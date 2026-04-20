@@ -81,7 +81,7 @@ export default function BookDetail() {
             book={book}
             ub={ub}
             onUpdate={(patch) => patchUbCache(patch)}
-            onCommit={(patch) => commit.mutateAsync(patch).then(() => {})}
+            onCommit={(patch) => commit.mutate(patch)}
           />
         )}
       </div>
