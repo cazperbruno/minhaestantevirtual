@@ -1,6 +1,4 @@
-import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Trophy, Medal, BookOpen, Star } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,38 +6,11 @@ import { cn } from "@/lib/utils";
 import { FollowButton } from "@/components/social/FollowButton";
 import { RankingSkeleton } from "@/components/ui/skeletons";
 import { EmptyState } from "@/components/ui/empty-state";
-
-interface RankRow {
-  id: string;
-  display_name: string | null;
-  username: string | null;
-  avatar_url: string | null;
-  xp: number;
-  level: number;
-  books_read: number;
-  reviews_count: number;
-  position: number;
-}
+import { useRanking } from "@/hooks/useRanking";
 
 export default function RankingPage() {
   const { user } = useAuth();
-  const [rows, setRows] = useState<RankRow[]>([]);
-  const [following, setFollowing] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      const [{ data }, { data: f }] = await Promise.all([
-        supabase.from("ranking_view").select("*").order("position").limit(100),
-        user
-          ? supabase.from("follows").select("following_id").eq("follower_id", user.id)
-          : Promise.resolve({ data: [] as any[] }),
-      ]);
-      setRows((data as RankRow[]) || []);
-      setFollowing(new Set((f || []).map((x: any) => x.following_id)));
-      setLoading(false);
-    })();
-  }, [user]);
+  const { data: rows = [], isLoading } = useRanking(100);
 
   const podiumIcon = (pos: number) => {
     if (pos === 1) return <Trophy className="w-6 h-6 text-primary" />;
@@ -58,7 +29,7 @@ export default function RankingPage() {
           <p className="text-muted-foreground mt-1">Top leitores da comunidade</p>
         </header>
 
-        {loading ? (
+        {isLoading ? (
           <RankingSkeleton count={8} />
         ) : rows.length === 0 ? (
           <EmptyState
@@ -99,7 +70,7 @@ export default function RankingPage() {
                     <p className="font-display text-xl font-bold text-primary">{r.xp}</p>
                     <p className="text-xs text-muted-foreground">XP · nv {r.level}</p>
                   </div>
-                  {!isMe && <FollowButton targetUserId={r.id} initiallyFollowing={following.has(r.id)} />}
+                  {!isMe && <FollowButton targetUserId={r.id} />}
                 </li>
               );
             })}
