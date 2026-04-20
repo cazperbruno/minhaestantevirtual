@@ -7,7 +7,8 @@ import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/track";
 import { ensurePersistedBook, isExternal } from "@/lib/import-book";
-import { Loader2 } from "lucide-react";
+import { openAmazon } from "@/lib/amazon";
+import { Loader2, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -64,6 +65,23 @@ function BookCardImpl({ book, size = "md", className, showMeta = true, quickSave
             <QuickSaveButton book={book} floating={false} />
           </div>
         )}
+        {/* CTA Amazon — sempre visível em mobile, fade-in no hover em desktop. */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openAmazon(book);
+          }}
+          aria-label={`Comprar ${book.title} na Amazon`}
+          className="absolute bottom-1.5 right-1.5 z-20 h-7 w-7 rounded-full bg-background/90 backdrop-blur-sm
+                     text-foreground hover:bg-primary hover:text-primary-foreground
+                     flex items-center justify-center shadow-md
+                     opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100
+                     transition-all duration-200 active:scale-90"
+        >
+          <ShoppingCart className="w-3.5 h-3.5" />
+        </button>
         {importing && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/70 rounded-md backdrop-blur-sm">
             <Loader2 className="w-5 h-5 animate-spin text-primary" />
