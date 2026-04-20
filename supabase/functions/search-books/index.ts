@@ -850,6 +850,10 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      const ALLOWED_TYPES = new Set(["book", "manga", "comic", "magazine"]);
+      const content_type: ContentType = ALLOWED_TYPES.has(body.content_type)
+        ? (body.content_type as ContentType) : "book";
+      const seriesIn = body._series && typeof body._series === "object" ? body._series : null;
       const safe: NormalizedBook = {
         title,
         subtitle: typeof body.subtitle === "string" ? body.subtitle.slice(0, 500) : null,
@@ -869,6 +873,16 @@ Deno.serve(async (req) => {
         isbn_10: typeof body.isbn_10 === "string" && /^\d{9}[\dX]$/.test(body.isbn_10) ? body.isbn_10 : null,
         source: typeof body.source === "string" ? body.source.slice(0, 32) : "manual",
         source_id: typeof body.source_id === "string" ? body.source_id.slice(0, 200) : null,
+        content_type,
+        volume_number: Number.isFinite(body.volume_number) ? body.volume_number : null,
+        series_id: typeof body.series_id === "string" ? body.series_id : null,
+        _series: seriesIn ? {
+          total_volumes: Number.isFinite(seriesIn.total_volumes) ? seriesIn.total_volumes : null,
+          total_chapters: Number.isFinite(seriesIn.total_chapters) ? seriesIn.total_chapters : null,
+          status: typeof seriesIn.status === "string" ? seriesIn.status.slice(0, 32) : null,
+          banner_url: typeof seriesIn.banner_url === "string" && /^https?:\/\//.test(seriesIn.banner_url) ? seriesIn.banner_url.slice(0, 1000) : null,
+          score: Number.isFinite(seriesIn.score) ? seriesIn.score : null,
+        } : null,
         raw: null,
       };
       const saved = await persistBook(supabase, safe);
