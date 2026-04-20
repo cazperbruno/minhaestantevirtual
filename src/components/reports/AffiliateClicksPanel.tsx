@@ -6,9 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { ShoppingCart, Eye, MousePointerClick, TrendingUp, ExternalLink } from "lucide-react";
+import { ShoppingCart, Eye, MousePointerClick, TrendingUp, ExternalLink, Wallet } from "lucide-react";
 import { openAmazon } from "@/lib/amazon";
 import type { Book } from "@/types/book";
+
+// Premissas conservadoras p/ Amazon BR (livros): conversão 8% e comissão 4% sobre ticket médio R$50.
+// Exposto como constantes para fácil ajuste futuro.
+const ASSUMED_CONVERSION = 0.08;
+const ASSUMED_COMMISSION = 0.04;
+const ASSUMED_TICKET_BRL = 50;
+const REVENUE_PER_CLICK = ASSUMED_CONVERSION * ASSUMED_COMMISSION * ASSUMED_TICKET_BRL; // ≈ R$0,16/clique
+const BRL = (n: number) =>
+  n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 });
 
 type Interaction = {
   book_id: string;
