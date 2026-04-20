@@ -7,9 +7,10 @@ import { BookCard } from "@/components/books/BookCard";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ListRowSkeleton } from "@/components/ui/skeletons";
-import { Heart, Share2, ShoppingBag, ExternalLink, Search } from "lucide-react";
+import { Heart, Share2, ShoppingBag, Link2, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { openAmazon } from "@/lib/amazon";
 
 export default function WishlistPage() {
   const { user } = useAuth();
