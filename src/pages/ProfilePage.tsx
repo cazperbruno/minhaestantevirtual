@@ -223,6 +223,9 @@ export default function ProfilePage() {
             {saving ? "Salvando…" : "Salvar alterações"}
           </Button>
         </div>
+        <div className="pt-4 flex justify-center">
+          <VersionTag />
+        </div>
       </div>
     </AppShell>
   );
