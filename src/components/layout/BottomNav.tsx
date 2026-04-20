@@ -55,12 +55,20 @@ const more = [
 export function BottomNav() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     toast.success("Até logo!");
     navigate("/auth");
+  };
+
+  const prefetchFor = (to: string) => {
+    if (to === "/biblioteca") prefetch.library(user?.id);
+    else if (to === "/ranking") prefetch.ranking();
+    else if (to === "/feed-infinito" || to === "/feed") prefetch.feed();
+    else if (to === "/perfil" && user?.id) prefetch.profile(user.id);
   };
 
   const groups = ["Descobrir", "Você", "Comunidade", "Livros"] as const;
