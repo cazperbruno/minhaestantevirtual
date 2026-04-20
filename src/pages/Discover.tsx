@@ -299,26 +299,3 @@ export default function Discover() {
   );
 }
 
-function Section({
-  title, subtitle, children,
-}: { title: string; subtitle?: string; children: React.ReactNode }) {
-  return (
-    <section className="mb-10 animate-slide-up">
-      {(title || subtitle) && (
-        <div className="mb-4">
-          {title && <h2 className="font-display text-2xl font-semibold">{title}</h2>}
-          {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
-        </div>
-      )}
-      {children}
-    </section>
-  );
-}
-
-function Shelf({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex gap-5 overflow-x-auto scrollbar-hide scroll-snap-x animate-stagger -mx-5 px-5 md:mx-0 md:px-0 md:grid md:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] pb-2 gpu">
-      {children}
-    </div>
-  );
-}
