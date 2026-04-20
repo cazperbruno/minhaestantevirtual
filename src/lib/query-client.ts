@@ -19,7 +19,10 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       ...CACHE.SOCIAL, // padrão razoável
-      refetchOnWindowFocus: false,
+      // Refetch ao voltar para a aba — mantém dados frescos sem polling agressivo.
+      // Combinado com Realtime (useRealtimeInvalidation), garante UI atualizada.
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
       retry: 1,
     },
     mutations: {
