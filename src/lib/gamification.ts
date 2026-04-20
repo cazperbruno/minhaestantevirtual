@@ -17,8 +17,9 @@ export async function checkAchievements(userId: string) {
   return unlocked;
 }
 
+/** @deprecated use awardXp from "@/lib/xp" — mantém compat com chamadas antigas. */
 export async function grantXp(userId: string, amount: number) {
-  await supabase.rpc("grant_xp", { _user_id: userId, _amount: amount });
+  await supabase.rpc("add_xp", { _user_id: userId, _amount: amount, _source: "legacy", _meta: null });
 }
 
 export function getIcon(name: string): React.ComponentType<{ className?: string }> {

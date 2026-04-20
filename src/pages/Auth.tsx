@@ -28,11 +28,16 @@ export default function Auth() {
     setBusy("email");
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data: signUpData, error } = await supabase.auth.signUp({
           email, password,
           options: { emailRedirectTo: window.location.origin, data: { full_name: name } },
         });
         if (error) throw error;
+        // Resgatar convite (se veio via ?ref=CODIGO)
+        const refCode = new URLSearchParams(window.location.search).get("ref");
+        if (refCode && signUpData.user?.id) {
+          await supabase.rpc("redeem_invite", { _code: refCode, _new_user_id: signUpData.user.id });
+        }
         toast.success("Conta criada. Bem-vindo ao Readify.");
         navigate("/");
       } else {
