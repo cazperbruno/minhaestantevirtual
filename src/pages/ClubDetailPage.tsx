@@ -109,7 +109,12 @@ export default function ClubDetailPage() {
           <div className="flex-1">
             <h1 className="font-display text-2xl font-bold">{club.name}</h1>
             {club.description && <p className="text-sm text-muted-foreground mt-1">{club.description}</p>}
-            <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1"><Users className="w-3 h-3" /> {members.length} {members.length === 1 ? "membro" : "membros"}</p>
+            <Link
+              to={`/clubes/${id}/membros`}
+              className="text-xs text-muted-foreground hover:text-primary mt-2 inline-flex items-center gap-1 transition-colors"
+            >
+              <Users className="w-3 h-3" /> {members.length} {members.length === 1 ? "membro" : "membros"}
+            </Link>
           </div>
           {club.current_book && (
             <Link to={`/livro/${club.current_book.id}`} className="flex gap-3 items-center group">

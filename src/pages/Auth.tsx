@@ -8,7 +8,7 @@ import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Loader2, Mail, ChevronRight } from "lucide-react";
-import readifyMark from "@/assets/readify-mark-v8.png";
+import readifyMark from "@/assets/readify-mark-v8.webp";
 
 export default function Auth() {
   const { user, loading } = useAuth();
@@ -69,6 +69,10 @@ export default function Auth() {
         <img
           src={readifyMark}
           alt="Readify"
+          width={113}
+          height={112}
+          fetchPriority="high"
+          decoding="async"
           className="h-28 w-auto select-none mb-6 animate-float-soft"
           draggable={false}
         />

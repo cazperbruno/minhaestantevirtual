@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,8 +17,29 @@ export interface Notif {
 /** Notificações do usuário — cache LIVE (15s) + invalidação realtime. */
 export function useNotifications() {
   const { user } = useAuth();
+  const key = qk.notifications(user?.id || "anon");
+
+  // Realtime: invalida o cache assim que uma notificação nova chega
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`notifications:${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: key });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
   return useQuery<Notif[]>({
-    queryKey: qk.notifications(user?.id || "anon"),
+    queryKey: key,
     queryFn: async () => {
       if (!user) return [];
       const { data } = await supabase
