@@ -109,6 +109,8 @@ export default function Discover() {
               </Button>
             </Link>
           </div>
+
+          <ContentTypeFilter className="mt-5" />
         </header>
 
         {/* Featured */}
@@ -134,7 +136,7 @@ export default function Discover() {
                 <BookCover book={featured} size="lg" className="shrink-0 group-hover:scale-105 transition-transform" />
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wider text-primary mb-2">
-                    {reading[0] ? "Continue lendo" : "Em destaque para você"}
+                    {visibleReading[0] ? "Continue lendo" : "Em destaque para você"}
                   </p>
                   <h2 className="font-display text-2xl md:text-3xl font-bold leading-tight group-hover:text-primary transition-colors">
                     {featured.title}
@@ -157,10 +159,10 @@ export default function Discover() {
         )}
 
         {/* Continue lendo */}
-        {reading.length > 1 && (
+        {visibleReading.length > 1 && (
           <Section title="Continue lendo">
             <Shelf>
-              {reading.slice(1).map((ub) => ub.book && (
+              {visibleReading.slice(1).map((ub) => ub.book && (
                 <BookCard key={ub.id} book={ub.book} size="md" source="shelf:reading" />
               ))}
             </Shelf>
@@ -182,7 +184,7 @@ export default function Discover() {
           </>
         )}
 
-        {!loading && shelves.map((shelf) => shelf.books.length > 0 && (
+        {!loading && visibleShelves.map((shelf) => (
           <Section
             key={shelf.id}
             title={shelf.title}
@@ -199,7 +201,7 @@ export default function Discover() {
         ))}
 
         {/* CTA para feed infinito */}
-        {!loading && shelves.length > 0 && (
+        {!loading && visibleShelves.length > 0 && (
           <Link
             to="/feed-infinito"
             className="block glass rounded-2xl p-6 md:p-8 mt-6 text-center hover:border-primary/50 transition-all group"
@@ -211,6 +213,15 @@ export default function Discover() {
               Abrir feed infinito <ChevronRight className="w-4 h-4" />
             </Button>
           </Link>
+        )}
+
+        {/* Empty quando filtro não bate com nenhum item */}
+        {!loading && shelves.length > 0 && visibleShelves.length === 0 && (
+          <div className="glass rounded-2xl p-8 text-center">
+            <p className="text-sm text-muted-foreground">
+              Sem recomendações para os formatos selecionados. Ative outros tipos no filtro acima.
+            </p>
+          </div>
         )}
 
         {/* Empty state inicial — biblioteca vazia */}
