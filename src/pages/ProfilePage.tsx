@@ -14,6 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { InstallAppCard } from "@/components/pwa/InstallAppCard";
 
 type Visibility = "public" | "private";
 type LibVisibility = "public" | "followers" | "private";
@@ -175,6 +176,11 @@ export default function ProfilePage() {
             value={profile.twitter || ""} onChange={(v) => setProfile({ ...profile, twitter: v })} />
           <SocialField icon={<Globe className="w-4 h-4" />} label="Website" placeholder="https://seusite.com"
             value={profile.website || ""} onChange={(v) => setProfile({ ...profile, website: v })} />
+        </div>
+
+        {/* Instalar app (PWA) */}
+        <div className="mb-6">
+          <InstallAppCard />
         </div>
 
         {/* Privacidade */}
