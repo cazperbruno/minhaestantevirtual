@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { CACHE, qk, queryClient } from "@/lib/query-client";
 import { awardXp } from "@/lib/xp";
+import { haptic } from "@/lib/haptics";
 import { toast } from "sonner";
 
 export interface FeedReview {
@@ -127,9 +128,10 @@ export function useToggleReviewLike(tab: "all" | "following") {
     },
     onMutate: async (rev) => {
       if (!user) {
-        toast.error("Entre para curtir");
+        toast.error("Faça login para curtir resenhas");
         throw new Error("not_authenticated");
       }
+      haptic("tap");
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData<{ pages: FeedPage[]; pageParams: unknown[] }>(key);
       queryClient.setQueryData<{ pages: FeedPage[]; pageParams: unknown[] }>(key, (old) => {
@@ -150,7 +152,9 @@ export function useToggleReviewLike(tab: "all" | "following") {
     },
     onError: (_e, _v, ctx) => {
       if (ctx?.previous) queryClient.setQueryData(key, ctx.previous);
-      toast.error("Não foi possível atualizar o like");
+      toast.error("Não conseguimos registrar seu like", {
+        description: "Verifique sua conexão e tente novamente.",
+      });
     },
   });
 }

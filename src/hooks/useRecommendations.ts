@@ -2,6 +2,7 @@ import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { CACHE, qk, queryClient } from "@/lib/query-client";
+import { haptic } from "@/lib/haptics";
 import { toast } from "sonner";
 
 export interface FeedRecommendation {
@@ -97,7 +98,8 @@ export function useToggleRecommendationLike() {
       }
     },
     onMutate: async (rec) => {
-      if (!user) { toast.error("Entre para curtir"); throw new Error("not_authenticated"); }
+      if (!user) { toast.error("Faça login para curtir recomendações"); throw new Error("not_authenticated"); }
+      haptic("tap");
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData<{ pages: RecPage[]; pageParams: unknown[] }>(key);
       queryClient.setQueryData<{ pages: RecPage[]; pageParams: unknown[] }>(key, (old) => {
@@ -118,7 +120,9 @@ export function useToggleRecommendationLike() {
     },
     onError: (_e, _v, ctx) => {
       if (ctx?.previous) queryClient.setQueryData(key, ctx.previous);
-      toast.error("Não foi possível atualizar o like");
+      toast.error("Não conseguimos registrar seu like", {
+        description: "Verifique sua conexão e tente novamente.",
+      });
     },
   });
 }
@@ -141,6 +145,7 @@ export function useRecommendBook(bookId: string) {
       return row;
     },
     onSuccess: (row, vars) => {
+      haptic("success");
       const xp = row?.xp_granted || 0;
       const txt = vars.isPublic
         ? "Recomendação publicada no feed"
@@ -149,7 +154,9 @@ export function useRecommendBook(bookId: string) {
       if (user) queryClient.invalidateQueries({ queryKey: recsKey(user.id) });
     },
     onError: (e: any) => {
-      toast.error("Não foi possível recomendar", { description: e?.message });
+      toast.error("Não conseguimos publicar sua recomendação", {
+        description: e?.message || "Tente novamente em instantes.",
+      });
     },
   });
 }
