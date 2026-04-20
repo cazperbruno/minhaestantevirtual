@@ -11,6 +11,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { checkAchievements } from "@/lib/gamification";
 import { awardXp } from "@/lib/xp";
+import { haptic } from "@/lib/haptics";
 import { ReviewListSkeleton } from "@/components/ui/skeletons";
 
 interface Review {
@@ -70,8 +71,8 @@ export function ReviewSection({ bookId }: { bookId: string }) {
   }, [bookId, user]);
 
   const submit = async () => {
-    if (!user) return toast.error("Entre para publicar");
-    if (text.trim().length < 3) return toast.error("Escreva ao menos 3 caracteres");
+    if (!user) return toast.error("Faça login para publicar uma resenha");
+    if (text.trim().length < 3) return toast.error("Sua resenha precisa de pelo menos 3 caracteres");
     setSubmitting(true);
     const payload = {
       user_id: user.id,
@@ -84,8 +85,11 @@ export function ReviewSection({ bookId }: { bookId: string }) {
       .from("reviews")
       .upsert(payload, { onConflict: "user_id,book_id" });
     if (error) {
-      toast.error("Erro ao publicar");
+      toast.error("Não conseguimos publicar sua resenha", {
+        description: "Verifique sua conexão e tente novamente.",
+      });
     } else {
+      haptic("success");
       toast.success(myReview ? "Resenha atualizada" : "Resenha publicada");
       // XP só em resenha nova (não em update)
       if (!myReview) void awardXp(user.id, "write_review");
@@ -96,7 +100,8 @@ export function ReviewSection({ bookId }: { bookId: string }) {
   };
 
   const toggleLike = async (rev: Review) => {
-    if (!user) return toast.error("Entre para curtir");
+    if (!user) return toast.error("Faça login para curtir resenhas");
+    haptic("tap");
     setReviews((prev) =>
       prev.map((r) =>
         r.id === rev.id
