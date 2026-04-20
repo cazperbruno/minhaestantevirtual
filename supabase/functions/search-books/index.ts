@@ -591,7 +591,57 @@ async function searchGoogleBooks(query: string, lang = "pt"): Promise<Normalized
 // ============================================================
 // 6) Persistence (cache layer)
 // ============================================================
+async function ensureSeries(supabase: any, book: NormalizedBook): Promise<string | null> {
+  // Already has a linked series id from caller
+  if (book.series_id) return book.series_id;
+  // No external series payload -> nothing to create
+  if (!book._series || !book.source_id || book.content_type !== "manga") return null;
+
+  // Try to find by source + source_id
+  if (book.source && book.source_id) {
+    const { data: existing } = await supabase
+      .from("series")
+      .select("id")
+      .eq("source", book.source)
+      .eq("source_id", book.source_id)
+      .maybeSingle();
+    if (existing) return existing.id;
+  }
+
+  const { data, error } = await supabase
+    .from("series")
+    .insert({
+      title: book.title,
+      authors: book.authors || [],
+      content_type: book.content_type,
+      cover_url: book.cover_url,
+      description: book.description,
+      source: book.source,
+      source_id: book.source_id,
+      total_volumes: book._series.total_volumes ?? null,
+      status: book._series.status ?? null,
+      raw: book._series ?? null,
+    })
+    .select("id")
+    .single();
+  if (error) {
+    console.error("ensureSeries error", error);
+    return null;
+  }
+  return data?.id ?? null;
+}
+
 async function persistBook(supabase: any, book: NormalizedBook) {
+  // Manga from AniList -> dedupe by source/source_id (no ISBN)
+  if (book.source && book.source_id && book.content_type && book.content_type !== "book") {
+    const { data: existing } = await supabase
+      .from("books")
+      .select("*")
+      .eq("source", book.source)
+      .eq("source_id", book.source_id)
+      .maybeSingle();
+    if (existing) return existing;
+  }
   if (book.isbn_13) {
     const { data } = await supabase.from("books").select("*").eq("isbn_13", book.isbn_13).maybeSingle();
     if (data) return data;
@@ -600,6 +650,10 @@ async function persistBook(supabase: any, book: NormalizedBook) {
     const { data } = await supabase.from("books").select("*").eq("isbn_10", book.isbn_10).maybeSingle();
     if (data) return data;
   }
+
+  // For series-bearing items, ensure the series row first.
+  const seriesId = await ensureSeries(supabase, book);
+
   const { data, error } = await supabase
     .from("books")
     .insert({
@@ -617,7 +671,10 @@ async function persistBook(supabase: any, book: NormalizedBook) {
       categories: book.categories || [],
       source: book.source,
       source_id: book.source_id,
-      raw: book.raw,
+      content_type: book.content_type ?? "book",
+      series_id: seriesId,
+      volume_number: book.volume_number ?? null,
+      raw: book.raw ?? (book._series ? { series: book._series } : null),
     })
     .select()
     .single();
