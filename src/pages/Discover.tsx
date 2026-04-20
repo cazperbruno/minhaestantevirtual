@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { fetchShelves, type Shelf } from "@/lib/recommend-api";
 import { trackRecsShown, recomputeUserWeights } from "@/lib/ai-tracking";
 import { useMySeries } from "@/hooks/useMySeries";
+import { NextAchievementsCard } from "@/components/gamification/NextAchievementsCard";
 
 export default function Discover() {
   const { user } = useAuth();
