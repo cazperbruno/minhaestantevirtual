@@ -311,7 +311,7 @@ export default function ReportsPage() {
             size="lg"
             onClick={exportPdf}
             disabled={exporting || !filtered.length}
-            className="bg-gradient-to-r from-amber-500 to-amber-600 text-amber-950 hover:from-amber-400 hover:to-amber-500 shadow-glow"
+            className="shadow-glow"
           >
             <Download className="h-4 w-4 mr-2" />
             {exporting ? "Gerando..." : "Exportar PDF"}
