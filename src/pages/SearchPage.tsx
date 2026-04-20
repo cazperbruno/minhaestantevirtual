@@ -42,6 +42,8 @@ export default function SearchPage() {
     lastRunRef.current = value;
     setBusy(true);
     setActiveQuery(value);
+    // AI: registra busca como sinal de interesse temporário (boost por 7 dias)
+    trackSearch(value);
     try {
       const digits = value.replace(/\D/g, "");
       const looksLikeIsbn = digits.length === 10 || digits.length === 13;
