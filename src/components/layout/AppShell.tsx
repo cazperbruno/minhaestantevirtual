@@ -4,9 +4,12 @@ import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
 import { MobileHeader } from "./MobileHeader";
 import { ScannerFab } from "./ScannerFab";
+import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
+  // Stale-while-revalidate: assina canais Realtime e invalida queries.
+  useRealtimeInvalidation();
   return (
     <div className="min-h-screen flex">
       <Sidebar />
