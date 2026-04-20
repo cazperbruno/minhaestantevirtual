@@ -17,6 +17,7 @@ import {
   Book,
   LogOut,
   Sparkles,
+  Layers,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,7 @@ const more = [
   { to: "/leitores", label: "Leitores", icon: Users, group: "Descobrir" },
 
   { to: "/desejos", label: "Lista de desejos", icon: Heart, group: "Você" },
+  { to: "/series", label: "Minhas séries", icon: Layers, group: "Você" },
   { to: "/metas", label: "Metas", icon: Target, group: "Você" },
   { to: "/estatisticas", label: "Estatísticas", icon: BarChart3, group: "Você" },
   { to: "/ranking", label: "Ranking", icon: Trophy, group: "Você" },
