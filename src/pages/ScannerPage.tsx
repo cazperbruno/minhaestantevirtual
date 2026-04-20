@@ -79,7 +79,10 @@ export default function ScannerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
-  useEffect(() => () => stop(), []);
+  useEffect(() => () => {
+    stop();
+    if (continuousTimerRef.current) clearTimeout(continuousTimerRef.current);
+  }, []);
 
   const stop = () => {
     try { controlsRef.current?.stop(); } catch { /* noop */ }
