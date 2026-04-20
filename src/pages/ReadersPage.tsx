@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { FollowButton } from "@/components/social/FollowButton";
 import { Search, Sparkles, Trophy, Users, Loader2 } from "lucide-react";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { profilePath } from "@/lib/profile-path";
 
 interface Reader {
   id: string;
@@ -162,7 +163,7 @@ function Section({
         <ul className="grid sm:grid-cols-2 gap-3 animate-stagger">
           {list.map((r) => (
             <li key={r.id} className="glass rounded-2xl p-4 flex items-center gap-3 hover:border-primary/30 transition-colors">
-              <Link to={r.username ? `/u/${r.username}` : "#"} className="shrink-0">
+              <Link to={profilePath(r)} className="shrink-0">
                 <Avatar className="w-12 h-12 ring-2 ring-transparent hover:ring-primary/40 transition-all">
                   <AvatarImage src={r.avatar_url || undefined} />
                   <AvatarFallback className="bg-gradient-gold text-primary-foreground font-display">
@@ -171,7 +172,7 @@ function Section({
                 </Avatar>
               </Link>
               <div className="flex-1 min-w-0">
-                <Link to={r.username ? `/u/${r.username}` : "#"} className="font-semibold text-sm truncate hover:text-primary transition-colors block">
+                <Link to={profilePath(r)} className="font-semibold text-sm truncate hover:text-primary transition-colors block">
                   {r.display_name || "Leitor"}
                 </Link>
                 {r.username && <p className="text-xs text-muted-foreground truncate">@{r.username}</p>}

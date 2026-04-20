@@ -12,6 +12,7 @@ import { ArrowRightLeft, Check, X, Loader2, Send, Inbox, Sparkles } from "lucide
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { profilePath } from "@/lib/profile-path";
 
 interface Trade {
   id: string;
@@ -146,7 +147,7 @@ export default function TradesPage() {
               return (
                 <li key={t.id} className="glass rounded-2xl p-5 hover:border-primary/30 transition-all">
                   <div className="flex items-center gap-3 mb-4">
-                    <Link to={other?.username ? `/u/${other.username}` : "#"}>
+                    <Link to={profilePath(other)}>
                       <Avatar className="w-9 h-9">
                         <AvatarImage src={other?.avatar_url} />
                         <AvatarFallback className="bg-gradient-gold text-primary-foreground text-xs">
@@ -157,7 +158,7 @@ export default function TradesPage() {
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm truncate">
                         {iAmReceiver ? "Proposta de" : "Para"}{" "}
-                        <Link to={other?.username ? `/u/${other.username}` : "#"} className="hover:text-primary transition-colors">
+                        <Link to={profilePath(other)} className="hover:text-primary transition-colors">
                           {other?.display_name || "Leitor"}
                         </Link>
                       </p>
