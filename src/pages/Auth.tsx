@@ -7,7 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { BookOpen, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import readifyLogo from "@/assets/readify-logo.png";
 
 export default function Auth() {
   const { user, loading } = useAuth();
@@ -60,10 +61,12 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center px-5 py-10 bg-gradient-hero">
       <div className="w-full max-w-md animate-scale-in">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-gold shadow-glow mb-4">
-            <BookOpen className="w-7 h-7 text-primary-foreground" />
-          </div>
-          <h1 className="font-display text-4xl font-bold text-gradient-gold">Página</h1>
+          <img
+            src={readifyLogo}
+            alt="Readify"
+            className="mx-auto mb-2 w-64 max-w-full h-auto select-none"
+            draggable={false}
+          />
           <p className="text-muted-foreground mt-2">Sua biblioteca pessoal, redesenhada.</p>
         </div>
 
