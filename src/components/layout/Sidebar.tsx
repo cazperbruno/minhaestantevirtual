@@ -1,4 +1,4 @@
-import { Book, Library, Heart, User as UserIcon, LogOut, Search, ScanBarcode, ArrowRightLeft, MessageSquare, Trophy, Target, Users, BarChart3, Infinity as InfinityIcon, Repeat, FileText } from "lucide-react";
+import { Book, Library, Heart, User as UserIcon, LogOut, Search, ScanBarcode, ArrowRightLeft, MessageSquare, Trophy, Target, Users, BarChart3, Infinity as InfinityIcon, Repeat, FileText, Sparkles } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ const items = [
   { to: "/feed", label: "Feed social", icon: MessageSquare },
   { to: "/leitores", label: "Leitores", icon: Users },
   { to: "/clubes", label: "Clubes", icon: Users },
+  { to: "/progresso", label: "Progresso", icon: Sparkles },
   { to: "/ranking", label: "Ranking", icon: Trophy },
   { to: "/metas", label: "Metas", icon: Target },
   { to: "/estatisticas", label: "Estatísticas", icon: BarChart3 },

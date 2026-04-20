@@ -51,6 +51,14 @@ export const qk = {
 
   // live
   notifications: (userId: string) => ["notifications", userId] as const,
+
+  // gamificação
+  challenges: (userId: string) => ["challenges", userId] as const,
+  streak: (userId: string) => ["streak", userId] as const,
+  invite: (userId: string) => ["invite", userId] as const,
+  ambassadors: () => ["ambassadors"] as const,
+  weeklyRanking: () => ["weekly-ranking"] as const,
+  xpHistory: (userId: string) => ["xp-history", userId] as const,
 } as const;
 
 /**

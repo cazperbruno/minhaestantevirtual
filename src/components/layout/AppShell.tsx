@@ -1,15 +1,26 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
 import { MobileHeader } from "./MobileHeader";
 import { ScannerFab } from "./ScannerFab";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
+import { useAuth } from "@/hooks/useAuth";
+import { tickStreak } from "@/lib/xp";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
+  const { user } = useAuth();
+  const tickedRef = useRef(false);
   // Stale-while-revalidate: assina canais Realtime e invalida queries.
   useRealtimeInvalidation();
+  // Tick de streak diário (1x por sessão)
+  useEffect(() => {
+    if (user?.id && !tickedRef.current) {
+      tickedRef.current = true;
+      void tickStreak(user.id);
+    }
+  }, [user?.id]);
   return (
     <div className="min-h-screen flex">
       <Sidebar />
