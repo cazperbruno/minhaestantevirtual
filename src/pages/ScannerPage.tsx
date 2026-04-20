@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Camera, Loader2, ScanBarcode, Sparkles, X, Search, BookX,
-  Zap, ZapOff, Check, ArrowRight, BookOpen, FileText, Image as ImageIcon, Plus,
+  Zap, ZapOff, Check, ArrowRight, BookOpen, FileText, Image as ImageIcon, Plus, Repeat,
 } from "lucide-react";
 import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
