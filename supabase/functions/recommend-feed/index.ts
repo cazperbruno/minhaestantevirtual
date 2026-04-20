@@ -83,6 +83,36 @@ Deno.serve(async (req) => {
     // ====== PRATELEIRAS NETFLIX ======
     const shelves: Shelf[] = [];
 
+    // 0) Filtragem colaborativa — "Leitores parecidos com você leram"
+    const { data: collab } = await supabase.rpc("get_collaborative_recommendations", {
+      target_user_id: user.id,
+    });
+    if (collab && collab.length > 0) {
+      const top = collab.slice(0, 14);
+      const ids = top.map((c: any) => c.book_id);
+      const { data: books } = await supabase
+        .from("books").select("*").in("id", ids).not("cover_url", "is", null);
+      if (books && books.length > 0) {
+        const byId = new Map(books.map((b: any) => [b.id, b]));
+        const readersById = new Map(top.map((c: any) => [c.book_id, c.reader_count]));
+        const ordered = ids
+          .map((id: string) => {
+            const b = byId.get(id);
+            const rc = readersById.get(id);
+            return b ? { ...b, _reason: `${rc} ${rc === 1 ? "leitor parecido leu" : "leitores parecidos leram"}` } : null;
+          })
+          .filter(Boolean);
+        if (ordered.length > 0) {
+          shelves.push({
+            id: "reading_twins",
+            title: "Leitores parecidos com você leram",
+            reason: "Pessoas com gosto semelhante adoraram estes livros",
+            books: ordered,
+          });
+        }
+      }
+    }
+
     // 1) Recomendado para você (engine multi-sinal)
     const { data: personalized } = await supabase.rpc("recommend_for_user", {
       _user_id: user.id, _limit: 18,
@@ -92,10 +122,16 @@ Deno.serve(async (req) => {
       const ids = personalized.map((r: any) => r.id);
       const { data: books } = await supabase.from("books").select("*").in("id", ids);
       const byId = new Map((books || []).map((b: any) => [b.id, b]));
-      const ordered = ids.map((id: string) => byId.get(id)).filter(Boolean);
+      const reasonById = new Map((personalized || []).map((r: any) => [r.id, r.reason]));
+      const ordered = ids
+        .map((id: string) => {
+          const b = byId.get(id);
+          return b ? { ...b, _reason: reasonById.get(id) } : null;
+        })
+        .filter(Boolean);
       shelves.push({
         id: "for_you",
-        title: "Recomendado para você",
+        title: "Baseado no seu perfil",
         reason: "Combinamos seus gostos, autores favoritos e tendências",
         books: ordered,
       });
