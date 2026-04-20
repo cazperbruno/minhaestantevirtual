@@ -1,14 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { UserBook } from "@/types/book";
 import { LibraryShelf } from "@/components/books/LibraryShelf";
 import { BookCard } from "@/components/books/BookCard";
 import { ShelfSkeleton } from "@/components/ui/skeletons";
 import { Button } from "@/components/ui/button";
 import { Library as LibraryIcon, LayoutGrid, Rows3, Search } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useLibrary } from "@/hooks/useLibrary";
 import {
   LibraryFilters,
   DEFAULT_FILTERS,
@@ -19,25 +17,9 @@ import {
 type View = "shelves" | "grid";
 
 export default function LibraryPage() {
-  const { user } = useAuth();
-  const [items, setItems] = useState<UserBook[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: items = [], isLoading: loading } = useLibrary();
   const [view, setView] = useState<View>("shelves");
   const [filters, setFilters] = useState<LibraryFiltersValue>(DEFAULT_FILTERS);
-
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      setLoading(true);
-      const { data } = await supabase
-        .from("user_books")
-        .select("*, book:books(*)")
-        .eq("user_id", user.id)
-        .order("updated_at", { ascending: false });
-      setItems((data as UserBook[]) || []);
-      setLoading(false);
-    })();
-  }, [user]);
 
   // For shelves view, status filter is implicit per shelf — apply only the others.
   const shelfFiltered = useMemo(
