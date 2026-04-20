@@ -32,6 +32,7 @@ const TradesPage = lazy(() => import("./pages/TradesPage"));
 const ReportsPage = lazy(() => import("./pages/ReportsPage"));
 const ProgressPage = lazy(() => import("./pages/ProgressPage"));
 const XpHistoryPage = lazy(() => import("./pages/XpHistoryPage"));
+const SeriesDetailPage = lazy(() => import("./pages/SeriesDetailPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const RouteFallback = () => (
@@ -72,6 +73,7 @@ const App = () => (
             <Route path="/progresso/historico" element={<ProtectedRoute><XpHistoryPage /></ProtectedRoute>} />
             <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path="/livro/:id" element={<ProtectedRoute><BookDetail /></ProtectedRoute>} />
+            <Route path="/serie/:id" element={<ProtectedRoute><SeriesDetailPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

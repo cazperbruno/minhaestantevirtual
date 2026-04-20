@@ -1658,6 +1658,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["content_type"][]
       }
+      user_format_count: { Args: { _user_id: string }; Returns: number }
       user_taste: {
         Args: { _user_id: string }
         Returns: {

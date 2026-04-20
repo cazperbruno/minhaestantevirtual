@@ -7,6 +7,16 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+type ContentType = "book" | "manga" | "comic" | "magazine";
+
+type SeriesPayload = {
+  total_volumes?: number | null;
+  total_chapters?: number | null;
+  status?: string | null;
+  banner_url?: string | null;
+  score?: number | null;
+};
+
 type NormalizedBook = {
   isbn_13?: string | null;
   isbn_10?: string | null;
@@ -22,6 +32,11 @@ type NormalizedBook = {
   categories?: string[];
   source: string;
   source_id?: string | null;
+  content_type?: ContentType;
+  series_id?: string | null;
+  volume_number?: number | null;
+  /** When provided (e.g. AniList), creates/updates the linked series row. */
+  _series?: SeriesPayload | null;
   raw?: any;
 };
 
@@ -576,7 +591,57 @@ async function searchGoogleBooks(query: string, lang = "pt"): Promise<Normalized
 // ============================================================
 // 6) Persistence (cache layer)
 // ============================================================
+async function ensureSeries(supabase: any, book: NormalizedBook): Promise<string | null> {
+  // Already has a linked series id from caller
+  if (book.series_id) return book.series_id;
+  // No external series payload -> nothing to create
+  if (!book._series || !book.source_id || book.content_type !== "manga") return null;
+
+  // Try to find by source + source_id
+  if (book.source && book.source_id) {
+    const { data: existing } = await supabase
+      .from("series")
+      .select("id")
+      .eq("source", book.source)
+      .eq("source_id", book.source_id)
+      .maybeSingle();
+    if (existing) return existing.id;
+  }
+
+  const { data, error } = await supabase
+    .from("series")
+    .insert({
+      title: book.title,
+      authors: book.authors || [],
+      content_type: book.content_type,
+      cover_url: book.cover_url,
+      description: book.description,
+      source: book.source,
+      source_id: book.source_id,
+      total_volumes: book._series.total_volumes ?? null,
+      status: book._series.status ?? null,
+      raw: book._series ?? null,
+    })
+    .select("id")
+    .single();
+  if (error) {
+    console.error("ensureSeries error", error);
+    return null;
+  }
+  return data?.id ?? null;
+}
+
 async function persistBook(supabase: any, book: NormalizedBook) {
+  // Manga from AniList -> dedupe by source/source_id (no ISBN)
+  if (book.source && book.source_id && book.content_type && book.content_type !== "book") {
+    const { data: existing } = await supabase
+      .from("books")
+      .select("*")
+      .eq("source", book.source)
+      .eq("source_id", book.source_id)
+      .maybeSingle();
+    if (existing) return existing;
+  }
   if (book.isbn_13) {
     const { data } = await supabase.from("books").select("*").eq("isbn_13", book.isbn_13).maybeSingle();
     if (data) return data;
@@ -585,6 +650,10 @@ async function persistBook(supabase: any, book: NormalizedBook) {
     const { data } = await supabase.from("books").select("*").eq("isbn_10", book.isbn_10).maybeSingle();
     if (data) return data;
   }
+
+  // For series-bearing items, ensure the series row first.
+  const seriesId = await ensureSeries(supabase, book);
+
   const { data, error } = await supabase
     .from("books")
     .insert({
@@ -602,7 +671,10 @@ async function persistBook(supabase: any, book: NormalizedBook) {
       categories: book.categories || [],
       source: book.source,
       source_id: book.source_id,
-      raw: book.raw,
+      content_type: book.content_type ?? "book",
+      series_id: seriesId,
+      volume_number: book.volume_number ?? null,
+      raw: book.raw ?? (book._series ? { series: book._series } : null),
     })
     .select()
     .single();
@@ -778,6 +850,10 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      const ALLOWED_TYPES = new Set(["book", "manga", "comic", "magazine"]);
+      const content_type: ContentType = ALLOWED_TYPES.has(body.content_type)
+        ? (body.content_type as ContentType) : "book";
+      const seriesIn = body._series && typeof body._series === "object" ? body._series : null;
       const safe: NormalizedBook = {
         title,
         subtitle: typeof body.subtitle === "string" ? body.subtitle.slice(0, 500) : null,
@@ -797,6 +873,16 @@ Deno.serve(async (req) => {
         isbn_10: typeof body.isbn_10 === "string" && /^\d{9}[\dX]$/.test(body.isbn_10) ? body.isbn_10 : null,
         source: typeof body.source === "string" ? body.source.slice(0, 32) : "manual",
         source_id: typeof body.source_id === "string" ? body.source_id.slice(0, 200) : null,
+        content_type,
+        volume_number: Number.isFinite(body.volume_number) ? body.volume_number : null,
+        series_id: typeof body.series_id === "string" ? body.series_id : null,
+        _series: seriesIn ? {
+          total_volumes: Number.isFinite(seriesIn.total_volumes) ? seriesIn.total_volumes : null,
+          total_chapters: Number.isFinite(seriesIn.total_chapters) ? seriesIn.total_chapters : null,
+          status: typeof seriesIn.status === "string" ? seriesIn.status.slice(0, 32) : null,
+          banner_url: typeof seriesIn.banner_url === "string" && /^https?:\/\//.test(seriesIn.banner_url) ? seriesIn.banner_url.slice(0, 1000) : null,
+          score: Number.isFinite(seriesIn.score) ? seriesIn.score : null,
+        } : null,
         raw: null,
       };
       const saved = await persistBook(supabase, safe);

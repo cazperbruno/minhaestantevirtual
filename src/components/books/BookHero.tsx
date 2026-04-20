@@ -76,6 +76,14 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
                 {[book.publisher, book.published_year, book.page_count && `${book.page_count} páginas`]
                   .filter(Boolean).join(" · ")}
               </p>
+              {book.series_id && (
+                <Link
+                  to={`/serie/${book.series_id}`}
+                  className="inline-flex items-center gap-1.5 mt-2 text-xs text-primary hover:underline"
+                >
+                  Ver série completa{book.volume_number ? ` · Vol. ${book.volume_number}` : ""} →
+                </Link>
+              )}
             </div>
 
             {book.categories && book.categories.length > 0 && (

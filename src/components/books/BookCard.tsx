@@ -1,10 +1,13 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Book } from "@/types/book";
 import { BookCover } from "./BookCover";
 import { ContentTypeBadge } from "./ContentTypeBadge";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/track";
+import { ensurePersistedBook, isExternal } from "@/lib/import-book";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface Props {
   book: Book & { _reason?: string };
@@ -16,16 +19,48 @@ interface Props {
 }
 
 function BookCardImpl({ book, size = "md", className, showMeta = true, source }: Props) {
+  const navigate = useNavigate();
+  const [importing, setImporting] = useState(false);
+
+  const handleClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    track("click", book.id, source ? { source } : undefined);
+    if (!isExternal(book)) {
+      navigate(`/livro/${book.id}`);
+      return;
+    }
+    // Livro externo (AniList / OpenLibrary) — persiste antes de navegar.
+    setImporting(true);
+    try {
+      const saved = await ensurePersistedBook(book);
+      if (!saved) {
+        toast.error("Não foi possível importar este item");
+        return;
+      }
+      navigate(`/livro/${saved.id}`);
+    } catch {
+      toast.error("Erro ao importar");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
-    <Link
-      to={`/livro/${book.id}`}
-      onClick={() => track("click", book.id, source ? { source } : undefined)}
-      onMouseEnter={() => track("view", book.id, source ? { source } : undefined)}
+    <a
+      href={`/livro/${book.id}`}
+      onClick={handleClick}
+      onMouseEnter={() => !isExternal(book) && track("view", book.id, source ? { source } : undefined)}
       className={cn("group block animate-fade-in", className)}
+      aria-busy={importing}
     >
       <div className="relative">
         <BookCover book={book} size={size} className="mx-auto group-hover:shadow-elevated" />
         <ContentTypeBadge type={book.content_type} className="absolute top-1.5 right-1.5 z-10" />
+        {importing && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/70 rounded-md backdrop-blur-sm">
+            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+          </div>
+        )}
       </div>
       {showMeta && (
         <div className="mt-3 px-1">
@@ -44,7 +79,7 @@ function BookCardImpl({ book, size = "md", className, showMeta = true, source }:
           )}
         </div>
       )}
-    </Link>
+    </a>
   );
 }
 
