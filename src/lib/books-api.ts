@@ -3,6 +3,7 @@ import type { Book } from "@/types/book";
 
 const FN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/search-books`;
 const COVER_FN = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/recognize-cover`;
+const PAGE_FN = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/recognize-page`;
 const ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 async function authHeaders() {
@@ -79,5 +80,38 @@ export async function recognizeCover(imageBase64: string): Promise<{ query: stri
   if (r.status === 429) throw new Error("Muitas requisições. Tente em instantes.");
   if (r.status === 402) throw new Error("Créditos AI insuficientes.");
   if (!r.ok) throw new Error("Falha ao reconhecer capa");
+  return r.json();
+}
+
+export interface PageCandidate {
+  title: string;
+  authors: string[];
+  cover_url: string | null;
+  description?: string | null;
+  isbn?: string | null;
+  source: "openlibrary" | "google";
+}
+
+export interface PageRecognition {
+  excerpt: string;
+  guess: { title: string | null; author: string | null };
+  confidence: number;
+  language: string | null;
+  usedQuery: string;
+  candidates: PageCandidate[];
+}
+
+export async function recognizePage(imageBase64: string): Promise<PageRecognition> {
+  const r = await fetch(PAGE_FN, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify({ imageBase64 }),
+  });
+  if (r.status === 429) throw new Error("Muitas requisições. Tente em instantes.");
+  if (r.status === 402) throw new Error("Créditos AI insuficientes.");
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    throw new Error(j.error || "Falha ao analisar página");
+  }
   return r.json();
 }

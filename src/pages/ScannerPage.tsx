@@ -2,21 +2,33 @@ import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Camera, Loader2, ScanBarcode, Upload, Sparkles, X, Search, BookX, Zap, ZapOff, Check, ArrowRight, BookOpen } from "lucide-react";
+import {
+  Camera, Loader2, ScanBarcode, Sparkles, X, Search, BookX,
+  Zap, ZapOff, Check, ArrowRight, BookOpen, FileText, Image as ImageIcon, Plus,
+} from "lucide-react";
 import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
-import { lookupIsbn, recognizeCover, searchBooksGet } from "@/lib/books-api";
+import {
+  lookupIsbn, recognizeCover, searchBooksGet, recognizePage, saveBook,
+  type PageRecognition, type PageCandidate,
+} from "@/lib/books-api";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { BookCard } from "@/components/books/BookCard";
 import type { Book } from "@/types/book";
+import { cn } from "@/lib/utils";
 
-type Mode = "barcode" | "cover";
+type Mode = "barcode" | "cover" | "page";
 
-// Haptic feedback helper (works on iOS PWA + Android via Vibration API)
 function vibrate(pattern: number | number[]) {
   try { navigator.vibrate?.(pattern); } catch { /* noop */ }
 }
+
+const MODE_LABEL: Record<Mode, string> = {
+  barcode: "Código",
+  cover: "Capa",
+  page: "Página",
+};
 
 export default function ScannerPage() {
   const navigate = useNavigate();
@@ -26,25 +38,37 @@ export default function ScannerPage() {
   const trackRef = useRef<MediaStreamTrack | null>(null);
   const lastScanRef = useRef<{ code: string; ts: number }>({ code: "", ts: 0 });
   const lockRef = useRef(false);
+
   const [mode, setMode] = useState<Mode>("barcode");
   const [active, setActive] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [busyLabel, setBusyLabel] = useState<string>("");
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [manualIsbn, setManualIsbn] = useState("");
-  const [results, setResults] = useState<Book[]>([]);
-  const [recognized, setRecognized] = useState<{ title?: string; author?: string } | null>(null);
-  const [notFoundIsbn, setNotFoundIsbn] = useState<string | null>(null);
+
+  // Barcode state
   const [detected, setDetected] = useState<string | null>(null);
   const [foundBook, setFoundBook] = useState<{ id: string; title: string; authors?: string[]; cover_url?: string | null } | null>(null);
+  const [notFoundIsbn, setNotFoundIsbn] = useState<string | null>(null);
 
-  // Auto-iniciar câmera no modo barcode (Steve Jobs: zero fricção)
+  // Cover state
+  const [coverResults, setCoverResults] = useState<Book[]>([]);
+  const [coverGuess, setCoverGuess] = useState<{ title?: string; author?: string } | null>(null);
+
+  // Page state
+  const [pageResult, setPageResult] = useState<PageRecognition | null>(null);
+
+  // Auto-start camera when entering barcode mode (zero friction)
   useEffect(() => {
-    if (mode === "barcode" && !active && !busy) {
-      const t = setTimeout(() => { startBarcode().catch(() => { /* user can tap button */ }); }, 250);
+    if (mode === "barcode" && !active && !busy && !foundBook && !notFoundIsbn) {
+      const t = setTimeout(() => { startBarcode().catch(() => { /* user can tap */ }); }, 200);
       return () => clearTimeout(t);
+    } else if (mode !== "barcode") {
+      stop();
     }
-  }, [mode]); // eslint-disable-line
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
 
   useEffect(() => () => stop(), []);
 
@@ -73,14 +97,13 @@ export default function ScannerPage() {
       hints.set(DecodeHintType.TRY_HARDER, true);
       const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 80 });
 
-      // Prefer the rear camera with sensible resolution constraints
       const constraints: MediaStreamConstraints = {
         audio: false,
         video: {
           facingMode: { ideal: "environment" },
           width: { ideal: 1280 },
           height: { ideal: 720 },
-          // @ts-expect-error - browser-specific hint for continuous focus
+          // @ts-expect-error vendor focus hint
           focusMode: "continuous",
         },
       };
@@ -94,12 +117,10 @@ export default function ScannerPage() {
           const code = raw.replace(/[^0-9Xx]/g, "");
           if (code.length !== 10 && code.length !== 13) return;
 
-          // Debounce: ignore same code within 1.5s window (anti-jitter)
           const now = Date.now();
           if (lastScanRef.current.code === code && now - lastScanRef.current.ts < 1500) return;
           lastScanRef.current = { code, ts: now };
 
-          // Lock to prevent multiple concurrent reads
           lockRef.current = true;
           vibrate(40);
           setDetected(code);
@@ -109,7 +130,6 @@ export default function ScannerPage() {
         },
       );
 
-      // Detect torch capability post-attach
       requestAnimationFrame(() => {
         const stream = (videoRef.current?.srcObject as MediaStream | null);
         const track = stream?.getVideoTracks()[0];
@@ -130,7 +150,7 @@ export default function ScannerPage() {
     const track = trackRef.current;
     if (!track) return;
     try {
-      // @ts-expect-error - torch is browser-specific
+      // @ts-expect-error torch is browser-specific
       await track.applyConstraints({ advanced: [{ torch: !torchOn }] });
       setTorchOn((v) => !v);
     } catch {
@@ -138,14 +158,16 @@ export default function ScannerPage() {
     }
   };
 
+  // Cascade: ISBN → cache+search → cover IA
   const resolveIsbn = async (isbn: string) => {
     setBusy(true);
+    setBusyLabel(`Buscando ISBN ${isbn}…`);
     setNotFoundIsbn(null);
     setFoundBook(null);
     try {
       const book = await lookupIsbn(isbn);
       if (book?.id) {
-        vibrate([20, 30, 60]); // success pattern
+        vibrate([20, 30, 60]);
         setFoundBook({
           id: book.id,
           title: book.title,
@@ -154,14 +176,14 @@ export default function ScannerPage() {
         });
         toast.success("Livro encontrado");
       } else {
-        vibrate([100, 50, 100]); // error pattern
+        vibrate([100, 50, 100]);
         setNotFoundIsbn(isbn);
-        toast.error("ISBN não encontrado. Tente buscar por título.");
       }
     } catch (e: any) {
       toast.error(e.message || "Erro");
     } finally {
       setBusy(false);
+      setBusyLabel("");
       lockRef.current = false;
     }
   };
@@ -171,7 +193,10 @@ export default function ScannerPage() {
     setNotFoundIsbn(null);
     setDetected(null);
     setManualIsbn("");
-    startBarcode();
+    setPageResult(null);
+    setCoverResults([]);
+    setCoverGuess(null);
+    if (mode === "barcode") startBarcode();
   };
 
   const submitManual = (e: React.FormEvent) => {
@@ -192,10 +217,12 @@ export default function ScannerPage() {
       r.readAsDataURL(file);
     });
 
+  // Cover mode
   const handleCoverFile = async (file: File) => {
     setBusy(true);
-    setRecognized(null);
-    setResults([]);
+    setBusyLabel("Identificando capa com IA…");
+    setCoverGuess(null);
+    setCoverResults([]);
     try {
       const b64 = await fileToBase64(file);
       const rec = await recognizeCover(b64);
@@ -203,43 +230,113 @@ export default function ScannerPage() {
         toast.error("Capa não reconhecida. Tente outra foto.");
         return;
       }
-      setRecognized({ title: rec.title, author: rec.author });
+      setCoverGuess({ title: rec.title, author: rec.author });
       const books = await searchBooksGet(rec.query);
-      setResults(books.slice(0, 12));
+      setCoverResults(books.slice(0, 12));
       if (books.length === 0) toast.warning("Nenhum livro encontrado para esta capa");
+      else vibrate([20, 30, 60]);
     } catch (e: any) {
       toast.error(e.message || "Erro ao reconhecer capa");
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+      setBusyLabel("");
+    }
+  };
+
+  // Page mode (OCR)
+  const handlePageFile = async (file: File) => {
+    setBusy(true);
+    setBusyLabel("Analisando página…");
+    setPageResult(null);
+    try {
+      const b64 = await fileToBase64(file);
+      const rec = await recognizePage(b64);
+      setPageResult(rec);
+      if (rec.candidates.length === 0) {
+        toast.warning("Não consegui identificar o livro a partir desta página");
+      } else {
+        vibrate([20, 30, 60]);
+        toast.success(`Encontramos ${rec.candidates.length} possível${rec.candidates.length === 1 ? "" : "is"}`);
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao analisar página");
+    } finally {
+      setBusy(false);
+      setBusyLabel("");
+    }
+  };
+
+  const addCandidateToLibrary = async (c: PageCandidate) => {
+    setBusy(true);
+    setBusyLabel("Adicionando à biblioteca…");
+    try {
+      const saved = await saveBook({
+        title: c.title,
+        authors: c.authors,
+        cover_url: c.cover_url,
+        description: c.description ?? null,
+        isbn_13: c.isbn && c.isbn.length === 13 ? c.isbn : null,
+        isbn_10: c.isbn && c.isbn.length === 10 ? c.isbn : null,
+        source: c.source,
+      } as any);
+      if (saved?.id) {
+        toast.success("Livro adicionado");
+        navigate(`/livro/${saved.id}`);
+      } else {
+        toast.error("Não foi possível salvar");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Erro");
+    } finally {
+      setBusy(false);
+      setBusyLabel("");
+    }
   };
 
   return (
     <AppShell>
-      <div className="px-5 md:px-10 pt-8 pb-16 max-w-4xl mx-auto">
-        <header className="mb-8 animate-fade-in">
+      <div className="px-5 md:px-10 pt-8 pb-32 md:pb-16 max-w-4xl mx-auto">
+        <header className="mb-6 animate-fade-in">
           <p className="text-sm text-primary font-medium mb-2 flex items-center gap-2">
             <Sparkles className="w-4 h-4" /> Scanner inteligente
           </p>
           <h1 className="font-display text-3xl md:text-5xl font-bold leading-tight mb-2">
-            Aponte. <span className="text-gradient-gold italic">Encontre.</span>
+            Aponte. <span className="text-primary italic">Encontre.</span>
           </h1>
-          <p className="text-muted-foreground">Leia o código de barras ISBN ou identifique pela capa com IA.</p>
+          <p className="text-muted-foreground text-sm md:text-base">
+            ISBN, capa ou qualquer página interna — a IA descobre o livro pra você.
+          </p>
         </header>
 
-        <div className="flex gap-2 mb-6">
-          <Button variant={mode === "barcode" ? "hero" : "outline"} onClick={() => { stop(); setMode("barcode"); }} className="gap-2">
-            <ScanBarcode className="w-4 h-4" /> Código de barras
-          </Button>
-          <Button variant={mode === "cover" ? "hero" : "outline"} onClick={() => { stop(); setMode("cover"); }} className="gap-2">
-            <Camera className="w-4 h-4" /> Capa (IA)
-          </Button>
+        {/* Mode switch — Apple-style segmented control */}
+        <div className="inline-flex items-center gap-1 p-1 rounded-full bg-card/60 border border-border mb-6">
+          {(["barcode", "cover", "page"] as Mode[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => { stop(); setMode(m); scanNext(); }}
+              className={cn(
+                "px-4 h-9 text-sm font-medium rounded-full transition-all flex items-center gap-1.5",
+                mode === m
+                  ? "bg-primary text-primary-foreground shadow-glow"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {m === "barcode" && <ScanBarcode className="w-3.5 h-3.5" />}
+              {m === "cover" && <ImageIcon className="w-3.5 h-3.5" />}
+              {m === "page" && <FileText className="w-3.5 h-3.5" />}
+              {MODE_LABEL[m]}
+            </button>
+          ))}
         </div>
 
+        {/* === BARCODE MODE === */}
         {mode === "barcode" && (
-          <section className="space-y-6">
+          <section className="space-y-6 animate-fade-in">
             <div className="glass rounded-2xl overflow-hidden border border-border">
               <div className="relative aspect-[4/3] bg-black">
                 <video ref={videoRef} className="w-full h-full object-cover" muted playsInline autoPlay />
-                {!active && !busy && (
+
+                {!active && !busy && !foundBook && !notFoundIsbn && (
                   <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-transparent to-black/40">
                     <Button variant="hero" size="lg" onClick={startBarcode} className="gap-2 shadow-glow">
                       <Camera className="w-4 h-4" /> Ativar câmera
@@ -249,7 +346,6 @@ export default function ScannerPage() {
 
                 {active && (
                   <>
-                    {/* Reading frame: corners + scanning line */}
                     <div className="absolute inset-0 pointer-events-none">
                       <div className="absolute inset-x-[12%] inset-y-[28%] border-2 border-primary/80 rounded-2xl shadow-glow">
                         <span className="absolute -top-1 -left-1 w-5 h-5 border-t-4 border-l-4 border-primary rounded-tl-xl" />
@@ -265,13 +361,7 @@ export default function ScannerPage() {
 
                     <div className="absolute top-3 right-3 flex gap-2">
                       {torchSupported && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={toggleTorch}
-                          className="gap-1 h-8 bg-background/80 backdrop-blur-sm"
-                          aria-label="Alternar lanterna"
-                        >
+                        <Button variant="outline" size="sm" onClick={toggleTorch} className="gap-1 h-8 bg-background/80 backdrop-blur-sm" aria-label="Lanterna">
                           {torchOn ? <ZapOff className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />}
                         </Button>
                       )}
@@ -285,9 +375,7 @@ export default function ScannerPage() {
                 {busy && (
                   <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 animate-fade-in">
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                    <p className="text-sm text-foreground/90 font-medium">
-                      {detected ? `Buscando ISBN ${detected}…` : "Buscando…"}
-                    </p>
+                    <p className="text-sm text-foreground/90 font-medium">{busyLabel || (detected ? `Buscando ISBN ${detected}…` : "Buscando…")}</p>
                   </div>
                 )}
               </div>
@@ -314,21 +402,15 @@ export default function ScannerPage() {
                     {foundBook.cover_url ? (
                       <img src={foundBook.cover_url} alt={foundBook.title} className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                        <BookOpen className="w-6 h-6" />
-                      </div>
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground"><BookOpen className="w-6 h-6" /></div>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-primary font-medium flex items-center gap-1.5 mb-1">
                       <Check className="w-3.5 h-3.5" /> Livro encontrado
                     </p>
-                    <h3 className="font-display font-semibold text-lg leading-tight line-clamp-2">
-                      {foundBook.title}
-                    </h3>
-                    {foundBook.authors?.length ? (
-                      <p className="text-sm text-muted-foreground line-clamp-1">{foundBook.authors.join(", ")}</p>
-                    ) : null}
+                    <h3 className="font-display font-semibold text-lg leading-tight line-clamp-2">{foundBook.title}</h3>
+                    {foundBook.authors?.length ? <p className="text-sm text-muted-foreground line-clamp-1">{foundBook.authors.join(", ")}</p> : null}
                     <div className="flex flex-wrap gap-2 mt-4">
                       <Button variant="hero" onClick={() => navigate(`/livro/${foundBook.id}`)} className="gap-2">
                         Ver livro <ArrowRight className="w-4 h-4" />
@@ -349,23 +431,19 @@ export default function ScannerPage() {
                     <BookX className="w-5 h-5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-display font-semibold text-lg leading-tight">
-                      ISBN não encontrado
-                    </h3>
+                    <h3 className="font-display font-semibold text-lg leading-tight">ISBN não encontrado</h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Não localizamos <span className="font-mono text-foreground">{notFoundIsbn}</span> nos catálogos.
-                      Tente buscar pelo título ou autor — às vezes o livro está cadastrado com outro código.
+                      Não localizamos <span className="font-mono text-foreground">{notFoundIsbn}</span>. Tente identificar pela capa ou por uma página interna.
                     </p>
                     <div className="flex flex-wrap gap-2 mt-4">
-                      <Button
-                        variant="hero"
-                        onClick={() => navigate(`/buscar?q=${encodeURIComponent(notFoundIsbn)}`)}
-                        className="gap-2"
-                      >
-                        <Search className="w-4 h-4" /> Buscar por título/autor
+                      <Button variant="hero" onClick={() => { setMode("cover"); scanNext(); }} className="gap-2">
+                        <ImageIcon className="w-4 h-4" /> Tentar pela capa
                       </Button>
-                      <Button variant="outline" onClick={scanNext} className="gap-2">
-                        <ScanBarcode className="w-4 h-4" /> Escanear próximo
+                      <Button variant="outline" onClick={() => { setMode("page"); scanNext(); }} className="gap-2">
+                        <FileText className="w-4 h-4" /> Tentar pela página
+                      </Button>
+                      <Button variant="ghost" onClick={() => navigate(`/buscar?q=${encodeURIComponent(notFoundIsbn)}`)} className="gap-2">
+                        <Search className="w-4 h-4" /> Buscar título
                       </Button>
                     </div>
                   </div>
@@ -375,44 +453,45 @@ export default function ScannerPage() {
           </section>
         )}
 
+        {/* === COVER MODE === */}
         {mode === "cover" && (
-          <section className="space-y-6">
-            <div className="glass rounded-2xl p-8 text-center border border-dashed border-border">
-              <Camera className="w-10 h-10 mx-auto text-primary mb-3" />
-              <h3 className="font-display text-xl font-semibold mb-1">Identificar livro pela capa</h3>
-              <p className="text-sm text-muted-foreground mb-5">Tire ou envie uma foto nítida da capa do livro.</p>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={(e) => e.target.files?.[0] && handleCoverFile(e.target.files[0])}
-              />
-              <div className="flex flex-wrap gap-2 justify-center">
-                <Button variant="hero" onClick={() => fileRef.current?.click()} disabled={busy} className="gap-2">
-                  {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-                  Tirar / enviar foto
-                </Button>
-                <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={busy} className="gap-2">
-                  <Upload className="w-4 h-4" /> Da galeria
-                </Button>
-              </div>
-            </div>
+          <section className="space-y-6 animate-fade-in">
+            <CapturePanel
+              icon={<ImageIcon className="w-10 h-10 text-primary" />}
+              title="Identificar pela capa"
+              hint="Tire ou envie uma foto nítida da capa do livro. A IA reconhece e busca em todos os catálogos."
+              busy={busy}
+              busyLabel={busyLabel}
+              onPick={() => fileRef.current?.click()}
+            />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (!f) return;
+                if (mode === "cover") handleCoverFile(f);
+                else if (mode === "page") handlePageFile(f);
+                e.target.value = "";
+              }}
+            />
 
-            {recognized && (
+            {coverGuess && (
               <div className="glass rounded-xl p-4 animate-fade-in">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">IA identificou</p>
-                <p className="font-display text-lg font-semibold">{recognized.title || "Título desconhecido"}</p>
-                {recognized.author && <p className="text-sm text-muted-foreground">{recognized.author}</p>}
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">IA identificou</p>
+                <p className="font-display text-lg font-semibold">{coverGuess.title || "Título desconhecido"}</p>
+                {coverGuess.author && <p className="text-sm text-muted-foreground">{coverGuess.author}</p>}
               </div>
             )}
 
-            {results.length > 0 && (
+            {coverResults.length > 0 && (
               <div>
                 <h3 className="font-display text-xl font-semibold mb-3">Resultados</h3>
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-5">
-                  {results.map((b, i) => (
+                  {coverResults.map((b, i) => (
                     <BookCard key={b.id ?? `cover-${i}`} book={b} size="sm" />
                   ))}
                 </div>
@@ -420,7 +499,159 @@ export default function ScannerPage() {
             )}
           </section>
         )}
+
+        {/* === PAGE MODE (OCR + AI) === */}
+        {mode === "page" && (
+          <section className="space-y-6 animate-fade-in">
+            <CapturePanel
+              icon={<FileText className="w-10 h-10 text-primary" />}
+              title="Identificar pela página"
+              hint="Tire uma foto de qualquer página interna. A IA lê o texto, identifica trechos marcantes e descobre qual livro é."
+              busy={busy}
+              busyLabel={busyLabel}
+              onPick={() => fileRef.current?.click()}
+            />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (!f) return;
+                handlePageFile(f);
+                e.target.value = "";
+              }}
+            />
+
+            {pageResult && (
+              <>
+                {pageResult.excerpt && (
+                  <div className="glass rounded-xl p-4 animate-fade-in">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                      <FileText className="w-3 h-3" /> Trecho extraído
+                    </p>
+                    <p className="font-display text-base italic leading-relaxed">"{pageResult.excerpt}"</p>
+                    {(pageResult.guess.title || pageResult.guess.author) && (
+                      <p className="text-xs text-muted-foreground mt-3">
+                        Palpite da IA:{" "}
+                        <span className="text-foreground font-medium">{pageResult.guess.title || "?"}</span>
+                        {pageResult.guess.author && <> — {pageResult.guess.author}</>}
+                        {pageResult.confidence > 0 && (
+                          <> · {Math.round(pageResult.confidence * 100)}% confiança</>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {pageResult.candidates.length > 0 ? (
+                  <div className="space-y-3">
+                    <h3 className="font-display text-xl font-semibold">
+                      {pageResult.candidates.length === 1 ? "Encontramos esse livro" : "Possíveis livros"}
+                    </h3>
+                    {pageResult.candidates.map((c, i) => (
+                      <PageCandidateCard
+                        key={`${c.title}-${i}`}
+                        candidate={c}
+                        primary={i === 0}
+                        onAdd={() => addCandidateToLibrary(c)}
+                        disabled={busy}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="glass rounded-2xl p-5 border border-destructive/30 animate-fade-in">
+                    <p className="font-display font-semibold text-lg mb-1">Não consegui identificar</p>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      A foto pode estar com pouco texto ou desfocada. Tente outra página com mais texto, ou use a busca.
+                    </p>
+                    <div className="flex gap-2 flex-wrap">
+                      <Button onClick={scanNext} variant="hero" className="gap-2">
+                        <Camera className="w-4 h-4" /> Tentar outra foto
+                      </Button>
+                      {pageResult.guess.title && (
+                        <Button
+                          variant="outline"
+                          onClick={() => navigate(`/buscar?q=${encodeURIComponent(pageResult.guess.title!)}`)}
+                          className="gap-2"
+                        >
+                          <Search className="w-4 h-4" /> Buscar palpite
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        )}
       </div>
     </AppShell>
+  );
+}
+
+function CapturePanel({
+  icon, title, hint, busy, busyLabel, onPick,
+}: {
+  icon: React.ReactNode; title: string; hint: string;
+  busy: boolean; busyLabel: string; onPick: () => void;
+}) {
+  return (
+    <div className="glass rounded-2xl p-8 text-center border border-dashed border-border relative overflow-hidden">
+      {busy && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-10 animate-fade-in">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-sm font-medium">{busyLabel}</p>
+        </div>
+      )}
+      <div className="mx-auto mb-3 w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+        {icon}
+      </div>
+      <h3 className="font-display text-xl font-semibold mb-1">{title}</h3>
+      <p className="text-sm text-muted-foreground mb-5 max-w-sm mx-auto">{hint}</p>
+      <Button variant="hero" size="lg" onClick={onPick} disabled={busy} className="gap-2 shadow-glow">
+        <Camera className="w-4 h-4" /> Tirar / enviar foto
+      </Button>
+    </div>
+  );
+}
+
+function PageCandidateCard({
+  candidate, primary, onAdd, disabled,
+}: { candidate: PageCandidate; primary: boolean; onAdd: () => void; disabled: boolean }) {
+  return (
+    <div className={cn(
+      "glass rounded-2xl p-4 flex gap-4 items-start animate-fade-in",
+      primary ? "border border-primary/40 shadow-glow" : "border border-border",
+    )}>
+      <div className="w-16 h-24 shrink-0 rounded-md overflow-hidden bg-muted">
+        {candidate.cover_url ? (
+          <img src={candidate.cover_url} alt={candidate.title} className="w-full h-full object-cover" loading="lazy" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+            <BookOpen className="w-6 h-6" />
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        {primary && (
+          <p className="text-xs text-primary font-medium flex items-center gap-1.5 mb-1">
+            <Check className="w-3.5 h-3.5" /> Mais provável
+          </p>
+        )}
+        <h4 className="font-display font-semibold text-base leading-tight line-clamp-2">{candidate.title}</h4>
+        {candidate.authors?.length > 0 && (
+          <p className="text-sm text-muted-foreground line-clamp-1 mt-0.5">{candidate.authors.join(", ")}</p>
+        )}
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">
+          fonte: {candidate.source === "openlibrary" ? "Open Library" : "Google Books"}
+        </p>
+        <Button onClick={onAdd} disabled={disabled} size="sm" variant={primary ? "hero" : "outline"} className="mt-3 gap-1.5">
+          <Plus className="w-3.5 h-3.5" /> Adicionar à biblioteca
+        </Button>
+      </div>
+    </div>
   );
 }
