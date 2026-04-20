@@ -228,7 +228,7 @@ export default function PublicProfile() {
             </div>
             {!isOwn && (
               <div className="flex flex-col gap-2 items-stretch">
-                <FollowButton targetUserId={profile.id} initiallyFollowing={stats.iFollow} size="default" />
+                <FollowButton targetUserId={profile.id} size="default" />
                 {!isPrivate && <ProposeTradeDialog receiverId={profile.id} receiverName={profile.display_name || undefined} />}
               </div>
             )}

@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,6 +10,8 @@ import { FollowButton } from "@/components/social/FollowButton";
 import { Search, Sparkles, Trophy, Users, Loader2 } from "lucide-react";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { profilePath } from "@/lib/profile-path";
+import { useSuggestedReaders } from "@/hooks/useFollow";
+import { CACHE, qk } from "@/lib/query-client";
 
 interface Reader {
   id: string;
@@ -19,59 +22,56 @@ interface Reader {
   xp?: number | null;
   shared_books?: number;
   shared_genres?: number;
-  i_follow?: boolean;
 }
 
 export default function ReadersPage() {
   const { user } = useAuth();
   const [query, setQuery] = useState("");
   const debounced = useDebouncedValue(query.trim(), 250);
-  const [searchResults, setSearchResults] = useState<Reader[]>([]);
-  const [suggestions, setSuggestions] = useState<Reader[]>([]);
-  const [topReaders, setTopReaders] = useState<Reader[]>([]);
-  const [followingSet, setFollowingSet] = useState<Set<string>>(new Set());
-  const [searching, setSearching] = useState(false);
-  const [loadingInit, setLoadingInit] = useState(true);
 
-  // initial: suggestions (similar) + ranking + my follows
-  useEffect(() => {
-    (async () => {
-      setLoadingInit(true);
-      const [{ data: ranking }, { data: myFollows }, simResp] = await Promise.all([
-        supabase.from("ranking_view").select("*").limit(12),
-        user
-          ? supabase.from("follows").select("following_id").eq("follower_id", user.id)
-          : Promise.resolve({ data: [] as any[] }),
-        user
-          ? supabase.rpc("similar_readers", { _user_id: user.id, _limit: 10 })
-          : Promise.resolve({ data: [] as any[] }),
-      ]);
-      const fs = new Set<string>((myFollows || []).map((f: any) => f.following_id));
-      setFollowingSet(fs);
-      setTopReaders((ranking || []) as Reader[]);
-      setSuggestions(((simResp as any).data || []) as Reader[]);
-      setLoadingInit(false);
-    })();
-  }, [user]);
+  // Sugestões "Para seguir" (já exclui usuário atual + quem ele segue)
+  const { data: suggestions = [], isLoading: loadingSuggestions } = useSuggestedReaders(20);
 
-  // search by name/username
-  useEffect(() => {
-    if (!debounced) {
-      setSearchResults([]);
-      return;
-    }
-    (async () => {
-      setSearching(true);
+  // Top do ranking (cacheado social — 5min)
+  const { data: topReaders = [], isLoading: loadingTop } = useQuery<Reader[]>({
+    queryKey: qk.ranking(),
+    queryFn: async () => {
+      const { data } = await supabase.from("ranking_view").select("*").limit(12);
+      return ((data as Reader[]) || []).filter((r) => r.id !== user?.id);
+    },
+    enabled: !!user,
+    ...CACHE.SOCIAL,
+  });
+
+  // Leitores afins via RPC similar_readers (cacheado social)
+  const { data: affins = [] } = useQuery<Reader[]>({
+    queryKey: ["affin-readers", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data } = await supabase.rpc("similar_readers", { _user_id: user.id, _limit: 10 });
+      return (data as Reader[]) || [];
+    },
+    enabled: !!user,
+    ...CACHE.SOCIAL,
+  });
+
+  // Busca por nome/username — sem cache pesado, só durante digitação
+  const { data: searchResults = [], isFetching: searching } = useQuery<Reader[]>({
+    queryKey: ["readers-search", debounced, user?.id],
+    queryFn: async () => {
       const q = debounced.replace(/^@+/, "");
       const { data } = await supabase
         .from("profiles")
         .select("id,display_name,username,avatar_url,level,xp")
         .or(`username.ilike.%${q}%,display_name.ilike.%${q}%`)
         .limit(30);
-      setSearchResults(((data || []) as Reader[]).filter((r) => r.id !== user?.id));
-      setSearching(false);
-    })();
-  }, [debounced, user]);
+      return ((data as Reader[]) || []).filter((r) => r.id !== user?.id);
+    },
+    enabled: !!debounced,
+    staleTime: 1000 * 30,
+  });
+
+  const loadingInit = loadingSuggestions || loadingTop;
 
   return (
     <AppShell>
@@ -101,7 +101,6 @@ export default function ReadersPage() {
           <Section
             title={`Resultados para "${debounced}"`}
             list={searchResults}
-            followingSet={followingSet}
             empty="Nenhum leitor encontrado."
           />
         ) : loadingInit ? (
@@ -110,11 +109,18 @@ export default function ReadersPage() {
           <div className="space-y-12">
             {suggestions.length > 0 && (
               <Section
+                title="Para seguir"
+                subtitle="Leitores que você ainda não segue"
+                icon={<Users className="w-4 h-4 text-primary" />}
+                list={suggestions as Reader[]}
+              />
+            )}
+            {affins.length > 0 && (
+              <Section
                 title="Leitores afins"
                 subtitle="Pessoas com gostos parecidos com os seus"
                 icon={<Sparkles className="w-4 h-4 text-primary" />}
-                list={suggestions}
-                followingSet={followingSet}
+                list={affins}
                 showAffinity
               />
             )}
@@ -122,8 +128,7 @@ export default function ReadersPage() {
               title="Top leitores"
               subtitle="Quem mais lê e influencia a comunidade"
               icon={<Trophy className="w-4 h-4 text-primary" />}
-              list={topReaders.filter((r) => r.id !== user?.id)}
-              followingSet={followingSet}
+              list={topReaders}
             />
           </div>
         )}
@@ -137,7 +142,6 @@ function Section({
   subtitle,
   icon,
   list,
-  followingSet,
   showAffinity = false,
   empty,
 }: {
@@ -145,7 +149,6 @@ function Section({
   subtitle?: string;
   icon?: React.ReactNode;
   list: Reader[];
-  followingSet: Set<string>;
   showAffinity?: boolean;
   empty?: string;
 }) {
@@ -186,7 +189,7 @@ function Section({
                   )}
                 </div>
               </div>
-              <FollowButton targetUserId={r.id} initiallyFollowing={followingSet.has(r.id)} />
+              <FollowButton targetUserId={r.id} />
             </li>
           ))}
         </ul>
