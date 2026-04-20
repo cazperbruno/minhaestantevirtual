@@ -14,6 +14,8 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { profilePath } from "@/lib/profile-path";
 import { useFeed, useToggleReviewLike, FeedReview } from "@/hooks/useFeed";
+import { usePublicRecommendations } from "@/hooks/useRecommendations";
+import { RecommendationCard } from "@/components/books/RecommendationCard";
 
 export default function FeedPage() {
   const [tab, setTab] = useState<"all" | "following">("all");
