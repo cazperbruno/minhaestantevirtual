@@ -755,8 +755,51 @@ Deno.serve(async (req) => {
     }
 
     if (action === "save") {
-      const body = await req.json();
-      const saved = await persistBook(supabase, body);
+      let body: any;
+      try {
+        body = await req.json();
+      } catch {
+        return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Validate payload
+      if (!body || typeof body !== "object") {
+        return new Response(JSON.stringify({ error: "Invalid payload" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const title = typeof body.title === "string" ? body.title.trim() : "";
+      if (!title || title.length > 500) {
+        return new Response(JSON.stringify({ error: "Title required (max 500 chars)" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const safe: NormalizedBook = {
+        title,
+        subtitle: typeof body.subtitle === "string" ? body.subtitle.slice(0, 500) : null,
+        authors: Array.isArray(body.authors)
+          ? body.authors.filter((a: any) => typeof a === "string").slice(0, 20).map((a: string) => a.slice(0, 200))
+          : [],
+        publisher: typeof body.publisher === "string" ? body.publisher.slice(0, 200) : null,
+        published_year: Number.isFinite(body.published_year) ? body.published_year : null,
+        description: typeof body.description === "string" ? body.description.slice(0, 5000) : null,
+        cover_url: typeof body.cover_url === "string" && /^https?:\/\//.test(body.cover_url) ? body.cover_url.slice(0, 1000) : null,
+        page_count: Number.isFinite(body.page_count) ? body.page_count : null,
+        language: typeof body.language === "string" ? body.language.slice(0, 16) : null,
+        categories: Array.isArray(body.categories)
+          ? body.categories.filter((c: any) => typeof c === "string").slice(0, 16).map((c: string) => c.slice(0, 80))
+          : [],
+        isbn_13: typeof body.isbn_13 === "string" && /^\d{13}$/.test(body.isbn_13) ? body.isbn_13 : null,
+        isbn_10: typeof body.isbn_10 === "string" && /^\d{9}[\dX]$/.test(body.isbn_10) ? body.isbn_10 : null,
+        source: typeof body.source === "string" ? body.source.slice(0, 32) : "manual",
+        source_id: typeof body.source_id === "string" ? body.source_id.slice(0, 200) : null,
+        raw: null,
+      };
+      const saved = await persistBook(supabase, safe);
       return new Response(JSON.stringify({ book: saved }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
