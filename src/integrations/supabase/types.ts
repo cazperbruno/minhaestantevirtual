@@ -44,6 +44,64 @@ export type Database = {
         }
         Relationships: []
       }
+      activities: {
+        Row: {
+          book_id: string | null
+          club_id: string | null
+          created_at: string
+          id: string
+          is_public: boolean
+          kind: string
+          meta: Json | null
+          target_user_id: string | null
+          user_id: string
+        }
+        Insert: {
+          book_id?: string | null
+          club_id?: string | null
+          created_at?: string
+          id?: string
+          is_public?: boolean
+          kind: string
+          meta?: Json | null
+          target_user_id?: string | null
+          user_id: string
+        }
+        Update: {
+          book_id?: string | null
+          club_id?: string | null
+          created_at?: string
+          id?: string
+          is_public?: boolean
+          kind?: string
+          meta?: Json | null
+          target_user_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activities_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activities_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "trending_books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activities_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "book_clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       book_clubs: {
         Row: {
           cover_url: string | null
@@ -157,6 +215,81 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      club_book_nominations: {
+        Row: {
+          book_id: string
+          club_id: string
+          created_at: string
+          id: string
+          nominated_by: string
+          votes_count: number
+        }
+        Insert: {
+          book_id: string
+          club_id: string
+          created_at?: string
+          id?: string
+          nominated_by: string
+          votes_count?: number
+        }
+        Update: {
+          book_id?: string
+          club_id?: string
+          created_at?: string
+          id?: string
+          nominated_by?: string
+          votes_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_book_nominations_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_book_nominations_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "trending_books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_book_nominations_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "book_clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      club_book_votes: {
+        Row: {
+          created_at: string
+          nomination_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          nomination_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          nomination_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_book_votes_nomination_id_fkey"
+            columns: ["nomination_id"]
+            isOneToOne: false
+            referencedRelation: "club_book_nominations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       club_members: {
         Row: {
@@ -291,6 +424,42 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          kind: string
+          link: string | null
+          meta: Json | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          kind: string
+          link?: string | null
+          meta?: Json | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          kind?: string
+          link?: string | null
+          meta?: Json | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -360,6 +529,38 @@ export type Database = {
         }
         Relationships: []
       }
+      review_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          review_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          review_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          review_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_comments_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       review_likes: {
         Row: {
           created_at: string
@@ -389,6 +590,7 @@ export type Database = {
       reviews: {
         Row: {
           book_id: string
+          comments_count: number
           content: string
           created_at: string
           id: string
@@ -400,6 +602,7 @@ export type Database = {
         }
         Insert: {
           book_id: string
+          comments_count?: number
           content: string
           created_at?: string
           id?: string
@@ -411,6 +614,7 @@ export type Database = {
         }
         Update: {
           book_id?: string
+          comments_count?: number
           content?: string
           created_at?: string
           id?: string
@@ -431,6 +635,71 @@ export type Database = {
           {
             foreignKeyName: "reviews_book_id_fkey"
             columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "trending_books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trades: {
+        Row: {
+          created_at: string
+          id: string
+          message: string | null
+          proposer_book_id: string
+          proposer_id: string
+          receiver_book_id: string
+          receiver_id: string
+          status: Database["public"]["Enums"]["trade_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          proposer_book_id: string
+          proposer_id: string
+          receiver_book_id: string
+          receiver_id: string
+          status?: Database["public"]["Enums"]["trade_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          proposer_book_id?: string
+          proposer_id?: string
+          receiver_book_id?: string
+          receiver_id?: string
+          status?: Database["public"]["Enums"]["trade_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trades_proposer_book_id_fkey"
+            columns: ["proposer_book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trades_proposer_book_id_fkey"
+            columns: ["proposer_book_id"]
+            isOneToOne: false
+            referencedRelation: "trending_books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trades_receiver_book_id_fkey"
+            columns: ["receiver_book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trades_receiver_book_id_fkey"
+            columns: ["receiver_book_id"]
             isOneToOne: false
             referencedRelation: "trending_books"
             referencedColumns: ["id"]
@@ -465,6 +734,8 @@ export type Database = {
       }
       user_books: {
         Row: {
+          available_for_loan: boolean
+          available_for_trade: boolean
           book_id: string
           created_at: string
           current_page: number | null
@@ -479,6 +750,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          available_for_loan?: boolean
+          available_for_trade?: boolean
           book_id: string
           created_at?: string
           current_page?: number | null
@@ -493,6 +766,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          available_for_loan?: boolean
+          available_for_trade?: boolean
           book_id?: string
           created_at?: string
           current_page?: number | null
@@ -658,6 +933,18 @@ export type Database = {
           score: number
         }[]
       }
+      similar_readers: {
+        Args: { _limit?: number; _user_id: string }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          id: string
+          level: number
+          shared_books: number
+          shared_genres: number
+          username: string
+        }[]
+      }
       user_taste: {
         Args: { _user_id: string }
         Returns: {
@@ -670,6 +957,12 @@ export type Database = {
       app_role: "admin" | "user"
       book_status: "not_read" | "reading" | "read" | "wishlist"
       loan_status: "lent" | "returned" | "overdue"
+      trade_status:
+        | "pending"
+        | "accepted"
+        | "declined"
+        | "completed"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -800,6 +1093,13 @@ export const Constants = {
       app_role: ["admin", "user"],
       book_status: ["not_read", "reading", "read", "wishlist"],
       loan_status: ["lent", "returned", "overdue"],
+      trade_status: [
+        "pending",
+        "accepted",
+        "declined",
+        "completed",
+        "cancelled",
+      ],
     },
   },
 } as const
