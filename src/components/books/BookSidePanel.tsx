@@ -4,6 +4,7 @@ import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { Check, Sparkles } from "lucide-react";
 import { AvailabilityToggles } from "./AvailabilityToggles";
+import { RecommendBookDialog } from "./RecommendBookDialog";
 
 interface Props {
   book: Book;
