@@ -7,6 +7,7 @@ import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 import { useAuth } from "@/hooks/useAuth";
 import { tickStreak } from "@/lib/xp";
 import { XpBurstHost } from "@/components/gamification/XpBurstHost";
+import { UpdatePrompt } from "@/components/pwa/UpdatePrompt";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
