@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Camera, Loader2, ScanBarcode, Upload, Sparkles, X, Search, BookX, Zap, ZapOff, Check, ArrowRight } from "lucide-react";
+import { Camera, Loader2, ScanBarcode, Upload, Sparkles, X, Search, BookX, Zap, ZapOff, Check, ArrowRight, BookOpen } from "lucide-react";
 import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 import { lookupIsbn, recognizeCover, searchBooksGet } from "@/lib/books-api";
@@ -315,7 +315,7 @@ export default function ScannerPage() {
                       <img src={foundBook.cover_url} alt={foundBook.title} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                        <Book className="w-6 h-6" />
+                        <BookOpen className="w-6 h-6" />
                       </div>
                     )}
                   </div>
