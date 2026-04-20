@@ -298,17 +298,27 @@ function MetricCard({
   icon: Icon,
   label,
   value,
+  highlight = false,
 }: {
   icon: typeof ShoppingCart;
   label: string;
   value: string;
+  highlight?: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-border/60 bg-card/40 p-3">
+    <div
+      className={
+        highlight
+          ? "rounded-lg border border-primary/40 bg-gradient-spine p-3 shadow-glow"
+          : "rounded-lg border border-border/60 bg-card/40 p-3"
+      }
+    >
       <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
-        <Icon className="h-3 w-3" /> {label}
+        <Icon className={`h-3 w-3 ${highlight ? "text-primary" : ""}`} /> {label}
       </div>
-      <div className="font-display text-xl md:text-2xl font-bold mt-0.5 tabular-nums">{value}</div>
+      <div className={`font-display text-xl md:text-2xl font-bold mt-0.5 tabular-nums ${highlight ? "text-primary" : ""}`}>
+        {value}
+      </div>
     </div>
   );
 }
