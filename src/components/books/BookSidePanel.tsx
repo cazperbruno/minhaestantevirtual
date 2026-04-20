@@ -2,7 +2,8 @@ import { Book, UserBook } from "@/types/book";
 import { Rating } from "./Rating";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
-import { Check } from "lucide-react";
+import { Check, Sparkles } from "lucide-react";
+import { AvailabilityToggles } from "./AvailabilityToggles";
 
 interface Props {
   book: Book;
@@ -51,6 +52,18 @@ export function BookSidePanel({ book, ub, onUpdate, onCommit }: Props) {
           placeholder="Suas impressões, frases marcantes, reflexões…"
           rows={5}
           className="resize-none bg-card/40"
+        />
+      </div>
+
+      <div className="pt-4 border-t border-border/40">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3 flex items-center gap-1.5">
+          <Sparkles className="w-3 h-3 text-primary" /> Compartilhar
+        </p>
+        <AvailabilityToggles
+          userBookId={ub.id}
+          initialTrade={!!ub.available_for_trade}
+          initialLoan={!!ub.available_for_loan}
+          compact
         />
       </div>
 
