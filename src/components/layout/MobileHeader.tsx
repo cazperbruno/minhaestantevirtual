@@ -19,6 +19,8 @@ import {
   FileText,
   LogOut,
   Settings,
+  Sparkles,
+  Layers,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -36,6 +38,7 @@ const items: Item[] = [
   { to: "/leitores", label: "Leitores", icon: Users, group: "Descobrir" },
 
   { to: "/biblioteca", label: "Biblioteca", icon: Library, group: "Meus livros" },
+  { to: "/series", label: "Minhas séries", icon: Layers, group: "Meus livros" },
   { to: "/desejos", label: "Lista de desejos", icon: Heart, group: "Meus livros" },
   { to: "/emprestimos", label: "Empréstimos", icon: ArrowRightLeft, group: "Meus livros" },
   { to: "/trocas", label: "Trocas", icon: Repeat, group: "Meus livros" },
@@ -46,6 +49,7 @@ const items: Item[] = [
   { to: "/clubes", label: "Clubes de leitura", icon: Users, group: "Comunidade" },
   { to: "/ranking", label: "Ranking", icon: Trophy, group: "Comunidade" },
 
+  { to: "/progresso", label: "Progresso", icon: Sparkles, group: "Você" },
   { to: "/metas", label: "Metas", icon: Target, group: "Você" },
   { to: "/estatisticas", label: "Estatísticas", icon: BarChart3, group: "Você" },
   { to: "/relatorios", label: "Relatórios", icon: FileText, group: "Você" },
