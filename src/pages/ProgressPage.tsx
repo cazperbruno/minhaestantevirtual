@@ -106,6 +106,9 @@ export default function ProgressPage() {
           </div>
         </div>
 
+        {/* POSIÇÃO NO RANKING */}
+        <RankPositionCard />
+
         {/* DESAFIOS */}
         <div className="glass rounded-3xl p-6">
           <div className="flex items-center justify-between mb-4">
