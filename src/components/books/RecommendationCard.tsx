@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Link } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BookCover } from "@/components/books/BookCover";
@@ -9,7 +10,7 @@ import { ptBR } from "date-fns/locale";
 import { profilePath } from "@/lib/profile-path";
 import { FeedRecommendation, useToggleRecommendationLike } from "@/hooks/useRecommendations";
 
-export function RecommendationCard({ rec }: { rec: FeedRecommendation }) {
+function RecommendationCardImpl({ rec }: { rec: FeedRecommendation }) {
   const toggleLike = useToggleRecommendationLike();
 
   return (
@@ -68,3 +69,12 @@ export function RecommendationCard({ rec }: { rec: FeedRecommendation }) {
     </article>
   );
 }
+
+// Memoizado: cards no feed se beneficiam ao não re-renderizar quando outros likes mudam.
+export const RecommendationCard = memo(RecommendationCardImpl, (a, b) =>
+  a.rec.id === b.rec.id &&
+  a.rec.likes_count === b.rec.likes_count &&
+  a.rec.comments_count === b.rec.comments_count &&
+  a.rec.liked_by_me === b.rec.liked_by_me &&
+  a.rec.message === b.rec.message,
+);
