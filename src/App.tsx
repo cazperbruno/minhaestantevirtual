@@ -15,6 +15,7 @@ import BookDetail from "./pages/BookDetail";
 import ScannerPage from "./pages/ScannerPage";
 import LoansPage from "./pages/LoansPage";
 import FeedPage from "./pages/FeedPage";
+import InfiniteFeedPage from "./pages/InfiniteFeedPage";
 import RankingPage from "./pages/RankingPage";
 import GoalsPage from "./pages/GoalsPage";
 import StatsPage from "./pages/StatsPage";
@@ -41,6 +42,7 @@ const App = () => (
           <Route path="/desejos" element={<ProtectedRoute><WishlistPage /></ProtectedRoute>} />
           <Route path="/emprestimos" element={<ProtectedRoute><LoansPage /></ProtectedRoute>} />
           <Route path="/feed" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
+          <Route path="/feed-infinito" element={<ProtectedRoute><InfiniteFeedPage /></ProtectedRoute>} />
           <Route path="/ranking" element={<ProtectedRoute><RankingPage /></ProtectedRoute>} />
           <Route path="/metas" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
           <Route path="/estatisticas" element={<ProtectedRoute><StatsPage /></ProtectedRoute>} />
