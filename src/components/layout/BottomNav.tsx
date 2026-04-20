@@ -23,6 +23,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { prefetch } from "@/lib/prefetch";
 
 // Order requested: Biblioteca · Feed · Escanear (centro vermelho) · Ranking · Perfil.
 const left = [
