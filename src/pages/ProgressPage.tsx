@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { useAuth } from "@/hooks/useAuth";
 import { useChallenges, useClaimChallenge, type UserChallenge } from "@/hooks/useChallenges";
@@ -6,7 +7,7 @@ import { useInvite, useAmbassadors } from "@/hooks/useInvite";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Flame, Trophy, Sparkles, Gift, Share2, Copy, Calendar, CalendarDays, Star, ChevronRight } from "lucide-react";
+import { Flame, Trophy, Sparkles, Gift, Share2, Copy, Calendar, CalendarDays, Star, ChevronRight, History } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -65,6 +66,11 @@ export default function ProgressPage() {
             </h1>
             <p className="text-muted-foreground mt-1">Desafios, ofensiva e recompensas</p>
           </div>
+          <Button asChild variant="ghost" size="sm" className="gap-1.5 shrink-0">
+            <Link to="/progresso/historico">
+              <History className="w-4 h-4" /> Histórico
+            </Link>
+          </Button>
         </header>
 
         {/* STREAK HERO */}
