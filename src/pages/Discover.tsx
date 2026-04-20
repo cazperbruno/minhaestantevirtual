@@ -6,6 +6,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { Book, UserBook } from "@/types/book";
 import { BookCard } from "@/components/books/BookCard";
 import { BookCover } from "@/components/books/BookCover";
+import { CinematicShelf, ShelfItem } from "@/components/books/CinematicShelf";
+import { ContinueReadingRow } from "@/components/books/ContinueReadingRow";
 import { SearchAutocomplete } from "@/components/search/SearchAutocomplete";
 import { ContentTypeFilter, useContentFilter } from "@/components/books/ContentTypeFilter";
 import { Sparkles, ChevronRight, Library, ScanLine, Infinity as InfinityIcon, Layers } from "lucide-react";
@@ -219,45 +221,39 @@ export default function Discover() {
         {/* Conquistas multi-formato perto de desbloquear */}
         {!loading && <NextAchievementsCard />}
 
+        {/* Continue lendo — prateleira cinematográfica com barra de progresso */}
         {visibleReading.length > 1 && (
-          <Section title="Continue lendo">
-            <Shelf>
-              {visibleReading.slice(1).map((ub) => ub.book && (
-                <BookCard key={ub.id} book={ub.book} size="md" source="shelf:reading" />
-              ))}
-            </Shelf>
-          </Section>
+          <ContinueReadingRow items={visibleReading.slice(1)} />
         )}
 
-        {/* Prateleiras dinâmicas (IA) */}
+        {/* Prateleiras dinâmicas (IA) — skeletons */}
         {loading && (
           <>
             {Array.from({ length: 3 }).map((_, i) => (
-              <Section key={i} title="">
-                <Shelf>
+              <div key={i} className="mb-10">
+                <Skeleton className="h-7 w-48 mb-4" />
+                <div className="flex gap-4 md:gap-5 overflow-hidden">
                   {Array.from({ length: 6 }).map((_, j) => (
-                    <Skeleton key={j} className="w-28 h-44 rounded-md shrink-0" />
+                    <Skeleton key={j} className="w-28 md:w-36 h-44 md:h-56 rounded-md shrink-0" />
                   ))}
-                </Shelf>
-              </Section>
+                </div>
+              </div>
             ))}
           </>
         )}
 
         {!loading && visibleShelves.map((shelf) => (
-          <Section
+          <CinematicShelf
             key={shelf.id}
             title={shelf.title}
             subtitle={shelf.reason}
           >
-            <Shelf>
-              {shelf.books.map((b) => (
-                <div key={b.id} className="shrink-0 w-28 md:w-auto">
-                  <BookCard book={b} size="md" source={`shelf:${shelf.id}`} />
-                </div>
-              ))}
-            </Shelf>
-          </Section>
+            {shelf.books.map((b) => (
+              <ShelfItem key={b.id}>
+                <BookCard book={b} size="md" source={`shelf:${shelf.id}`} />
+              </ShelfItem>
+            ))}
+          </CinematicShelf>
         ))}
 
         {/* CTA para feed infinito */}
@@ -303,26 +299,3 @@ export default function Discover() {
   );
 }
 
-function Section({
-  title, subtitle, children,
-}: { title: string; subtitle?: string; children: React.ReactNode }) {
-  return (
-    <section className="mb-10 animate-slide-up">
-      {(title || subtitle) && (
-        <div className="mb-4">
-          {title && <h2 className="font-display text-2xl font-semibold">{title}</h2>}
-          {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
-        </div>
-      )}
-      {children}
-    </section>
-  );
-}
-
-function Shelf({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex gap-5 overflow-x-auto scrollbar-hide scroll-snap-x animate-stagger -mx-5 px-5 md:mx-0 md:px-0 md:grid md:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] pb-2 gpu">
-      {children}
-    </div>
-  );
-}
