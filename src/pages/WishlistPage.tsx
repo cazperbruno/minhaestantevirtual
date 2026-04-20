@@ -16,23 +16,41 @@ export default function WishlistPage() {
   const { user } = useAuth();
   const [items, setItems] = useState<UserBook[]>([]);
   const [loading, setLoading] = useState(true);
+  const [username, setUsername] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase
-        .from("user_books").select("*, book:books(*)")
-        .eq("user_id", user.id).eq("status", "wishlist")
-        .order("created_at", { ascending: false });
-      setItems((data as UserBook[]) || []);
+      const [{ data: ub }, { data: prof }] = await Promise.all([
+        supabase
+          .from("user_books").select("*, book:books(*)")
+          .eq("user_id", user.id).eq("status", "wishlist")
+          .order("created_at", { ascending: false }),
+        supabase.from("profiles").select("username").eq("id", user.id).maybeSingle(),
+      ]);
+      setItems((ub as UserBook[]) || []);
+      setUsername(prof?.username || null);
       setLoading(false);
     })();
   }, [user]);
 
+  const publicUrl = username ? `${window.location.origin}/u/${username}/desejos` : null;
+
+  const copyPublicLink = async () => {
+    if (!publicUrl) {
+      toast.error("Defina um @username no seu perfil para gerar o link público");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+      toast.success("Link público copiado", { description: publicUrl });
+    } catch { toast.error("Não foi possível copiar"); }
+  };
+
   const shareList = () => {
     const text = items.map((i) => `• ${i.book?.title}${i.book?.authors[0] ? ` — ${i.book.authors[0]}` : ""}`).join("\n");
-    const full = `🎁 Minha lista de desejos no Página:\n\n${text}\n\n${window.location.href}`;
-    if (navigator.share) navigator.share({ title: "Lista de desejos", text: full }).catch(() => {});
+    const full = `🎁 Minha lista de desejos no Readify:\n\n${text}${publicUrl ? `\n\n${publicUrl}` : ""}`;
+    if (navigator.share) navigator.share({ title: "Lista de desejos", text: full, url: publicUrl || undefined }).catch(() => {});
     else { navigator.clipboard.writeText(full); toast.success("Lista copiada!"); }
   };
 
@@ -47,9 +65,14 @@ export default function WishlistPage() {
             <p className="text-muted-foreground mt-1">{items.length} {items.length === 1 ? "livro" : "livros"}</p>
           </div>
           {items.length > 0 && (
-            <Button variant="outline" onClick={shareList} className="gap-2">
-              <Share2 className="w-4 h-4" /> Compartilhar lista
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={copyPublicLink} className="gap-2" disabled={!publicUrl} title={publicUrl || "Defina um @username"}>
+                <Link2 className="w-4 h-4" /> Copiar link público
+              </Button>
+              <Button variant="hero" onClick={shareList} className="gap-2">
+                <Share2 className="w-4 h-4" /> Compartilhar
+              </Button>
+            </div>
           )}
         </header>
 
@@ -81,14 +104,12 @@ export default function WishlistPage() {
                   </Link>
                   <p className="text-sm text-muted-foreground truncate">{ub.book.authors[0]}</p>
                 </div>
-                <a
-                  href={`https://www.amazon.com.br/s?k=${encodeURIComponent(ub.book.isbn_13 || ub.book.title)}`}
-                  target="_blank" rel="noopener noreferrer"
+                <Button
+                  variant="outline" size="sm" className="gap-2 tap-scale"
+                  onClick={() => ub.book && openAmazon(ub.book)}
                 >
-                  <Button variant="outline" size="sm" className="gap-2 tap-scale">
-                    <ShoppingBag className="w-3.5 h-3.5" /> Amazon <ExternalLink className="w-3 h-3" />
-                  </Button>
-                </a>
+                  <ShoppingBag className="w-3.5 h-3.5" /> Comprar
+                </Button>
               </div>
             ))}
           </div>
