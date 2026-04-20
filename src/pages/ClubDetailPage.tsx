@@ -64,6 +64,9 @@ export default function ClubDetailPage() {
   }, [id]);
 
   const isMember = !!user && members.some((m) => m.user_id === user.id);
+  const isOwner = !!user && club?.owner_id === user.id;
+  const { data: myRequest } = useMyJoinRequest(user?.id, id);
+  const requestJoin = useRequestJoin(id || "", user?.id);
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
