@@ -19,7 +19,7 @@ export interface FeedReview {
   liked_by_me: boolean;
 }
 
-export const FEED_PAGE_SIZE = 20;
+const FEED_PAGE_SIZE = 20;
 
 interface FeedPage {
   items: FeedReview[];

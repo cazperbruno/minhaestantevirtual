@@ -11,7 +11,7 @@ export type XpSource =
   | "follow" | "club_message" | "loan_book"
   | "open_app" | "challenge" | "streak_milestone" | "invite_signup" | "invite_welcome" | "misc";
 
-export const XP_TABLE: Partial<Record<XpSource, number>> = {
+const XP_TABLE: Partial<Record<XpSource, number>> = {
   add_book: 10,
   finish_book: 50,
   rate_book: 15,
