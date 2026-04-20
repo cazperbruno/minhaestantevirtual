@@ -10,6 +10,9 @@ import { BookCover } from "@/components/books/BookCover";
 import { Loader2, Sparkles, Check, ArrowRight, Target } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { CONTENT_TYPE_ICON, CONTENT_TYPE_LABEL, type ContentType } from "@/types/book";
+
+const CONTENT_TYPES: ContentType[] = ["book", "manga", "comic", "magazine"];
 
 const GENRES = [
   "Ficção", "Romance", "Suspense", "Fantasia", "Ficção científica",
@@ -22,6 +25,7 @@ export default function Onboarding() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
+  const [contentTypes, setContentTypes] = useState<ContentType[]>(["book"]);
   const [genres, setGenres] = useState<string[]>([]);
   const [picks, setPicks] = useState<Book[]>([]);
   const [search, setSearch] = useState("");
@@ -30,7 +34,6 @@ export default function Onboarding() {
   const [goal, setGoal] = useState(12);
   const [saving, setSaving] = useState(false);
 
-  // Skip if already onboarded
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -40,9 +43,9 @@ export default function Onboarding() {
     })();
   }, [user, navigate]);
 
-  // Search books
+  // Search books — agora etapa 2
   useEffect(() => {
-    if (step !== 1 || search.length < 2) { setResults([]); return; }
+    if (step !== 2 || search.length < 2) { setResults([]); return; }
     const t = setTimeout(async () => {
       setSearching(true);
       try {
@@ -55,10 +58,14 @@ export default function Onboarding() {
     return () => clearTimeout(t);
   }, [search, step]);
 
+  const toggleContentType = (t: ContentType) => {
+    setContentTypes((prev) =>
+      prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t],
+    );
+  };
   const toggleGenre = (g: string) => {
     setGenres((prev) => prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]);
   };
-
   const togglePick = (b: Book) => {
     setPicks((prev) => prev.find((x) => x.id === b.id)
       ? prev.filter((x) => x.id !== b.id)
@@ -70,8 +77,6 @@ export default function Onboarding() {
     setSaving(true);
     try {
       const year = new Date().getFullYear();
-
-      // Ensure picks are persisted to books table (search results may be transient)
       const persistedIds: string[] = [];
       for (const b of picks) {
         const saved = b.id && !b.id.startsWith("ext_") ? b : await saveBook(b);
@@ -81,6 +86,7 @@ export default function Onboarding() {
       await Promise.all([
         supabase.from("profiles").update({
           favorite_genres: genres,
+          content_types: contentTypes.length > 0 ? contentTypes : ["book"],
           onboarded_at: new Date().toISOString(),
         }).eq("id", user.id),
         persistedIds.length > 0
@@ -120,12 +126,21 @@ export default function Onboarding() {
     navigate("/", { replace: true });
   };
 
+  // Pula etapa de "livros pra ler" se usuário não curte livros
+  const goNextFromGenres = () => {
+    if (contentTypes.includes("book")) setStep(2);
+    else setStep(3);
+  };
+  const goBackFromGoal = () => {
+    if (contentTypes.includes("book")) setStep(2);
+    else setStep(1);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {/* Progress dots */}
       <header className="px-6 pt-8 flex items-center justify-between max-w-2xl mx-auto w-full">
         <div className="flex items-center gap-2">
-          {[0, 1, 2].map((i) => (
+          {[0, 1, 2, 3].map((i) => (
             <div
               key={i}
               className={cn(
@@ -143,9 +158,49 @@ export default function Onboarding() {
       <main className="flex-1 flex flex-col px-6 py-8 max-w-2xl mx-auto w-full">
         {step === 0 && (
           <Step
-            badge="Passo 1 de 3"
-            title="O que você gosta de ler?"
-            subtitle="Escolha pelo menos 3 gêneros para personalizar suas recomendações."
+            badge="Passo 1 de 4"
+            title="O que você lê?"
+            subtitle="Escolha um ou mais formatos. Vamos personalizar tudo — busca, feed e recomendações — só com o que te interessa."
+          >
+            <div className="grid grid-cols-2 gap-3 mt-8">
+              {CONTENT_TYPES.map((t) => {
+                const active = contentTypes.includes(t);
+                return (
+                  <button
+                    key={t}
+                    onClick={() => toggleContentType(t)}
+                    aria-pressed={active}
+                    className={cn(
+                      "relative p-5 rounded-2xl border text-left transition-all",
+                      active
+                        ? "bg-primary/10 border-primary scale-[1.02] shadow-glow"
+                        : "bg-card/50 border-border hover:border-primary/40",
+                    )}
+                  >
+                    <div className="text-3xl mb-2" aria-hidden>{CONTENT_TYPE_ICON[t]}</div>
+                    <p className="font-display font-semibold text-base">{CONTENT_TYPE_LABEL[t]}</p>
+                    {active && (
+                      <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                        <Check className="w-3.5 h-3.5" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <Footer
+              countLabel={`${contentTypes.length} ${contentTypes.length === 1 ? "formato" : "formatos"}`}
+              canNext={contentTypes.length >= 1}
+              onNext={() => setStep(1)}
+            />
+          </Step>
+        )}
+
+        {step === 1 && (
+          <Step
+            badge="Passo 2 de 4"
+            title="Quais gêneros você curte?"
+            subtitle="Escolha pelo menos 3 para personalizar suas recomendações."
           >
             <div className="flex flex-wrap gap-2 mt-6">
               {GENRES.map((g) => {
@@ -168,17 +223,17 @@ export default function Onboarding() {
               })}
             </div>
             <Footer
-              count={genres.length}
               countLabel={`${genres.length} ${genres.length === 1 ? "gênero" : "gêneros"}`}
               canNext={genres.length >= 3}
-              onNext={() => setStep(1)}
+              onBack={() => setStep(0)}
+              onNext={goNextFromGenres}
             />
           </Step>
         )}
 
-        {step === 1 && (
+        {step === 2 && contentTypes.includes("book") && (
           <Step
-            badge="Passo 2 de 3"
+            badge="Passo 3 de 4"
             title="Quais livros você quer ler?"
             subtitle="Adicione alguns títulos à sua lista de desejos. Você pode pular este passo."
           >
@@ -255,20 +310,19 @@ export default function Onboarding() {
             </div>
 
             <Footer
-              count={picks.length}
               countLabel={`${picks.length} ${picks.length === 1 ? "livro" : "livros"}`}
               canNext={true}
-              onBack={() => setStep(0)}
-              onNext={() => setStep(2)}
+              onBack={() => setStep(1)}
+              onNext={() => setStep(3)}
             />
           </Step>
         )}
 
-        {step === 2 && (
+        {step === 3 && (
           <Step
-            badge="Passo 3 de 3"
+            badge="Passo 4 de 4"
             title="Qual sua meta para o ano?"
-            subtitle="Defina quantos livros você quer ler. Pode ajustar a qualquer momento."
+            subtitle="Defina quantos itens você quer ler. Pode ajustar a qualquer momento."
           >
             <div className="mt-10 flex flex-col items-center justify-center flex-1">
               <div className="w-32 h-32 rounded-full bg-gradient-gold flex items-center justify-center shadow-glow mb-6">
@@ -285,7 +339,7 @@ export default function Onboarding() {
                   <p className="font-display text-7xl font-bold tabular-nums text-gradient-gold leading-none">
                     {goal}
                   </p>
-                  <p className="text-sm text-muted-foreground mt-2">livros em {new Date().getFullYear()}</p>
+                  <p className="text-sm text-muted-foreground mt-2">em {new Date().getFullYear()}</p>
                 </div>
                 <button
                   onClick={() => setGoal(Math.min(365, goal + 1))}
@@ -315,7 +369,7 @@ export default function Onboarding() {
 
             <Footer
               canNext={true}
-              onBack={() => setStep(1)}
+              onBack={goBackFromGoal}
               onNext={finish}
               nextLabel={saving ? "Finalizando…" : "Começar a ler"}
               nextLoading={saving}
@@ -341,8 +395,8 @@ function Step({ badge, title, subtitle, children }: {
   );
 }
 
-function Footer({ count, countLabel, canNext, onBack, onNext, nextLabel = "Continuar", nextLoading, isLast }: {
-  count?: number; countLabel?: string; canNext: boolean;
+function Footer({ countLabel, canNext, onBack, onNext, nextLabel = "Continuar", nextLoading, isLast }: {
+  countLabel?: string; canNext: boolean;
   onBack?: () => void; onNext: () => void;
   nextLabel?: string; nextLoading?: boolean; isLast?: boolean;
 }) {
