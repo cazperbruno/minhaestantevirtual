@@ -112,9 +112,10 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
                 <Button
                   variant="hero"
                   size="lg"
-                  onClick={() => onStatusChange("reading")}
+                  onClick={() => onStatusChange("not_read")}
                   disabled={saving}
                   className="gap-2 min-w-[220px] shadow-glow"
+                  title="Adiciona à sua biblioteca. Você decide quando começar a leitura."
                 >
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                   Adicionar à biblioteca

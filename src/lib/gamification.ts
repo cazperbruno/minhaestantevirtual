@@ -17,7 +17,9 @@ export async function checkAchievements(userId: string) {
   return unlocked;
 }
 
-// grantXp removido — use awardXp de "@/lib/xp" para todas as concessões de XP.
+// `awardXp` (em "@/lib/xp") é a única fonte de verdade para concessão de XP.
+// O legado `grantXp` foi removido. A função SQL `check_achievements` agora usa
+// `add_xp` internamente (com histórico em xp_events).
 
 export function getIcon(name: string): React.ComponentType<{ className?: string }> {
   return (Icons as any)[name] || Icons.Award;
