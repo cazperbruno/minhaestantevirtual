@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import * as Icons from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RankPositionCard } from "@/components/gamification/RankPositionCard";
 
 function getIcon(name: string) {
   return (Icons as any)[name] || Icons.Target;
@@ -104,6 +105,9 @@ export default function ProgressPage() {
             </div>
           </div>
         </div>
+
+        {/* POSIÇÃO NO RANKING */}
+        <RankPositionCard />
 
         {/* DESAFIOS */}
         <div className="glass rounded-3xl p-6">
