@@ -74,7 +74,12 @@ export function ReviewFeedCard({ review: r, onToggleLike }: Props) {
   };
 
   return (
-    <article className="glass rounded-2xl p-5 animate-fade-in hover:border-primary/30 transition-colors">
+    <ReviewActionsMenu review={r}>
+      {(longPress) => (
+        <article
+          {...longPress}
+          className="glass rounded-2xl p-5 animate-fade-in hover:border-primary/30 transition-colors touch-manipulation"
+        >
       {/* Header: avatar + nome + follow */}
       <header className="flex items-start gap-3 mb-4">
         <Link to={profilePath(r.profile)} className="shrink-0">
@@ -140,6 +145,9 @@ export function ReviewFeedCard({ review: r, onToggleLike }: Props) {
 
       {/* Texto da resenha */}
       <p className="text-sm leading-relaxed whitespace-pre-line text-foreground/90">{r.content}</p>
+
+      {/* Avatares dos likers */}
+      <LikersAvatars reviewId={r.id} totalLikes={r.likes_count} className="mt-3" />
 
       {/* Barra de ações */}
       <div className="flex items-center gap-1 mt-4 pt-3 border-t border-border/40">
