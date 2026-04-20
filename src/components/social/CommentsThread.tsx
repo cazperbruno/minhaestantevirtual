@@ -179,8 +179,9 @@ export function CommentsThread({ reviewId, targetId, target = "review", initialC
                 onClick={send}
                 disabled={sending || !text.trim()}
                 className="shrink-0 h-9 w-9"
+                aria-label="Enviar comentário"
               >
-                {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : <Send className="w-3.5 h-3.5" aria-hidden="true" />}
               </Button>
             </div>
           )}

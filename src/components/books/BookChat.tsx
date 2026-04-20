@@ -124,7 +124,7 @@ export function BookChat({ bookId, bookTitle }: { bookId: string; bookTitle: str
               <p className="text-xs text-muted-foreground truncate max-w-[200px]">{bookTitle}</p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => setOpen(false)}><X className="w-4 h-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => setOpen(false)} aria-label="Fechar chat"><X className="w-4 h-4" aria-hidden="true" /></Button>
         </header>
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -180,8 +180,8 @@ export function BookChat({ bookId, bookTitle }: { bookId: string; bookTitle: str
             disabled={loading}
             className="flex-1"
           />
-          <Button type="submit" variant="hero" size="icon" disabled={loading || !input.trim()}>
-            <Send className="w-4 h-4" />
+          <Button type="submit" variant="hero" size="icon" disabled={loading || !input.trim()} aria-label="Enviar pergunta">
+            <Send className="w-4 h-4" aria-hidden="true" />
           </Button>
         </form>
       </div>

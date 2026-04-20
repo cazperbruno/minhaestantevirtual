@@ -211,8 +211,8 @@ export default function ClubDetailPage() {
             </div>
             <form onSubmit={send} className="flex gap-2">
               <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Mensagem..." disabled={sending} maxLength={2000} />
-              <Button type="submit" variant="hero" size="icon" disabled={sending || !input.trim()}>
-                <Send className="w-4 h-4" />
+              <Button type="submit" variant="hero" size="icon" disabled={sending || !input.trim()} aria-label="Enviar mensagem">
+                <Send className="w-4 h-4" aria-hidden="true" />
               </Button>
             </form>
           </>
