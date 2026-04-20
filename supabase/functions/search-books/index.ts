@@ -808,18 +808,20 @@ Deno.serve(async (req) => {
     // Autocomplete: cache-first, then Open Library light search.
     // Returns up to 8 suggestions ultra-fast for typeahead UX.
     if (action === "suggest") {
-      const q = (url.searchParams.get("q") || "").trim();
+      const rawQ = (url.searchParams.get("q") || "").trim();
+      const q = sanitizeQuery(rawQ);
       if (q.length < 2) {
         return new Response(JSON.stringify({ suggestions: [] }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      // 1) Internal catalog first — instant, zero network
-      const { data: cached } = await supabase
+      // 1) Internal catalog first — use user-scoped client (RLS enforced)
+      // and parameterized .ilike (no string interpolation in .or() filter).
+      const { data: cached } = await userClient
         .from("books")
         .select("id,title,subtitle,authors,cover_url,published_year,isbn_13")
-        .or(`title.ilike.%${q}%,authors.cs.{${q}}`)
+        .ilike("title", `%${q}%`)
         .limit(6);
 
       const fromCache = (cached || []).map((b: any) => ({
