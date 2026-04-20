@@ -216,6 +216,45 @@ export type Database = {
         }
         Relationships: []
       }
+      challenge_templates: {
+        Row: {
+          category: string
+          code: string
+          description: string
+          icon: string
+          metric: string
+          tags: string[] | null
+          target: number
+          title: string
+          weight: number
+          xp_reward: number
+        }
+        Insert: {
+          category: string
+          code: string
+          description: string
+          icon?: string
+          metric: string
+          tags?: string[] | null
+          target: number
+          title: string
+          weight?: number
+          xp_reward?: number
+        }
+        Update: {
+          category?: string
+          code?: string
+          description?: string
+          icon?: string
+          metric?: string
+          tags?: string[] | null
+          target?: number
+          title?: string
+          weight?: number
+          xp_reward?: number
+        }
+        Relationships: []
+      }
       club_book_nominations: {
         Row: {
           book_id: string
@@ -367,6 +406,54 @@ export type Database = {
           created_at?: string
           follower_id?: string
           following_id?: string
+        }
+        Relationships: []
+      }
+      invite_redemptions: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          invitee_id: string
+          inviter_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          invitee_id: string
+          inviter_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          invitee_id?: string
+          inviter_id?: string
+        }
+        Relationships: []
+      }
+      invites: {
+        Row: {
+          code: string
+          created_at: string
+          signups_count: number
+          user_id: string
+          xp_earned: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          signups_count?: number
+          user_id: string
+          xp_earned?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          signups_count?: number
+          user_id?: string
+          xp_earned?: number
         }
         Relationships: []
       }
@@ -816,6 +903,59 @@ export type Database = {
           },
         ]
       }
+      user_challenges: {
+        Row: {
+          category: string
+          claimed_at: string | null
+          completed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          progress: number
+          status: string
+          target: number
+          template_code: string
+          user_id: string
+          xp_reward: number
+        }
+        Insert: {
+          category: string
+          claimed_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          progress?: number
+          status?: string
+          target: number
+          template_code: string
+          user_id: string
+          xp_reward: number
+        }
+        Update: {
+          category?: string
+          claimed_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          progress?: number
+          status?: string
+          target?: number
+          template_code?: string
+          user_id?: string
+          xp_reward?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_challenges_template_code_fkey"
+            columns: ["template_code"]
+            isOneToOne: false
+            referencedRelation: "challenge_templates"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       user_interactions: {
         Row: {
           book_id: string
@@ -879,8 +1019,75 @@ export type Database = {
         }
         Relationships: []
       }
+      user_streaks: {
+        Row: {
+          current_days: number
+          last_active_date: string | null
+          longest_days: number
+          next_milestone: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          current_days?: number
+          last_active_date?: string | null
+          longest_days?: number
+          next_milestone?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          current_days?: number
+          last_active_date?: string | null
+          longest_days?: number
+          next_milestone?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      xp_events: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          meta: Json | null
+          source: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          meta?: Json | null
+          source: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          meta?: Json | null
+          source?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
+      ambassadors_view: {
+        Row: {
+          avatar_url: string | null
+          display_name: string | null
+          id: string | null
+          position: number | null
+          signups_count: number | null
+          tier: string | null
+          username: string | null
+          xp_earned: number | null
+        }
+        Relationships: []
+      }
       ranking_view: {
         Row: {
           avatar_url: string | null
@@ -904,12 +1111,38 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_ranking_view: {
+        Row: {
+          avatar_url: string | null
+          display_name: string | null
+          id: string | null
+          level: number | null
+          position: number | null
+          username: string | null
+          weekly_xp: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      add_xp: {
+        Args: {
+          _amount: number
+          _meta?: Json
+          _source?: string
+          _user_id: string
+        }
+        Returns: {
+          leveled_up: boolean
+          new_level: number
+          new_xp: number
+        }[]
+      }
       array_intersect_count: {
         Args: { a: string[]; b: string[] }
         Returns: number
       }
+      assign_daily_challenges: { Args: { _user_id: string }; Returns: number }
       can_view_library: {
         Args: { _owner: string; _viewer: string }
         Returns: boolean
@@ -922,6 +1155,15 @@ export type Database = {
           xp_reward: number
         }[]
       }
+      claim_challenge: {
+        Args: { _challenge_id: string; _user_id: string }
+        Returns: {
+          message: string
+          success: boolean
+          xp_granted: number
+        }[]
+      }
+      ensure_invite: { Args: { _user_id: string }; Returns: string }
       get_collaborative_recommendations: {
         Args: { target_user_id: string }
         Returns: {
@@ -957,6 +1199,7 @@ export type Database = {
         Args: { _follower: string; _following: string }
         Returns: boolean
       }
+      level_for_xp: { Args: { _xp: number }; Returns: number }
       reading_streak: { Args: { _user_id: string }; Returns: number }
       recommend_for_user: {
         Args: { _limit?: number; _user_id: string }
@@ -967,6 +1210,18 @@ export type Database = {
           popularity: number
           reason: string
           score: number
+        }[]
+      }
+      recompute_challenge_progress: {
+        Args: { _user_id: string }
+        Returns: number
+      }
+      redeem_invite: {
+        Args: { _code: string; _new_user_id: string }
+        Returns: {
+          inviter_id: string
+          message: string
+          success: boolean
         }[]
       }
       similar_books: {
@@ -988,6 +1243,14 @@ export type Database = {
           username: string
         }[]
       }
+      update_streak: {
+        Args: { _user_id: string }
+        Returns: {
+          bonus_xp: number
+          current_days: number
+          milestone_hit: number
+        }[]
+      }
       user_taste: {
         Args: { _user_id: string }
         Returns: {
@@ -995,6 +1258,7 @@ export type Database = {
           weight: number
         }[]
       }
+      xp_for_level: { Args: { _level: number }; Returns: number }
     }
     Enums: {
       app_role: "admin" | "user"
