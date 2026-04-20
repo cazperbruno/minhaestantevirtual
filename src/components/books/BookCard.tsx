@@ -21,7 +21,7 @@ interface Props {
   source?: string;
 }
 
-function BookCardImpl({ book, size = "md", className, showMeta = true, source }: Props) {
+function BookCardImpl({ book, size = "md", className, showMeta = true, quickSave = true, source }: Props) {
   const navigate = useNavigate();
   const [importing, setImporting] = useState(false);
 
@@ -57,8 +57,13 @@ function BookCardImpl({ book, size = "md", className, showMeta = true, source }:
       aria-busy={importing}
     >
       <div className="relative">
-        <BookCover book={book} size={size} className="mx-auto group-hover:shadow-elevated" />
+        <BookCover book={book} size={size} className="mx-auto group-hover:shadow-elevated transition-all duration-300 group-hover:-translate-y-0.5" />
         <ContentTypeBadge type={book.content_type} className="absolute top-1.5 right-1.5 z-10" />
+        {quickSave && (
+          <div className="absolute top-1.5 left-1.5 z-20 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:opacity-100 transition-all duration-200 md:block">
+            <QuickSaveButton book={book} floating={false} />
+          </div>
+        )}
         {importing && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/70 rounded-md backdrop-blur-sm">
             <Loader2 className="w-5 h-5 animate-spin text-primary" />
@@ -94,6 +99,7 @@ export const BookCard = memo(BookCardImpl, (a, b) =>
   a.size === b.size &&
   a.className === b.className &&
   a.showMeta === b.showMeta &&
+  a.quickSave === b.quickSave &&
   a.source === b.source &&
   a.book._reason === b.book._reason,
 );
