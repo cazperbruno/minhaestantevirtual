@@ -193,6 +193,7 @@ export type Database = {
         Row: {
           authors: string[]
           categories: string[] | null
+          content_type: Database["public"]["Enums"]["content_type"]
           cover_url: string | null
           created_at: string
           description: string | null
@@ -204,15 +205,18 @@ export type Database = {
           published_year: number | null
           publisher: string | null
           raw: Json | null
+          series_id: string | null
           source: string | null
           source_id: string | null
           subtitle: string | null
           title: string
           updated_at: string
+          volume_number: number | null
         }
         Insert: {
           authors?: string[]
           categories?: string[] | null
+          content_type?: Database["public"]["Enums"]["content_type"]
           cover_url?: string | null
           created_at?: string
           description?: string | null
@@ -224,15 +228,18 @@ export type Database = {
           published_year?: number | null
           publisher?: string | null
           raw?: Json | null
+          series_id?: string | null
           source?: string | null
           source_id?: string | null
           subtitle?: string | null
           title: string
           updated_at?: string
+          volume_number?: number | null
         }
         Update: {
           authors?: string[]
           categories?: string[] | null
+          content_type?: Database["public"]["Enums"]["content_type"]
           cover_url?: string | null
           created_at?: string
           description?: string | null
@@ -244,13 +251,23 @@ export type Database = {
           published_year?: number | null
           publisher?: string | null
           raw?: Json | null
+          series_id?: string | null
           source?: string | null
           source_id?: string | null
           subtitle?: string | null
           title?: string
           updated_at?: string
+          volume_number?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "books_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "series"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       challenge_templates: {
         Row: {
@@ -666,6 +683,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           bio: string | null
+          content_types: Database["public"]["Enums"]["content_type"][]
           created_at: string
           display_name: string | null
           favorite_genres: string[] | null
@@ -685,6 +703,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           bio?: string | null
+          content_types?: Database["public"]["Enums"]["content_type"][]
           created_at?: string
           display_name?: string | null
           favorite_genres?: string[] | null
@@ -704,6 +723,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           bio?: string | null
+          content_types?: Database["public"]["Enums"]["content_type"][]
           created_at?: string
           display_name?: string | null
           favorite_genres?: string[] | null
@@ -963,6 +983,54 @@ export type Database = {
           id?: string
           query?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      series: {
+        Row: {
+          authors: string[]
+          content_type: Database["public"]["Enums"]["content_type"]
+          cover_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          raw: Json | null
+          source: string | null
+          source_id: string | null
+          status: string | null
+          title: string
+          total_volumes: number | null
+          updated_at: string
+        }
+        Insert: {
+          authors?: string[]
+          content_type: Database["public"]["Enums"]["content_type"]
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          raw?: Json | null
+          source?: string | null
+          source_id?: string | null
+          status?: string | null
+          title: string
+          total_volumes?: number | null
+          updated_at?: string
+        }
+        Update: {
+          authors?: string[]
+          content_type?: Database["public"]["Enums"]["content_type"]
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          raw?: Json | null
+          source?: string | null
+          source_id?: string | null
+          status?: string | null
+          title?: string
+          total_volumes?: number | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1586,6 +1654,10 @@ export type Database = {
           milestone_hit: number
         }[]
       }
+      user_content_types: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["content_type"][]
+      }
       user_taste: {
         Args: { _user_id: string }
         Returns: {
@@ -1598,6 +1670,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "user"
       book_status: "not_read" | "reading" | "read" | "wishlist"
+      content_type: "book" | "manga" | "comic" | "magazine"
       loan_status: "lent" | "returned" | "overdue"
       trade_status:
         | "pending"
@@ -1734,6 +1807,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "user"],
       book_status: ["not_read", "reading", "read", "wishlist"],
+      content_type: ["book", "manga", "comic", "magazine"],
       loan_status: ["lent", "returned", "overdue"],
       trade_status: [
         "pending",
