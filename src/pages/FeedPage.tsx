@@ -1,8 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BookCover } from "@/components/books/BookCover";
 import { Rating } from "@/components/books/Rating";
@@ -14,118 +12,13 @@ import { CommentsThread } from "@/components/social/CommentsThread";
 import { Heart, MessageSquare, Users, Sparkles, Search } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { toast } from "sonner";
 import { profilePath } from "@/lib/profile-path";
-
-interface FeedReview {
-  id: string;
-  user_id: string;
-  book_id: string;
-  rating: number | null;
-  content: string;
-  likes_count: number;
-  comments_count?: number;
-  created_at: string;
-  book: any;
-  profile: any;
-  liked_by_me: boolean;
-  i_follow: boolean;
-}
+import { useFeed, useToggleReviewLike, FeedReview } from "@/hooks/useFeed";
 
 export default function FeedPage() {
-  const { user } = useAuth();
   const [tab, setTab] = useState<"all" | "following">("all");
-  const [reviews, setReviews] = useState<FeedReview[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = async () => {
-    setLoading(true);
-
-    let followingIds: string[] = [];
-    if (user) {
-      const { data: f } = await supabase.from("follows").select("following_id").eq("follower_id", user.id);
-      followingIds = (f || []).map((x: any) => x.following_id);
-    }
-
-    let q = supabase
-      .from("reviews")
-      .select("*, book:books(*)")
-      .eq("is_public", true)
-      .order("created_at", { ascending: false })
-      .limit(50);
-
-    if (tab === "following") {
-      if (followingIds.length === 0) {
-        setReviews([]);
-        setLoading(false);
-        return;
-      }
-      q = q.in("user_id", followingIds);
-    }
-
-    const { data: revs } = await q;
-    const list = revs || [];
-    const userIds = [...new Set(list.map((r: any) => r.user_id))];
-    const reviewIds = list.map((r: any) => r.id);
-
-    const [{ data: profs }, { data: myLikes }] = await Promise.all([
-      userIds.length
-        ? supabase.from("profiles").select("id,display_name,username,avatar_url,level").in("id", userIds)
-        : Promise.resolve({ data: [] as any[] }),
-      user && reviewIds.length
-        ? supabase.from("review_likes").select("review_id").eq("user_id", user.id).in("review_id", reviewIds)
-        : Promise.resolve({ data: [] as any[] }),
-    ]);
-
-    const profMap = new Map((profs || []).map((p: any) => [p.id, p]));
-    const likedSet = new Set((myLikes || []).map((l: any) => l.review_id));
-    const followSet = new Set(followingIds);
-
-    setReviews(
-      list.map((r: any) => ({
-        ...r,
-        profile: profMap.get(r.user_id),
-        liked_by_me: likedSet.has(r.id),
-        i_follow: followSet.has(r.user_id),
-      })),
-    );
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, tab]);
-
-  const toggleLike = async (rev: FeedReview) => {
-    if (!user) {
-      toast.error("Entre para curtir");
-      return;
-    }
-    const wasLiked = rev.liked_by_me;
-    // optimistic
-    setReviews((prev) =>
-      prev.map((r) =>
-        r.id === rev.id
-          ? { ...r, liked_by_me: !wasLiked, likes_count: r.likes_count + (wasLiked ? -1 : 1) }
-          : r,
-      ),
-    );
-    const { error } = wasLiked
-      ? await supabase.from("review_likes").delete().eq("review_id", rev.id).eq("user_id", user.id)
-      : await supabase.from("review_likes").insert({ review_id: rev.id, user_id: user.id });
-    if (error) {
-      // rollback
-      setReviews((prev) =>
-        prev.map((r) =>
-          r.id === rev.id
-            ? { ...r, liked_by_me: wasLiked, likes_count: r.likes_count + (wasLiked ? 1 : -1) }
-            : r,
-        ),
-      );
-      toast.error("Não foi possível atualizar o like");
-    }
-  };
+  const { data: reviews = [], isLoading } = useFeed(tab);
+  const toggleLike = useToggleReviewLike(tab);
 
   return (
     <AppShell>
@@ -144,7 +37,7 @@ export default function FeedPage() {
           </TabsList>
         </Tabs>
 
-        {loading ? (
+        {isLoading ? (
           <ul className="space-y-5">
             {Array.from({ length: 3 }).map((_, i) => (
               <li key={i} className="glass rounded-2xl p-5 space-y-3">
@@ -171,7 +64,7 @@ export default function FeedPage() {
           <EmptyFeed tab={tab} />
         ) : (
           <ul className="space-y-5">
-            {reviews.map((r) => (
+            {reviews.map((r: FeedReview) => (
               <li key={r.id} className="glass rounded-2xl p-5 animate-fade-in hover:border-primary/30 transition-colors">
                 <div className="flex items-start gap-3 mb-4">
                   <Link to={profilePath(r.profile)} className="shrink-0">
@@ -191,7 +84,7 @@ export default function FeedPage() {
                       {formatDistanceToNow(new Date(r.created_at), { addSuffix: true, locale: ptBR })}
                     </p>
                   </div>
-                  <FollowButton targetUserId={r.user_id} initiallyFollowing={r.i_follow} />
+                  <FollowButton targetUserId={r.user_id} />
                 </div>
 
                 <Link to={`/livro/${r.book_id}`} className="flex gap-4 mb-4 group/book">
@@ -211,7 +104,7 @@ export default function FeedPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => toggleLike(r)}
+                    onClick={() => toggleLike.mutate(r)}
                     className={`gap-2 transition-colors ${r.liked_by_me ? "text-primary" : "text-muted-foreground"}`}
                   >
                     <Heart className={`w-4 h-4 transition-all ${r.liked_by_me ? "fill-primary scale-110" : ""}`} />

@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Bell, Loader2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,68 +9,32 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-
-interface Notif {
-  id: string;
-  kind: string;
-  title: string;
-  body: string | null;
-  link: string | null;
-  is_read: boolean;
-  created_at: string;
-}
+import {
+  useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead, Notif,
+} from "@/hooks/useNotifications";
 
 export function NotificationsBell({ compact = false }: { compact?: boolean }) {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [items, setItems] = useState<Notif[]>([]);
-  const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+
+  const { data: items = [], isLoading } = useNotifications();
+  const markOne = useMarkNotificationRead();
+  const markAll = useMarkAllNotificationsRead();
   const unread = items.filter((n) => !n.is_read).length;
 
-  const load = async () => {
-    if (!user) return;
-    setLoading(true);
-    const { data } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(20);
-    setItems((data || []) as Notif[]);
-    setLoading(false);
-  };
+  if (!user) return null;
 
-  useEffect(() => {
-    if (!user) return;
-    load();
-    const ch = supabase.channel(`notif:${user.id}:${Date.now()}:${Math.random().toString(36).slice(2)}`);
-    ch.on(
-      "postgres_changes",
-      { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
-      (payload) => setItems((prev) => [payload.new as Notif, ...prev]),
-    ).subscribe();
-    return () => { supabase.removeChannel(ch); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
-
-  const markAllRead = async () => {
-    if (!user || unread === 0) return;
-    const ids = items.filter((n) => !n.is_read).map((n) => n.id);
-    setItems((arr) => arr.map((n) => ({ ...n, is_read: true })));
-    await supabase.from("notifications").update({ is_read: true }).in("id", ids);
-  };
-
-  const handleClick = async (n: Notif) => {
-    if (!n.is_read) {
-      setItems((arr) => arr.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)));
-      await supabase.from("notifications").update({ is_read: true }).eq("id", n.id);
-    }
+  const handleClick = (n: Notif) => {
+    if (!n.is_read) markOne.mutate(n.id);
     setOpen(false);
     if (n.link) navigate(n.link);
   };
 
-  if (!user) return null;
+  const handleMarkAll = () => {
+    const ids = items.filter((n) => !n.is_read).map((n) => n.id);
+    if (ids.length > 0) markAll.mutate(ids);
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -95,13 +58,13 @@ export function NotificationsBell({ compact = false }: { compact?: boolean }) {
         <header className="flex items-center justify-between px-4 py-3 border-b border-border">
           <p className="font-display font-semibold">Notificações</p>
           {unread > 0 && (
-            <Button variant="ghost" size="sm" onClick={markAllRead} className="text-xs gap-1.5 h-7">
+            <Button variant="ghost" size="sm" onClick={handleMarkAll} className="text-xs gap-1.5 h-7">
               <Check className="w-3 h-3" /> Marcar todas
             </Button>
           )}
         </header>
         <div className="flex-1 overflow-y-auto">
-          {loading ? (
+          {isLoading ? (
             <div className="py-10 flex justify-center"><Loader2 className="w-4 h-4 animate-spin text-primary" /></div>
           ) : items.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-10 italic">Nada novo por aqui ainda.</p>
