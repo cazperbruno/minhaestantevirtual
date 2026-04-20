@@ -24,6 +24,7 @@ import ClubDetailPage from "./pages/ClubDetailPage";
 import PublicProfile from "./pages/PublicProfile";
 import ReadersPage from "./pages/ReadersPage";
 import TradesPage from "./pages/TradesPage";
+import ReportsPage from "./pages/ReportsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -53,6 +54,7 @@ const App = () => (
           <Route path="/u/:username" element={<ProtectedRoute><PublicProfile /></ProtectedRoute>} />
           <Route path="/leitores" element={<ProtectedRoute><ReadersPage /></ProtectedRoute>} />
           <Route path="/trocas" element={<ProtectedRoute><TradesPage /></ProtectedRoute>} />
+          <Route path="/relatorios" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
           <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/livro/:id" element={<ProtectedRoute><BookDetail /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
