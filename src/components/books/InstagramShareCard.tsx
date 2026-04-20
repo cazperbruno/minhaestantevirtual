@@ -20,7 +20,7 @@ export function InstagramShareCard({ book, rating, progress }: Props) {
   const generate = async (): Promise<Blob | null> => {
     if (!cardRef.current) return null;
     const canvas = await html2canvas(cardRef.current, {
-      backgroundColor: "#0F0E0C",
+      backgroundColor: "#000000",
       scale: 2,
       useCORS: true,
       allowTaint: true,
