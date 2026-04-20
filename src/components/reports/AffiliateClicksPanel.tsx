@@ -6,9 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { ShoppingCart, Eye, MousePointerClick, TrendingUp, ExternalLink } from "lucide-react";
+import { ShoppingCart, Eye, MousePointerClick, TrendingUp, ExternalLink, Wallet } from "lucide-react";
 import { openAmazon } from "@/lib/amazon";
 import type { Book } from "@/types/book";
+
+// Premissas conservadoras p/ Amazon BR (livros): conversão 8% e comissão 4% sobre ticket médio R$50.
+// Exposto como constantes para fácil ajuste futuro.
+const ASSUMED_CONVERSION = 0.08;
+const ASSUMED_COMMISSION = 0.04;
+const ASSUMED_TICKET_BRL = 50;
+const REVENUE_PER_CLICK = ASSUMED_CONVERSION * ASSUMED_COMMISSION * ASSUMED_TICKET_BRL; // ≈ R$0,16/clique
+const BRL = (n: number) =>
+  n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 });
 
 type Interaction = {
   book_id: string;
@@ -168,7 +177,7 @@ export function AffiliateClicksPanel() {
       </header>
 
       {/* Métricas */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-2">
         <MetricCard
           icon={MousePointerClick}
           label="Cliques"
@@ -189,7 +198,18 @@ export function AffiliateClicksPanel() {
           label="Livros clicados"
           value={loading ? "—" : String(totals.uniqueBooks)}
         />
+        <MetricCard
+          icon={Wallet}
+          label="Receita estimada"
+          value={loading ? "—" : BRL(totals.totalClicks * REVENUE_PER_CLICK)}
+          highlight
+        />
       </div>
+      <p className="text-[11px] text-muted-foreground mb-5">
+        Estimativa baseada em conversão de {(ASSUMED_CONVERSION * 100).toFixed(0)}%, comissão de{" "}
+        {(ASSUMED_COMMISSION * 100).toFixed(0)}% e ticket médio de {BRL(ASSUMED_TICKET_BRL)} (Amazon BR · livros).
+        Valores reais podem variar.
+      </p>
 
       {/* Tabela */}
       {loading ? (
@@ -278,17 +298,27 @@ function MetricCard({
   icon: Icon,
   label,
   value,
+  highlight = false,
 }: {
   icon: typeof ShoppingCart;
   label: string;
   value: string;
+  highlight?: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-border/60 bg-card/40 p-3">
+    <div
+      className={
+        highlight
+          ? "rounded-lg border border-primary/40 bg-gradient-spine p-3 shadow-glow"
+          : "rounded-lg border border-border/60 bg-card/40 p-3"
+      }
+    >
       <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
-        <Icon className="h-3 w-3" /> {label}
+        <Icon className={`h-3 w-3 ${highlight ? "text-primary" : ""}`} /> {label}
       </div>
-      <div className="font-display text-xl md:text-2xl font-bold mt-0.5 tabular-nums">{value}</div>
+      <div className={`font-display text-xl md:text-2xl font-bold mt-0.5 tabular-nums ${highlight ? "text-primary" : ""}`}>
+        {value}
+      </div>
     </div>
   );
 }
