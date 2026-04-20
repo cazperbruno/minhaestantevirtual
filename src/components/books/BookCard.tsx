@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Book } from "@/types/book";
 import { BookCover } from "./BookCover";
+import { ContentTypeBadge } from "./ContentTypeBadge";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/track";
@@ -22,7 +23,10 @@ function BookCardImpl({ book, size = "md", className, showMeta = true, source }:
       onMouseEnter={() => track("view", book.id, source ? { source } : undefined)}
       className={cn("group block animate-fade-in", className)}
     >
-      <BookCover book={book} size={size} className="mx-auto group-hover:shadow-elevated" />
+      <div className="relative">
+        <BookCover book={book} size={size} className="mx-auto group-hover:shadow-elevated" />
+        <ContentTypeBadge type={book.content_type} className="absolute top-1.5 right-1.5 z-10" />
+      </div>
       {showMeta && (
         <div className="mt-3 px-1">
           <h3 className="font-display font-semibold text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
@@ -48,6 +52,7 @@ function BookCardImpl({ book, size = "md", className, showMeta = true, source }:
 export const BookCard = memo(BookCardImpl, (a, b) =>
   a.book.id === b.book.id &&
   a.book.cover_url === b.book.cover_url &&
+  a.book.content_type === b.book.content_type &&
   a.size === b.size &&
   a.className === b.className &&
   a.showMeta === b.showMeta &&

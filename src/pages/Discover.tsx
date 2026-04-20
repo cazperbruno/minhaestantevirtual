@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,6 +7,7 @@ import { Book, UserBook } from "@/types/book";
 import { BookCard } from "@/components/books/BookCard";
 import { BookCover } from "@/components/books/BookCover";
 import { SearchAutocomplete } from "@/components/search/SearchAutocomplete";
+import { ContentTypeFilter, useContentFilter } from "@/components/books/ContentTypeFilter";
 import { Sparkles, ChevronRight, Library, ScanLine, Infinity as InfinityIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,6 +16,7 @@ import { trackRecsShown, recomputeUserWeights } from "@/lib/ai-tracking";
 
 export default function Discover() {
   const { user } = useAuth();
+  const { active: activeTypes } = useContentFilter();
   const [shelves, setShelves] = useState<Shelf[]>([]);
   const [loading, setLoading] = useState(true);
   const [reading, setReading] = useState<UserBook[]>([]);
@@ -54,7 +56,22 @@ export default function Discover() {
     return () => { cancelled = true; };
   }, [user]);
 
-  const featured: Book | null = reading[0]?.book ?? shelves[0]?.books?.[0] ?? null;
+  // Filtra prateleiras pelos tipos ativos (livros sem content_type → "book")
+  const visibleShelves = useMemo(() => {
+    return shelves
+      .map((s) => ({
+        ...s,
+        books: s.books.filter((b) => activeTypes.includes(b.content_type || "book")),
+      }))
+      .filter((s) => s.books.length > 0);
+  }, [shelves, activeTypes]);
+
+  const visibleReading = useMemo(
+    () => reading.filter((ub) => activeTypes.includes(ub.book?.content_type || "book")),
+    [reading, activeTypes],
+  );
+
+  const featured: Book | null = visibleReading[0]?.book ?? visibleShelves[0]?.books?.[0] ?? null;
 
   return (
     <AppShell>
@@ -92,6 +109,8 @@ export default function Discover() {
               </Button>
             </Link>
           </div>
+
+          <ContentTypeFilter className="mt-5" />
         </header>
 
         {/* Featured */}
@@ -117,7 +136,7 @@ export default function Discover() {
                 <BookCover book={featured} size="lg" className="shrink-0 group-hover:scale-105 transition-transform" />
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wider text-primary mb-2">
-                    {reading[0] ? "Continue lendo" : "Em destaque para você"}
+                    {visibleReading[0] ? "Continue lendo" : "Em destaque para você"}
                   </p>
                   <h2 className="font-display text-2xl md:text-3xl font-bold leading-tight group-hover:text-primary transition-colors">
                     {featured.title}
@@ -140,10 +159,10 @@ export default function Discover() {
         )}
 
         {/* Continue lendo */}
-        {reading.length > 1 && (
+        {visibleReading.length > 1 && (
           <Section title="Continue lendo">
             <Shelf>
-              {reading.slice(1).map((ub) => ub.book && (
+              {visibleReading.slice(1).map((ub) => ub.book && (
                 <BookCard key={ub.id} book={ub.book} size="md" source="shelf:reading" />
               ))}
             </Shelf>
@@ -165,7 +184,7 @@ export default function Discover() {
           </>
         )}
 
-        {!loading && shelves.map((shelf) => shelf.books.length > 0 && (
+        {!loading && visibleShelves.map((shelf) => (
           <Section
             key={shelf.id}
             title={shelf.title}
@@ -182,7 +201,7 @@ export default function Discover() {
         ))}
 
         {/* CTA para feed infinito */}
-        {!loading && shelves.length > 0 && (
+        {!loading && visibleShelves.length > 0 && (
           <Link
             to="/feed-infinito"
             className="block glass rounded-2xl p-6 md:p-8 mt-6 text-center hover:border-primary/50 transition-all group"
@@ -194,6 +213,15 @@ export default function Discover() {
               Abrir feed infinito <ChevronRight className="w-4 h-4" />
             </Button>
           </Link>
+        )}
+
+        {/* Empty quando filtro não bate com nenhum item */}
+        {!loading && shelves.length > 0 && visibleShelves.length === 0 && (
+          <div className="glass rounded-2xl p-8 text-center">
+            <p className="text-sm text-muted-foreground">
+              Sem recomendações para os formatos selecionados. Ative outros tipos no filtro acima.
+            </p>
+          </div>
         )}
 
         {/* Empty state inicial — biblioteca vazia */}

@@ -3,12 +3,14 @@ import { useSearchParams, Link } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { Loader2, Search, ScanLine, BookOpen, Sparkles } from "lucide-react";
 import { searchBooksGet, lookupIsbn } from "@/lib/books-api";
+import { searchManga } from "@/lib/anilist-api";
 import { trackSearch } from "@/lib/ai-tracking";
 import { rerankByTaste } from "@/lib/search-rerank";
 import { useAuth } from "@/hooks/useAuth";
 import { Book } from "@/types/book";
 import { BookCard } from "@/components/books/BookCard";
 import { SearchAutocomplete } from "@/components/search/SearchAutocomplete";
+import { ContentTypeFilter, useContentFilter } from "@/components/books/ContentTypeFilter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { AddBookManualDialog } from "@/components/books/AddBookManualDialog";
@@ -27,6 +29,7 @@ const TRENDING = [
 
 export default function SearchPage() {
   const { user } = useAuth();
+  const { active: activeTypes, available } = useContentFilter();
   const [params, setParams] = useSearchParams();
   const initialQ = params.get("q") ?? "";
   const [results, setResults] = useState<Book[]>([]);
@@ -60,9 +63,21 @@ export default function SearchPage() {
           if (list.length === 0) toast.info("Nada encontrado para este ISBN");
         }
       } else {
-        const list = await searchBooksGet(value);
+        // Busca em paralelo: Books (Google/OpenLibrary) + AniList (mangás)
+        // Só inclui AniList se o usuário curte mangás.
+        const wantsManga = available.includes("manga");
+        const [books, manga] = await Promise.all([
+          searchBooksGet(value),
+          wantsManga ? searchManga(value) : Promise.resolve([]),
+        ]);
+        // Books vêm sem content_type explícito da função → assume "book"
+        const booksTyped: Book[] = books.map((b) => ({
+          ...b,
+          content_type: b.content_type || "book",
+        }));
+        const merged = [...booksTyped, ...manga];
         // AI: reordena por afinidade do usuário (categorias × user_taste)
-        const ranked = user ? await rerankByTaste(list, user.id, value) : list;
+        const ranked = user ? await rerankByTaste(merged, user.id, value) : merged;
         setResults(ranked);
       }
     } catch (err: any) {
@@ -71,6 +86,15 @@ export default function SearchPage() {
       setBusy(false);
     }
   };
+
+  // Filtra resultados pelos tipos ativos (UI puramente client-side)
+  const visible = useMemo(() => {
+    if (!results.length) return results;
+    return results.filter((b) => {
+      const t = b.content_type || "book";
+      return activeTypes.includes(t);
+    });
+  }, [results, activeTypes]);
 
   // Auto-run when arriving with ?q=
   useEffect(() => {
@@ -100,8 +124,9 @@ export default function SearchPage() {
         <SearchAutocomplete
           autoFocus={!initialQ}
           onSubmit={handleSubmit}
-          className="mb-8"
+          className="mb-4"
         />
+        <ContentTypeFilter className="mb-8" />
 
         {/* Empty state — never feels broken */}
         {!activeQuery && !busy && (
@@ -187,14 +212,23 @@ export default function SearchPage() {
         {results.length > 0 && !busy && (
           <div className="animate-fade-in">
             <p className="text-sm text-muted-foreground mb-5">
-              {results.length} resultado{results.length === 1 ? "" : "s"} para “
+              {visible.length} de {results.length} resultado{results.length === 1 ? "" : "s"} para “
               <span className="text-foreground font-medium">{activeQuery}</span>”
+              {visible.length < results.length && (
+                <span className="ml-2 text-xs">(filtro ativo)</span>
+              )}
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-5 gap-y-8">
-              {results.map((b) => (
-                <BookCard key={b.id || b.source_id || `${b.title}-${b.authors?.[0] || ""}`} book={b} />
-              ))}
-            </div>
+            {visible.length === 0 ? (
+              <div className="text-center py-12 text-sm text-muted-foreground">
+                Nenhum resultado nos formatos selecionados. Ajuste o filtro acima.
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-5 gap-y-8">
+                {visible.map((b) => (
+                  <BookCard key={b.id || b.source_id || `${b.title}-${b.authors?.[0] || ""}`} book={b} />
+                ))}
+              </div>
+            )}
             <div className="mt-10 pt-6 border-t border-border/40 text-center">
               <p className="text-sm text-muted-foreground mb-3">Não é nenhum desses?</p>
               <AddBookManualDialog initialTitle={activeQuery} />
