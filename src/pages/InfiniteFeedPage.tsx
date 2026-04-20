@@ -126,13 +126,15 @@ export default function InfiniteFeedPage() {
           )}
 
           {!loading && visible.length === 0 && (
-            <div className="glass rounded-2xl p-10 text-center">
-              <Sparkles className="w-10 h-10 text-primary mx-auto mb-3" />
-              <h2 className="font-display text-xl font-bold">Comece sua biblioteca</h2>
-              <p className="text-muted-foreground mt-1 mb-4">
-                Adicione 1 ou 2 livros para a IA aprender seu gosto.
+            <div className="glass rounded-2xl p-10 md:p-12 text-center animate-fade-in">
+              <div className="w-20 h-20 rounded-3xl bg-gradient-spine border border-border mx-auto mb-5 flex items-center justify-center shadow-book">
+                <Sparkles className="w-9 h-9 text-primary/60" />
+              </div>
+              <h2 className="font-display text-2xl font-semibold mb-2">Comece sua biblioteca</h2>
+              <p className="text-muted-foreground text-sm mb-6 max-w-sm mx-auto">
+                Adicione 1 ou 2 livros para a IA aprender seu gosto e gerar recomendações sob medida.
               </p>
-              <Link to="/buscar"><Button variant="hero">Buscar agora</Button></Link>
+              <Link to="/buscar"><Button variant="hero" size="lg" className="gap-2"><Sparkles className="w-4 h-4" /> Buscar agora</Button></Link>
             </div>
           )}
         </div>
