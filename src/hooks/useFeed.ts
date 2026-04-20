@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { CACHE, qk, queryClient } from "@/lib/query-client";
@@ -18,15 +18,29 @@ export interface FeedReview {
   liked_by_me: boolean;
 }
 
+export const FEED_PAGE_SIZE = 20;
+
+interface FeedPage {
+  items: FeedReview[];
+  nextCursor: string | null;
+}
+
 /**
- * Feed de resenhas — global ou só de quem o usuário segue.
- * Cache SOCIAL (5min) + invalidação realtime via useRealtimeInvalidation.
+ * Feed paginado com cursor por created_at.
+ *
+ * - 20 resenhas por página.
+ * - Cursor estável (timestamp) — evita duplicatas mesmo com inserts em tempo real.
+ * - Realtime (useRealtimeInvalidation) invalida o feed inteiro: refetch da
+ *   primeira página em background; páginas antigas continuam servidas do cache
+ *   até o usuário rolar.
  */
 export function useFeed(tab: "all" | "following") {
   const { user } = useAuth();
-  return useQuery<FeedReview[]>({
+  return useInfiniteQuery<FeedPage>({
     queryKey: [...qk.feed(), tab, user?.id || "anon"],
-    queryFn: async () => {
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor,
+    queryFn: async ({ pageParam }) => {
       let followingIds: string[] = [];
       if (user) {
         const { data: f } = await supabase
@@ -39,16 +53,17 @@ export function useFeed(tab: "all" | "following") {
         .select("*, book:books(*)")
         .eq("is_public", true)
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(FEED_PAGE_SIZE);
 
+      if (pageParam) q = q.lt("created_at", pageParam as string);
       if (tab === "following") {
-        if (followingIds.length === 0) return [];
+        if (followingIds.length === 0) return { items: [], nextCursor: null };
         q = q.in("user_id", followingIds);
       }
 
       const { data: revs } = await q;
       const list = revs || [];
-      if (list.length === 0) return [];
+      if (list.length === 0) return { items: [], nextCursor: null };
 
       const userIds = [...new Set(list.map((r: any) => r.user_id))];
       const reviewIds = list.map((r: any) => r.id);
@@ -66,17 +81,22 @@ export function useFeed(tab: "all" | "following") {
       const profMap = new Map((profs || []).map((p: any) => [p.id, p]));
       const likedSet = new Set((myLikes || []).map((l: any) => l.review_id));
 
-      return list.map((r: any) => ({
+      const items: FeedReview[] = list.map((r: any) => ({
         ...r,
         profile: profMap.get(r.user_id),
         liked_by_me: likedSet.has(r.id),
       }));
+
+      return {
+        items,
+        nextCursor: items.length === FEED_PAGE_SIZE ? items[items.length - 1].created_at : null,
+      };
     },
     ...CACHE.SOCIAL,
   });
 }
 
-/** Toggle like com optimistic update na lista do feed em cache. */
+/** Toggle like com optimistic update — atualiza a página correta em cache. */
 export function useToggleReviewLike(tab: "all" | "following") {
   const { user } = useAuth();
   const key = [...qk.feed(), tab, user?.id || "anon"];
@@ -101,14 +121,21 @@ export function useToggleReviewLike(tab: "all" | "following") {
         throw new Error("not_authenticated");
       }
       await queryClient.cancelQueries({ queryKey: key });
-      const previous = queryClient.getQueryData<FeedReview[]>(key);
-      queryClient.setQueryData<FeedReview[]>(key, (old) =>
-        (old || []).map((r) =>
-          r.id === rev.id
-            ? { ...r, liked_by_me: !rev.liked_by_me, likes_count: r.likes_count + (rev.liked_by_me ? -1 : 1) }
-            : r,
-        ),
-      );
+      const previous = queryClient.getQueryData<{ pages: FeedPage[]; pageParams: unknown[] }>(key);
+      queryClient.setQueryData<{ pages: FeedPage[]; pageParams: unknown[] }>(key, (old) => {
+        if (!old) return old as any;
+        return {
+          ...old,
+          pages: old.pages.map((p) => ({
+            ...p,
+            items: p.items.map((r) =>
+              r.id === rev.id
+                ? { ...r, liked_by_me: !rev.liked_by_me, likes_count: r.likes_count + (rev.liked_by_me ? -1 : 1) }
+                : r,
+            ),
+          })),
+        };
+      });
       return { previous };
     },
     onError: (_e, _v, ctx) => {

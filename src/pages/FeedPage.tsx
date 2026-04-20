@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FollowButton } from "@/components/social/FollowButton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CommentsThread } from "@/components/social/CommentsThread";
-import { Heart, MessageSquare, Users, Sparkles, Search } from "lucide-react";
+import { Heart, MessageSquare, Users, Sparkles, Search, Loader2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { profilePath } from "@/lib/profile-path";
@@ -17,8 +17,40 @@ import { useFeed, useToggleReviewLike, FeedReview } from "@/hooks/useFeed";
 
 export default function FeedPage() {
   const [tab, setTab] = useState<"all" | "following">("all");
-  const { data: reviews = [], isLoading } = useFeed(tab);
+  const {
+    data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage,
+  } = useFeed(tab);
   const toggleLike = useToggleReviewLike(tab);
+
+  // Achata + dedupe (realtime pode causar overlap entre páginas).
+  const reviews = useMemo<FeedReview[]>(() => {
+    const seen = new Set<string>();
+    const out: FeedReview[] = [];
+    for (const page of data?.pages ?? []) {
+      for (const r of page.items) {
+        if (!seen.has(r.id)) {
+          seen.add(r.id);
+          out.push(r);
+        }
+      }
+    }
+    return out;
+  }, [data]);
+
+  // IntersectionObserver — dispara fetch quando sentinela entra na viewport.
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasNextPage) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isFetchingNextPage) fetchNextPage();
+      },
+      { rootMargin: "400px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <AppShell>
@@ -63,58 +95,74 @@ export default function FeedPage() {
         ) : reviews.length === 0 ? (
           <EmptyFeed tab={tab} />
         ) : (
-          <ul className="space-y-5">
-            {reviews.map((r: FeedReview) => (
-              <li key={r.id} className="glass rounded-2xl p-5 animate-fade-in hover:border-primary/30 transition-colors">
-                <div className="flex items-start gap-3 mb-4">
-                  <Link to={profilePath(r.profile)} className="shrink-0">
-                    <Avatar className="w-10 h-10 ring-2 ring-transparent hover:ring-primary/40 transition-all">
-                      <AvatarImage src={r.profile?.avatar_url} />
-                      <AvatarFallback className="bg-gradient-gold text-primary-foreground text-sm font-display">
-                        {(r.profile?.display_name || "?").charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Link>
-                  <div className="flex-1 min-w-0">
-                    <Link to={profilePath(r.profile)} className="font-semibold text-sm truncate hover:text-primary transition-colors block leading-tight">
-                      {r.profile?.display_name || "Leitor"}
+          <>
+            <ul className="space-y-5">
+              {reviews.map((r) => (
+                <li key={r.id} className="glass rounded-2xl p-5 animate-fade-in hover:border-primary/30 transition-colors">
+                  <div className="flex items-start gap-3 mb-4">
+                    <Link to={profilePath(r.profile)} className="shrink-0">
+                      <Avatar className="w-10 h-10 ring-2 ring-transparent hover:ring-primary/40 transition-all">
+                        <AvatarImage src={r.profile?.avatar_url} />
+                        <AvatarFallback className="bg-gradient-gold text-primary-foreground text-sm font-display">
+                          {(r.profile?.display_name || "?").charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
                     </Link>
-                    <p className="text-xs text-muted-foreground">
-                      Nível {r.profile?.level ?? 1} ·{" "}
-                      {formatDistanceToNow(new Date(r.created_at), { addSuffix: true, locale: ptBR })}
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <Link to={profilePath(r.profile)} className="font-semibold text-sm truncate hover:text-primary transition-colors block leading-tight">
+                        {r.profile?.display_name || "Leitor"}
+                      </Link>
+                      <p className="text-xs text-muted-foreground">
+                        Nível {r.profile?.level ?? 1} ·{" "}
+                        {formatDistanceToNow(new Date(r.created_at), { addSuffix: true, locale: ptBR })}
+                      </p>
+                    </div>
+                    <FollowButton targetUserId={r.user_id} />
                   </div>
-                  <FollowButton targetUserId={r.user_id} />
-                </div>
 
-                <Link to={`/livro/${r.book_id}`} className="flex gap-4 mb-4 group/book">
-                  <BookCover book={r.book} size="sm" />
-                  <div className="flex-1 min-w-0 self-center">
-                    <p className="font-display font-semibold leading-tight group-hover/book:text-primary transition-colors">
-                      {r.book?.title}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">{r.book?.authors?.[0]}</p>
-                    {r.rating && <Rating value={r.rating} readOnly className="mt-2" size={14} />}
+                  <Link to={`/livro/${r.book_id}`} className="flex gap-4 mb-4 group/book">
+                    <BookCover book={r.book} size="sm" />
+                    <div className="flex-1 min-w-0 self-center">
+                      <p className="font-display font-semibold leading-tight group-hover/book:text-primary transition-colors">
+                        {r.book?.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">{r.book?.authors?.[0]}</p>
+                      {r.rating && <Rating value={r.rating} readOnly className="mt-2" size={14} />}
+                    </div>
+                  </Link>
+
+                  <p className="text-sm leading-relaxed whitespace-pre-line text-foreground/90">{r.content}</p>
+
+                  <div className="flex items-center gap-1 mt-4 pt-3 border-t border-border/40">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleLike.mutate(r)}
+                      className={`gap-2 transition-colors ${r.liked_by_me ? "text-primary" : "text-muted-foreground"}`}
+                    >
+                      <Heart className={`w-4 h-4 transition-all ${r.liked_by_me ? "fill-primary scale-110" : ""}`} />
+                      <span className="tabular-nums">{r.likes_count}</span>
+                    </Button>
+                    <CommentsThread reviewId={r.id} initialCount={r.comments_count || 0} />
                   </div>
-                </Link>
+                </li>
+              ))}
+            </ul>
 
-                <p className="text-sm leading-relaxed whitespace-pre-line text-foreground/90">{r.content}</p>
+            {/* Sentinela do IntersectionObserver */}
+            <div ref={sentinelRef} className="h-10" aria-hidden />
 
-                <div className="flex items-center gap-1 mt-4 pt-3 border-t border-border/40">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => toggleLike.mutate(r)}
-                    className={`gap-2 transition-colors ${r.liked_by_me ? "text-primary" : "text-muted-foreground"}`}
-                  >
-                    <Heart className={`w-4 h-4 transition-all ${r.liked_by_me ? "fill-primary scale-110" : ""}`} />
-                    <span className="tabular-nums">{r.likes_count}</span>
-                  </Button>
-                  <CommentsThread reviewId={r.id} initialCount={r.comments_count || 0} />
-                </div>
-              </li>
-            ))}
-          </ul>
+            {isFetchingNextPage && (
+              <div className="flex justify-center py-6">
+                <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              </div>
+            )}
+            {!hasNextPage && reviews.length >= 20 && (
+              <p className="text-center text-xs text-muted-foreground italic py-8">
+                Você chegou ao fim ✨
+              </p>
+            )}
+          </>
         )}
       </div>
     </AppShell>
