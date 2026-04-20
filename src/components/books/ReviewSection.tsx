@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { checkAchievements } from "@/lib/gamification";
+import { awardXp } from "@/lib/xp";
 import { ReviewListSkeleton } from "@/components/ui/skeletons";
 
 interface Review {
@@ -86,6 +87,8 @@ export function ReviewSection({ bookId }: { bookId: string }) {
       toast.error("Erro ao publicar");
     } else {
       toast.success(myReview ? "Resenha atualizada" : "Resenha publicada");
+      // XP só em resenha nova (não em update)
+      if (!myReview) void awardXp(user.id, "write_review");
       await checkAchievements(user.id);
       await load();
     }
@@ -105,6 +108,7 @@ export function ReviewSection({ bookId }: { bookId: string }) {
       await supabase.from("review_likes").delete().eq("review_id", rev.id).eq("user_id", user.id);
     } else {
       await supabase.from("review_likes").insert({ review_id: rev.id, user_id: user.id });
+      void awardXp(user.id, "like_review", { silent: true });
     }
   };
 

@@ -70,6 +70,7 @@ export default function ClubDetailPage() {
     setInput("");
     const { error } = await supabase.from("club_messages").insert({ club_id: id, user_id: user.id, content: text });
     if (error) { toast.error("Erro ao enviar"); setInput(text); }
+    else { void awardXp(user.id, "club_message", { silent: true }); }
     setSending(false);
   };
 

@@ -2,6 +2,7 @@ import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { CACHE, qk, queryClient } from "@/lib/query-client";
+import { awardXp } from "@/lib/xp";
 import { toast } from "sonner";
 
 export interface FeedReview {
@@ -113,6 +114,7 @@ export function useToggleReviewLike(tab: "all" | "following") {
         const { error } = await supabase
           .from("review_likes").insert({ review_id: rev.id, user_id: user.id });
         if (error) throw error;
+        void awardXp(user.id, "like_review", { silent: true });
       }
     },
     onMutate: async (rev) => {

@@ -16,6 +16,7 @@ import { BookCover } from "@/components/books/BookCover";
 import { Link } from "react-router-dom";
 import { ListRowSkeleton, StatsRowSkeleton } from "@/components/ui/skeletons";
 import { EmptyState } from "@/components/ui/empty-state";
+import { awardXp } from "@/lib/xp";
 
 type Loan = {
   id: string;
@@ -87,6 +88,7 @@ export default function LoansPage() {
     setSaving(false);
     if (error) { toast.error("Erro ao registrar empréstimo"); return; }
     toast.success("Empréstimo registrado");
+    void awardXp(user.id, "loan_book");
     setOpen(false);
     setBookId(""); setBorrower(""); setDueAt(""); setNotes("");
     load();
