@@ -2,6 +2,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { CACHE, qk, queryClient, invalidate } from "@/lib/query-client";
+import { awardXp } from "@/lib/xp";
 import { toast } from "sonner";
 
 /** Estado de "estou seguindo este usuário?" — cacheado. */
@@ -60,7 +61,10 @@ export function useToggleFollow(targetUserId: string) {
       toast.error("Erro ao atualizar seguidor");
     },
     onSuccess: (nowFollowing) => {
-      if (nowFollowing) toast.success("Seguindo");
+      if (nowFollowing) {
+        toast.success("Seguindo");
+        if (user) void awardXp(user.id, "follow", { silent: true });
+      }
     },
     onSettled: () => {
       if (user) invalidate.follow(user.id, targetUserId);

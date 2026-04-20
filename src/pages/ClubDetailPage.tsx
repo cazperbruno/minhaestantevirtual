@@ -12,6 +12,7 @@ import { ClubBookOfTheMonth } from "@/components/clubs/ClubBookOfTheMonth";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { awardXp } from "@/lib/xp";
 
 export default function ClubDetailPage() {
   const { id } = useParams();
@@ -70,6 +71,7 @@ export default function ClubDetailPage() {
     setInput("");
     const { error } = await supabase.from("club_messages").insert({ club_id: id, user_id: user.id, content: text });
     if (error) { toast.error("Erro ao enviar"); setInput(text); }
+    else { void awardXp(user.id, "club_message", { silent: true }); }
     setSending(false);
   };
 

@@ -17,6 +17,9 @@ import { toast } from "sonner";
 import { BookCard } from "@/components/books/BookCard";
 import type { Book } from "@/types/book";
 import { cn } from "@/lib/utils";
+import { awardXp } from "@/lib/xp";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 type Mode = "barcode" | "cover" | "page";
 
@@ -32,6 +35,7 @@ const MODE_LABEL: Record<Mode, string> = {
 
 export default function ScannerPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
@@ -175,6 +179,13 @@ export default function ScannerPage() {
           cover_url: (book as any).cover_url,
         });
         toast.success("Livro encontrado");
+        // Registra a interação 'scan' (alimenta desafios) e concede XP
+        if (user) {
+          void supabase.from("user_interactions").insert({
+            user_id: user.id, book_id: book.id, kind: "scan", weight: 1,
+          });
+          void awardXp(user.id, "scan_book", { silent: true });
+        }
       } else {
         vibrate([100, 50, 100]);
         setNotFoundIsbn(isbn);

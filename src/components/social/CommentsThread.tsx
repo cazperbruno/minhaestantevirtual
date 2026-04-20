@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { profilePath } from "@/lib/profile-path";
+import { awardXp } from "@/lib/xp";
 
 interface Comment {
   id: string;
@@ -70,6 +71,7 @@ export function CommentsThread({ reviewId, initialCount = 0 }: { reviewId: strin
     setList((prev) => [...prev, { ...(data as any), profile: prof }]);
     setCount((c) => c + 1);
     setText("");
+    void awardXp(user.id, "comment_review", { silent: true });
   };
 
   const remove = async (id: string) => {

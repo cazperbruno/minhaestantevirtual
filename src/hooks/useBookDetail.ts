@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Book, BookStatus, UserBook } from "@/types/book";
 import { CACHE, qk, queryClient, invalidate } from "@/lib/query-client";
 import { checkAchievements } from "@/lib/gamification";
+import { awardXp } from "@/lib/xp";
 import { toast } from "sonner";
 
 /** Livro do catálogo — cache CATALOG (24h). Imutável na prática. */
@@ -93,12 +94,18 @@ export function useCommitUserBook(book: Book | null | undefined) {
       if (ctx?.previous !== undefined) queryClient.setQueryData(key, ctx.previous);
       toast.error("Não foi possível salvar");
     },
-    onSuccess: (saved) => {
+    onSuccess: (saved, patch, ctx) => {
       queryClient.setQueryData(key, { ...saved, book });
-      if (user) {
-        invalidate.library(user.id);
-        checkAchievements(user.id);
-      }
+      if (!user) return;
+      invalidate.library(user.id);
+
+      // XP por evento real — usa o estado anterior capturado em onMutate
+      const prev = ctx?.previous ?? null;
+      if (!prev) void awardXp(user.id, "add_book");
+      if (patch.status === "read" && prev?.status !== "read") void awardXp(user.id, "finish_book");
+      if (patch.rating != null && patch.rating !== prev?.rating) void awardXp(user.id, "rate_book");
+
+      checkAchievements(user.id);
     },
   });
 }
