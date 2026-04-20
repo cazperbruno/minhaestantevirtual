@@ -900,6 +900,22 @@ export type Database = {
           xp_reward: number
         }[]
       }
+      get_collaborative_recommendations: {
+        Args: { target_user_id: string }
+        Returns: {
+          avg_rating: number
+          book_id: string
+          collab_score: number
+          reader_count: number
+        }[]
+      }
+      get_similar_users: {
+        Args: { target_user_id: string }
+        Returns: {
+          common_count: number
+          similar_user_id: string
+        }[]
+      }
       grant_xp: {
         Args: { _amount: number; _user_id: string }
         Returns: undefined
@@ -920,6 +936,7 @@ export type Database = {
         Args: { _limit?: number; _user_id: string }
         Returns: {
           affinity: number
+          collab_readers: number
           id: string
           popularity: number
           reason: string
