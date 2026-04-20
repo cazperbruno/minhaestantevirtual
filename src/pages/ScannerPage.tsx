@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Camera, Loader2, ScanBarcode, Upload, Sparkles, X, Search, BookX, Zap, ZapOff } from "lucide-react";
+import { Camera, Loader2, ScanBarcode, Upload, Sparkles, X, Search, BookX, Zap, ZapOff, Check, ArrowRight, BookOpen } from "lucide-react";
 import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 import { lookupIsbn, recognizeCover, searchBooksGet } from "@/lib/books-api";
@@ -36,6 +36,7 @@ export default function ScannerPage() {
   const [recognized, setRecognized] = useState<{ title?: string; author?: string } | null>(null);
   const [notFoundIsbn, setNotFoundIsbn] = useState<string | null>(null);
   const [detected, setDetected] = useState<string | null>(null);
+  const [foundBook, setFoundBook] = useState<{ id: string; title: string; authors?: string[]; cover_url?: string | null } | null>(null);
 
   // Auto-iniciar câmera no modo barcode (Steve Jobs: zero fricção)
   useEffect(() => {
@@ -140,12 +141,18 @@ export default function ScannerPage() {
   const resolveIsbn = async (isbn: string) => {
     setBusy(true);
     setNotFoundIsbn(null);
+    setFoundBook(null);
     try {
       const book = await lookupIsbn(isbn);
       if (book?.id) {
         vibrate([20, 30, 60]); // success pattern
+        setFoundBook({
+          id: book.id,
+          title: book.title,
+          authors: (book as any).authors,
+          cover_url: (book as any).cover_url,
+        });
         toast.success("Livro encontrado");
-        navigate(`/livro/${book.id}`);
       } else {
         vibrate([100, 50, 100]); // error pattern
         setNotFoundIsbn(isbn);
@@ -157,6 +164,14 @@ export default function ScannerPage() {
       setBusy(false);
       lockRef.current = false;
     }
+  };
+
+  const scanNext = () => {
+    setFoundBook(null);
+    setNotFoundIsbn(null);
+    setDetected(null);
+    setManualIsbn("");
+    startBarcode();
   };
 
   const submitManual = (e: React.FormEvent) => {
@@ -292,6 +307,41 @@ export default function ScannerPage() {
               </div>
             </form>
 
+            {foundBook && (
+              <div className="glass rounded-2xl p-5 border border-primary/40 shadow-glow animate-scale-in">
+                <div className="flex items-start gap-4">
+                  <div className="w-16 h-24 shrink-0 rounded-md overflow-hidden bg-muted">
+                    {foundBook.cover_url ? (
+                      <img src={foundBook.cover_url} alt={foundBook.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                        <BookOpen className="w-6 h-6" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-primary font-medium flex items-center gap-1.5 mb-1">
+                      <Check className="w-3.5 h-3.5" /> Livro encontrado
+                    </p>
+                    <h3 className="font-display font-semibold text-lg leading-tight line-clamp-2">
+                      {foundBook.title}
+                    </h3>
+                    {foundBook.authors?.length ? (
+                      <p className="text-sm text-muted-foreground line-clamp-1">{foundBook.authors.join(", ")}</p>
+                    ) : null}
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      <Button variant="hero" onClick={() => navigate(`/livro/${foundBook.id}`)} className="gap-2">
+                        Ver livro <ArrowRight className="w-4 h-4" />
+                      </Button>
+                      <Button variant="outline" onClick={scanNext} className="gap-2">
+                        <ScanBarcode className="w-4 h-4" /> Escanear próximo
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {notFoundIsbn && (
               <div className="glass rounded-2xl p-5 border border-destructive/40 animate-fade-in">
                 <div className="flex items-start gap-3">
@@ -314,8 +364,8 @@ export default function ScannerPage() {
                       >
                         <Search className="w-4 h-4" /> Buscar por título/autor
                       </Button>
-                      <Button variant="outline" onClick={() => { setNotFoundIsbn(null); startBarcode(); }}>
-                        Tentar outro ISBN
+                      <Button variant="outline" onClick={scanNext} className="gap-2">
+                        <ScanBarcode className="w-4 h-4" /> Escanear próximo
                       </Button>
                     </div>
                   </div>
