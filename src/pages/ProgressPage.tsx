@@ -131,17 +131,17 @@ export default function ProgressPage() {
 
             <TabsContent value="daily" className="space-y-2">
               {loadingCh ? <ChallengeSkeleton /> : daily.length === 0 ? <Empty msg="Sem desafios para hoje" /> : daily.map((ch) => (
-                <ChallengeRow key={ch.id} ch={ch} onClaim={() => claim.mutate(ch.id)} claiming={claim.isPending} />
+                <ChallengeRow key={ch.id} ch={ch} onClaim={() => claim.mutate({ id: ch.id, category: ch.category })} claiming={claim.isPending} />
               ))}
             </TabsContent>
             <TabsContent value="weekly" className="space-y-2">
               {loadingCh ? <ChallengeSkeleton /> : weekly.length === 0 ? <Empty msg="Sem desafios semanais" /> : weekly.map((ch) => (
-                <ChallengeRow key={ch.id} ch={ch} onClaim={() => claim.mutate(ch.id)} claiming={claim.isPending} />
+                <ChallengeRow key={ch.id} ch={ch} onClaim={() => claim.mutate({ id: ch.id, category: ch.category })} claiming={claim.isPending} />
               ))}
             </TabsContent>
             <TabsContent value="epic" className="space-y-2">
               {loadingCh ? <ChallengeSkeleton /> : epic.length === 0 ? <Empty msg="Sem desafios épicos" /> : epic.map((ch) => (
-                <ChallengeRow key={ch.id} ch={ch} onClaim={() => claim.mutate(ch.id)} claiming={claim.isPending} />
+                <ChallengeRow key={ch.id} ch={ch} onClaim={() => claim.mutate({ id: ch.id, category: ch.category })} claiming={claim.isPending} />
               ))}
             </TabsContent>
           </Tabs>
