@@ -17,6 +17,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { InstallAppCard } from "@/components/pwa/InstallAppCard";
+import { PushNotificationsCard } from "@/components/pwa/PushNotificationsCard";
 import { VersionTag } from "@/components/pwa/VersionTag";
 
 type Visibility = "public" | "private";
@@ -182,9 +183,10 @@ export default function ProfilePage() {
             value={profile.website || ""} onChange={(v) => setProfile({ ...profile, website: v })} />
         </div>
 
-        {/* Instalar app (PWA) */}
-        <div className="mb-6">
+        {/* Instalar app (PWA) + Push */}
+        <div className="mb-6 space-y-4">
           <InstallAppCard />
+          <PushNotificationsCard />
         </div>
 
         {/* Privacidade */}
