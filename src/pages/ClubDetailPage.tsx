@@ -75,7 +75,7 @@ export default function ClubDetailPage() {
     const text = input.trim();
     setInput("");
     const { error } = await supabase.from("club_messages").insert({ club_id: id, user_id: user.id, content: text });
-    if (error) { toast.error("Erro ao enviar"); setInput(text); }
+    if (error) { toast.error("Mensagem não enviada", { description: "Verifique sua conexão." }); setInput(text); }
     else { void awardXp(user.id, "club_message", { silent: true }); }
     setSending(false);
   };
@@ -83,16 +83,16 @@ export default function ClubDetailPage() {
   const leave = async () => {
     if (!user || !id) return;
     const { error } = await supabase.from("club_members").delete().eq("club_id", id).eq("user_id", user.id);
-    if (error) toast.error("Erro ao sair");
-    else { toast.success("Saiu do clube"); load(); }
+    if (error) toast.error("Não conseguimos sair do clube agora");
+    else { toast.success("Você saiu do clube"); load(); }
   };
 
   const join = async () => {
     if (!user || !id || !club) return;
     if (club.is_public) {
       const { error } = await supabase.from("club_members").insert({ club_id: id, user_id: user.id });
-      if (error) toast.error("Erro ao entrar");
-      else { toast.success("Bem-vindo!"); load(); }
+      if (error) toast.error("Não conseguimos entrar no clube agora");
+      else { toast.success("Bem-vindo ao clube!"); load(); }
     }
   };
 
