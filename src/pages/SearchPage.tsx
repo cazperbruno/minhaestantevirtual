@@ -26,6 +26,7 @@ const TRENDING = [
 ];
 
 export default function SearchPage() {
+  const { user } = useAuth();
   const [params, setParams] = useSearchParams();
   const initialQ = params.get("q") ?? "";
   const [results, setResults] = useState<Book[]>([]);
@@ -60,7 +61,9 @@ export default function SearchPage() {
         }
       } else {
         const list = await searchBooksGet(value);
-        setResults(list);
+        // AI: reordena por afinidade do usuário (categorias × user_taste)
+        const ranked = user ? await rerankByTaste(list, user.id, value) : list;
+        setResults(ranked);
       }
     } catch (err: any) {
       toast.error(err.message || "Erro na busca");
