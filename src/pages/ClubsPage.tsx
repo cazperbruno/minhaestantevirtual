@@ -177,7 +177,15 @@ export default function ClubsPage() {
             {clubs.map((c) => (
               <article key={c.id} className="glass rounded-2xl p-5 flex flex-col">
                 <Link to={`/clubes/${c.id}`} className="flex-1">
-                  <h2 className="font-display text-lg font-semibold leading-tight hover:text-primary transition-colors">{c.name}</h2>
+                  <div className="flex items-start gap-2 justify-between">
+                    <h2 className="font-display text-lg font-semibold leading-tight hover:text-primary transition-colors">{c.name}</h2>
+                    <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0 ${
+                      c.is_public ? "bg-muted/50 text-muted-foreground" : "bg-primary/15 text-primary"
+                    }`}>
+                      {c.is_public ? <Globe2 className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                      {c.is_public ? "Público" : "Privado"}
+                    </span>
+                  </div>
                   {c.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{c.description}</p>}
                   {c.current_book && (
                     <div className="flex gap-2 mt-3 items-center">
@@ -198,7 +206,9 @@ export default function ClubsPage() {
                       <Button size="sm" variant="outline">Abrir</Button>
                     </Link>
                   ) : (
-                    <Button size="sm" variant="hero" onClick={() => join(c.id)}>Entrar</Button>
+                    <Button size="sm" variant="hero" onClick={() => join(c)}>
+                      {c.is_public ? "Entrar" : "Solicitar"}
+                    </Button>
                   )}
                 </div>
               </article>
