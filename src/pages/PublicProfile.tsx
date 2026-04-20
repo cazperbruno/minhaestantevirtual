@@ -34,26 +34,33 @@ export default function PublicProfile() {
       setLoading(true);
       setNotFound(false);
       const raw = decodeURIComponent(username).replace(/^@+/, "").trim();
-      try {
-        // Lookup robusto: aceita username (case-insensitive) OU UUID
-        let p: any = null;
+
+      // Fallback resiliente: tenta UUID → username → username com retry
+      const lookup = async (): Promise<any | null> => {
+        // 1) UUID exato
         if (UUID_RE.test(raw)) {
           const { data } = await supabase.from("profiles").select("*").eq("id", raw).maybeSingle();
-          p = data;
+          if (data) return data;
         }
-        if (!p) {
-          const { data } = await supabase
-            .from("profiles")
-            .select("*")
-            .ilike("username", raw)
-            .maybeSingle();
-          p = data;
-        }
+        // 2) Username case-insensitive
+        const u1 = await supabase.from("profiles").select("*").ilike("username", raw).maybeSingle();
+        if (u1.data) return u1.data;
+        // 3) Retry após 400ms (replicação de leitura pode estar atrasada após signup)
+        await new Promise((r) => setTimeout(r, 400));
+        const u2 = await supabase.from("profiles").select("*").ilike("username", raw).maybeSingle();
+        if (u2.data) return u2.data;
+        // 4) Último fallback: display_name exato (case-insensitive)
+        const u3 = await supabase.from("profiles").select("*").ilike("display_name", raw).maybeSingle();
+        return u3.data || null;
+      };
+
+      try {
+        const p = await lookup();
 
         if (cancelled) return;
 
         if (!p) {
-          console.warn("[PublicProfile] not found:", raw);
+          console.warn("[PublicProfile] not found after retries:", raw);
           setProfile(null);
           setNotFound(true);
           setLoading(false);

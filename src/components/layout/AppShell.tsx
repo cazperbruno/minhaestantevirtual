@@ -3,7 +3,6 @@ import { useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
 import { MobileHeader } from "./MobileHeader";
-import { ScannerFab } from "./ScannerFab";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 import { useAuth } from "@/hooks/useAuth";
 import { tickStreak } from "@/lib/xp";
@@ -31,7 +30,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           {children}
         </main>
       </div>
-      <ScannerFab />
       <BottomNav />
       <XpBurstHost />
     </div>

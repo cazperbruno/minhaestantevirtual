@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BookCover } from "@/components/books/BookCover";
-import { ArrowLeft, Send, Loader2, Users, LogOut } from "lucide-react";
+import { ArrowLeft, Send, Loader2, Users, LogOut, Lock, Globe2, Clock } from "lucide-react";
 import { ClubBookOfTheMonth } from "@/components/clubs/ClubBookOfTheMonth";
+import { ClubAdminPanel } from "@/components/clubs/ClubAdminPanel";
+import { useMyJoinRequest, useRequestJoin } from "@/hooks/useClubAccess";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -83,10 +85,12 @@ export default function ClubDetailPage() {
   };
 
   const join = async () => {
-    if (!user || !id) return;
-    const { error } = await supabase.from("club_members").insert({ club_id: id, user_id: user.id });
-    if (error) toast.error("Erro ao entrar");
-    else { toast.success("Bem-vindo!"); load(); }
+    if (!user || !id || !club) return;
+    if (club.is_public) {
+      const { error } = await supabase.from("club_members").insert({ club_id: id, user_id: user.id });
+      if (error) toast.error("Erro ao entrar");
+      else { toast.success("Bem-vindo!"); load(); }
+    }
   };
 
   if (loading) return <AppShell><div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div></AppShell>;
