@@ -25,8 +25,11 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
-      // autoUpdate + skipWaiting + clientsClaim → nova versão assume imediatamente
-      registerType: "autoUpdate",
+      // prompt mode: NÃO ativa o novo SW sozinho — o app pede confirmação
+      // ao usuário (UpdatePrompt). Evita estado misto de chunks antigo+novo
+      // que causa "tela branca / Failed to fetch dynamically imported module"
+      // em dispositivos que estavam com versão anterior em cache.
+      registerType: "prompt",
       // Service worker NEVER ativa em dev — evita poluição do preview do Lovable
       devOptions: { enabled: false },
       includeAssets: ["favicon.ico", "robots.txt", "icon-192.png", "icon-512.png"],
@@ -44,18 +47,19 @@ export default defineConfig(({ mode }) => ({
         categories: ["books", "education", "lifestyle"],
         icons: [
           { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-          { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
           { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+          { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
         ],
       },
       workbox: {
-        // CRÍTICO: nova versão do SW assume imediatamente sem esperar reload
-        skipWaiting: true,
+        // skipWaiting=false: o SW novo só assume após updateSW(true) chamar skipWaiting
+        // via mensagem (feito automaticamente pelo virtual:pwa-register em prompt mode).
+        skipWaiting: false,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
         // HTML é roteado pelo SPA: navegações vão para index.html via NetworkFirst
         navigateFallback: "index.html",
-        navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//],
+        navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//, /^\/assets\//],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         runtimeCaching: [

@@ -1,19 +1,26 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { registerSW } from "virtual:pwa-register";
 
 /**
- * Hook que registra o Service Worker (em produção) e expõe estado de
- * "nova versão disponível". Estratégia:
- *  - autoUpdate: o SW gerado já chama skipWaiting/clientsClaim
- *  - polling a cada 60s para detectar nova versão sem reload
- *  - se houver nova versão → setNeedRefresh(true) → UI mostra prompt
- *  - applyUpdate() ativa o novo SW e dá reload automático
+ * Hook que registra o Service Worker (apenas em produção real) e expõe
+ * o estado de "nova versão disponível".
  *
- * Em iframes/preview do Lovable o registro é pulado em main.tsx (já desregistra SWs).
+ * Estratégia (registerType: "prompt"):
+ *  1. SW é instalado em background mas NÃO ativa sozinho.
+ *  2. Polling a cada 60s pede `registration.update()` para detectar deploys.
+ *  3. Quando há nova versão → `onNeedRefresh` → UI mostra prompt.
+ *  4. `applyUpdate()` chama `updateSW(true)`:
+ *      - envia SKIP_WAITING para o SW novo,
+ *      - escuta `controllerchange` → faz reload de todas as abas.
+ *  5. Se o usuário tem uma versão MUITO antiga em cache cujos chunks JS já
+ *     não existem (causa "Failed to fetch dynamically imported module"),
+ *     o LazyErrorBoundary captura e força reload — pegando o novo SW.
+ *
+ * Em iframes/preview do Lovable o registro é pulado em main.tsx.
  */
 export function usePwaUpdate() {
   const [needRefresh, setNeedRefresh] = useState(false);
-  const [updateSW, setUpdateSW] = useState<((reload?: boolean) => Promise<void>) | null>(null);
+  const updateRef = useRef<((reload?: boolean) => Promise<void>) | null>(null);
 
   useEffect(() => {
     // Não registrar em iframe/preview (mesma checagem do main.tsx)
@@ -33,28 +40,44 @@ export function usePwaUpdate() {
       onNeedRefresh() {
         setNeedRefresh(true);
       },
+      onOfflineReady() {
+        // Primeira instalação — app pronto para uso offline. Sem prompt.
+      },
       onRegisteredSW(_swUrl, registration) {
-        // Polling: a cada 60s pergunta ao SW se há nova versão
-        if (registration) {
-          setInterval(() => {
+        if (!registration) return;
+        // Polling agressivo: a cada 60s checa por nova versão
+        const interval = setInterval(() => {
+          registration.update().catch(() => { /* offline ok */ });
+        }, 60 * 1000);
+        // Também checa quando o usuário volta à aba (PWA aberto após dias)
+        const onVisible = () => {
+          if (document.visibilityState === "visible") {
             registration.update().catch(() => { /* offline ok */ });
-          }, 60 * 1000);
-        }
+          }
+        };
+        document.addEventListener("visibilitychange", onVisible);
+        return () => {
+          clearInterval(interval);
+          document.removeEventListener("visibilitychange", onVisible);
+        };
       },
       onRegisterError(err) {
         console.warn("[PWA] SW registration error", err);
       },
     });
 
-    setUpdateSW(() => update);
+    updateRef.current = update;
   }, []);
 
   const applyUpdate = async () => {
-    if (!updateSW) {
+    if (!updateRef.current) {
       window.location.reload();
       return;
     }
-    await updateSW(true); // true = reload automático após ativar novo SW
+    // updateSW(true) envia SKIP_WAITING ao novo SW e recarrega quando
+    // ele toma controle (controllerchange) — garante que o usuário sempre
+    // veja a versão mais recente após clicar em "Atualizar".
+    await updateRef.current(true);
   };
 
   const dismiss = () => setNeedRefresh(false);
