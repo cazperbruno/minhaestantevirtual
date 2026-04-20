@@ -29,6 +29,7 @@ const TRENDING = [
 
 export default function SearchPage() {
   const { user } = useAuth();
+  const { active: activeTypes, available } = useContentFilter();
   const [params, setParams] = useSearchParams();
   const initialQ = params.get("q") ?? "";
   const [results, setResults] = useState<Book[]>([]);
@@ -62,9 +63,21 @@ export default function SearchPage() {
           if (list.length === 0) toast.info("Nada encontrado para este ISBN");
         }
       } else {
-        const list = await searchBooksGet(value);
+        // Busca em paralelo: Books (Google/OpenLibrary) + AniList (mangás)
+        // Só inclui AniList se o usuário curte mangás.
+        const wantsManga = available.includes("manga");
+        const [books, manga] = await Promise.all([
+          searchBooksGet(value),
+          wantsManga ? searchManga(value) : Promise.resolve([]),
+        ]);
+        // Books vêm sem content_type explícito da função → assume "book"
+        const booksTyped: Book[] = books.map((b) => ({
+          ...b,
+          content_type: b.content_type || "book",
+        }));
+        const merged = [...booksTyped, ...manga];
         // AI: reordena por afinidade do usuário (categorias × user_taste)
-        const ranked = user ? await rerankByTaste(list, user.id, value) : list;
+        const ranked = user ? await rerankByTaste(merged, user.id, value) : merged;
         setResults(ranked);
       }
     } catch (err: any) {
@@ -73,6 +86,15 @@ export default function SearchPage() {
       setBusy(false);
     }
   };
+
+  // Filtra resultados pelos tipos ativos (UI puramente client-side)
+  const visible = useMemo(() => {
+    if (!results.length) return results;
+    return results.filter((b) => {
+      const t = b.content_type || "book";
+      return activeTypes.includes(t);
+    });
+  }, [results, activeTypes]);
 
   // Auto-run when arriving with ?q=
   useEffect(() => {
