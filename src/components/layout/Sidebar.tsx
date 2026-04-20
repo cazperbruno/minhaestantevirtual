@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { NotificationsBell } from "@/components/social/NotificationsBell";
-import readifyLogo from "@/assets/readify-logo-v5.png";
+import readifyLogo from "@/assets/readify-logo-v6.png";
 
 const items = [
   { to: "/", label: "Descobrir", icon: Book },
@@ -36,7 +36,7 @@ export function Sidebar() {
     <aside className="hidden md:flex flex-col w-60 shrink-0 border-r border-border bg-sidebar h-screen sticky top-0">
       <div className="px-5 pt-6 pb-5 flex items-center justify-between gap-2">
         <NavLink to="/" className="flex items-center min-w-0">
-          <img src={readifyLogo} alt="Readify" className="h-9 max-w-[150px] w-auto select-none" draggable={false} />
+          <img src={readifyLogo} alt="Readify" className="h-10 max-w-[180px] w-auto select-none object-contain" draggable={false} />
         </NavLink>
         <NotificationsBell compact />
       </div>
