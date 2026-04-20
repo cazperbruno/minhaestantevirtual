@@ -216,6 +216,9 @@ export default function Discover() {
         )}
 
 
+        {/* Conquistas multi-formato perto de desbloquear */}
+        {!loading && <NextAchievementsCard />}
+
         {visibleReading.length > 1 && (
           <Section title="Continue lendo">
             <Shelf>
