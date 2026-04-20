@@ -28,6 +28,7 @@ import { NotificationsBell } from "@/components/social/NotificationsBell";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import readifyLogo from "@/assets/readify-logo-v8.png";
 
 type Item = { to: string; label: string; icon: typeof Book; group: string };
