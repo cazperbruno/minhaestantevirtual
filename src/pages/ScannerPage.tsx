@@ -186,13 +186,39 @@ export default function ScannerPage() {
           authors: (book as any).authors,
           cover_url: (book as any).cover_url,
         });
-        toast.success("Livro encontrado");
         // Registra a interação 'scan' (alimenta desafios) e concede XP
         if (user) {
           void supabase.from("user_interactions").insert({
             user_id: user.id, book_id: book.id, kind: "scan", weight: 1,
           });
           void awardXp(user.id, "scan_book", { silent: true });
+
+          // Modo contínuo: auto-adiciona à biblioteca como 'not_read' e reagenda scan
+          if (continuous) {
+            await supabase.from("user_books").upsert(
+              { user_id: user.id, book_id: book.id, status: "not_read" },
+              { onConflict: "user_id,book_id" },
+            );
+            setSessionLog((log) => [
+              { id: book.id, title: book.title, cover_url: (book as any).cover_url },
+              ...log,
+            ].slice(0, 10));
+            toast.success(`✓ ${book.title}`, {
+              description: "Adicionado · escaneando próximo…",
+              duration: 1800,
+            });
+            // Reagenda novo scan automaticamente
+            if (continuousTimerRef.current) clearTimeout(continuousTimerRef.current);
+            continuousTimerRef.current = window.setTimeout(() => {
+              setFoundBook(null);
+              setDetected(null);
+              if (mode === "barcode") startBarcode();
+            }, 1500);
+          } else {
+            toast.success("Livro encontrado");
+          }
+        } else {
+          toast.success("Livro encontrado");
         }
       } else {
         vibrate([100, 50, 100]);
