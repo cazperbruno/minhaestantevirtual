@@ -7,6 +7,16 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+type ContentType = "book" | "manga" | "comic" | "magazine";
+
+type SeriesPayload = {
+  total_volumes?: number | null;
+  total_chapters?: number | null;
+  status?: string | null;
+  banner_url?: string | null;
+  score?: number | null;
+};
+
 type NormalizedBook = {
   isbn_13?: string | null;
   isbn_10?: string | null;
@@ -22,6 +32,11 @@ type NormalizedBook = {
   categories?: string[];
   source: string;
   source_id?: string | null;
+  content_type?: ContentType;
+  series_id?: string | null;
+  volume_number?: number | null;
+  /** When provided (e.g. AniList), creates/updates the linked series row. */
+  _series?: SeriesPayload | null;
   raw?: any;
 };
 
