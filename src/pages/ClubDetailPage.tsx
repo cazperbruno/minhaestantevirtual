@@ -136,7 +136,7 @@ export default function ClubDetailPage() {
 
         {isOwner && (
           <div className="mb-4">
-            <ClubAdminPanel clubId={id!} isOwner={isOwner} />
+            <ClubAdminPanel clubId={id!} ownerId={user!.id} />
           </div>
         )}
       </div>
