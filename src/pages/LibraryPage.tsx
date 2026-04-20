@@ -13,13 +13,21 @@ import {
   applyLibraryFilters,
   type LibraryFiltersValue,
 } from "@/components/books/LibraryFilters";
+import { ContentTypeFilter, useContentFilter } from "@/components/books/ContentTypeFilter";
 
 type View = "shelves" | "grid";
 
 export default function LibraryPage() {
-  const { data: items = [], isLoading: loading } = useLibrary();
+  const { data: allItems = [], isLoading: loading } = useLibrary();
   const [view, setView] = useState<View>("shelves");
   const [filters, setFilters] = useState<LibraryFiltersValue>(DEFAULT_FILTERS);
+  const { active: activeTypes, available } = useContentFilter();
+
+  // Filtra a biblioteca pelos tipos de conteúdo ativos do usuário.
+  const items = useMemo(() => {
+    const typeSet = new Set(activeTypes);
+    return allItems.filter((i) => typeSet.has((i.book?.content_type ?? "book") as any));
+  }, [allItems, activeTypes]);
 
   // For shelves view, status filter is implicit per shelf — apply only the others.
   const shelfFiltered = useMemo(
@@ -87,6 +95,7 @@ export default function LibraryPage() {
           <EmptyState />
         ) : (
           <>
+            {available.length > 1 && <ContentTypeFilter className="mb-4" />}
             <LibraryFilters
               items={items}
               value={filters}
