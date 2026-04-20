@@ -95,6 +95,7 @@ export default function LibraryPage() {
           <EmptyState />
         ) : (
           <>
+            {available.length > 1 && <ContentTypeFilter className="mb-4" />}
             <LibraryFilters
               items={items}
               value={filters}
