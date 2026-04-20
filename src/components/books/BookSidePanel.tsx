@@ -2,9 +2,11 @@ import { Book, UserBook } from "@/types/book";
 import { Rating } from "./Rating";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
-import { Check, Sparkles } from "lucide-react";
+import { Check, Sparkles, ShoppingCart } from "lucide-react";
 import { AvailabilityToggles } from "./AvailabilityToggles";
 import { RecommendBookDialog } from "./RecommendBookDialog";
+import { Button } from "@/components/ui/button";
+import { openAmazon } from "@/lib/amazon";
 
 interface Props {
   book: Book;
@@ -69,6 +71,16 @@ export function BookSidePanel({ book, ub, onUpdate, onCommit }: Props) {
         <div className="mt-3">
           <RecommendBookDialog bookId={book.id} bookTitle={book.title} />
         </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="mt-3 w-full gap-2"
+          onClick={() => openAmazon(book)}
+        >
+          <ShoppingCart className="w-4 h-4" />
+          Ver preço na Amazon
+        </Button>
       </div>
 
       {ub.status === "read" && (
