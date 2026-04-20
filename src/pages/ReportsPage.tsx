@@ -14,6 +14,7 @@ import { Download, Filter, FileText, BookOpen, Star, Layers, Calendar } from "lu
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AffiliateClicksPanel } from "@/components/reports/AffiliateClicksPanel";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 type Row = {
   id: string;
@@ -50,6 +51,7 @@ const PERIOD_OPTIONS = [
 
 export default function ReportsPage() {
   const { user } = useAuth();
+  const { isAdmin } = useIsAdmin();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<Row[]>([]);
   const [status, setStatus] = useState("all");
@@ -493,8 +495,8 @@ export default function ReportsPage() {
           )}
         </Card>
 
-        {/* Painel de afiliados Amazon — cliques, CTR e top livros */}
-        <AffiliateClicksPanel />
+        {/* Painel de afiliados Amazon — visível somente para admins */}
+        {isAdmin && <AffiliateClicksPanel />}
       </div>
     </AppShell>
   );
