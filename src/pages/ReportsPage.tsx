@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Download, Filter, FileText, BookOpen, Star, Layers, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { AffiliateClicksPanel } from "@/components/reports/AffiliateClicksPanel";
 
 type Row = {
   id: string;
@@ -491,6 +492,9 @@ export default function ReportsPage() {
             </div>
           )}
         </Card>
+
+        {/* Painel de afiliados Amazon — cliques, CTR e top livros */}
+        <AffiliateClicksPanel />
       </div>
     </AppShell>
   );
