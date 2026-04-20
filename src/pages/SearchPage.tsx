@@ -124,8 +124,9 @@ export default function SearchPage() {
         <SearchAutocomplete
           autoFocus={!initialQ}
           onSubmit={handleSubmit}
-          className="mb-8"
+          className="mb-4"
         />
+        <ContentTypeFilter className="mb-8" />
 
         {/* Empty state — never feels broken */}
         {!activeQuery && !busy && (
@@ -211,14 +212,23 @@ export default function SearchPage() {
         {results.length > 0 && !busy && (
           <div className="animate-fade-in">
             <p className="text-sm text-muted-foreground mb-5">
-              {results.length} resultado{results.length === 1 ? "" : "s"} para “
+              {visible.length} de {results.length} resultado{results.length === 1 ? "" : "s"} para “
               <span className="text-foreground font-medium">{activeQuery}</span>”
+              {visible.length < results.length && (
+                <span className="ml-2 text-xs">(filtro ativo)</span>
+              )}
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-5 gap-y-8">
-              {results.map((b) => (
-                <BookCard key={b.id || b.source_id || `${b.title}-${b.authors?.[0] || ""}`} book={b} />
-              ))}
-            </div>
+            {visible.length === 0 ? (
+              <div className="text-center py-12 text-sm text-muted-foreground">
+                Nenhum resultado nos formatos selecionados. Ajuste o filtro acima.
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-5 gap-y-8">
+                {visible.map((b) => (
+                  <BookCard key={b.id || b.source_id || `${b.title}-${b.authors?.[0] || ""}`} book={b} />
+                ))}
+              </div>
+            )}
             <div className="mt-10 pt-6 border-t border-border/40 text-center">
               <p className="text-sm text-muted-foreground mb-3">Não é nenhum desses?</p>
               <AddBookManualDialog initialTitle={activeQuery} />
