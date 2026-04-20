@@ -14,6 +14,8 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { profilePath } from "@/lib/profile-path";
 import { useFeed, useToggleReviewLike, FeedReview } from "@/hooks/useFeed";
+import { usePublicRecommendations } from "@/hooks/useRecommendations";
+import { RecommendationCard } from "@/components/books/RecommendationCard";
 
 export default function FeedPage() {
   const [tab, setTab] = useState<"all" | "following">("all");
@@ -21,6 +23,17 @@ export default function FeedPage() {
     data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage,
   } = useFeed(tab);
   const toggleLike = useToggleReviewLike(tab);
+  const { data: recsData } = usePublicRecommendations();
+  const recs = useMemo(() => {
+    const seen = new Set<string>();
+    const out: any[] = [];
+    for (const p of recsData?.pages ?? []) {
+      for (const r of p.items) {
+        if (!seen.has(r.id)) { seen.add(r.id); out.push(r); }
+      }
+    }
+    return out.slice(0, 5); // só os 5 mais recentes no topo
+  }, [recsData]);
 
   // Achata + dedupe (realtime pode causar overlap entre páginas).
   const reviews = useMemo<FeedReview[]>(() => {
@@ -68,6 +81,19 @@ export default function FeedPage() {
             <TabsTrigger value="following" className="gap-2"><Users className="w-3.5 h-3.5" /> Seguindo</TabsTrigger>
           </TabsList>
         </Tabs>
+
+        {tab === "all" && recs.length > 0 && (
+          <section className="mb-6 space-y-4">
+            <h2 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground flex items-center gap-1.5">
+              <Sparkles className="w-3 h-3 text-primary" /> Recomendações da comunidade
+            </h2>
+            <ul className="space-y-4">
+              {recs.map((r) => (
+                <li key={r.id}><RecommendationCard rec={r} /></li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {isLoading ? (
           <ul className="space-y-5">

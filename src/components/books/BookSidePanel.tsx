@@ -4,6 +4,7 @@ import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { Check, Sparkles } from "lucide-react";
 import { AvailabilityToggles } from "./AvailabilityToggles";
+import { RecommendBookDialog } from "./RecommendBookDialog";
 
 interface Props {
   book: Book;
@@ -65,6 +66,9 @@ export function BookSidePanel({ book, ub, onUpdate, onCommit }: Props) {
           initialLoan={!!ub.available_for_loan}
           compact
         />
+        <div className="mt-3">
+          <RecommendBookDialog bookId={book.id} bookTitle={book.title} />
+        </div>
       </div>
 
       {ub.status === "read" && (
