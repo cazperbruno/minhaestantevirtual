@@ -330,6 +330,85 @@ export type Database = {
           },
         ]
       }
+      club_invitations: {
+        Row: {
+          club_id: string
+          created_at: string
+          id: string
+          invited_by: string
+          invitee_id: string
+          responded_at: string | null
+          status: string
+        }
+        Insert: {
+          club_id: string
+          created_at?: string
+          id?: string
+          invited_by: string
+          invitee_id: string
+          responded_at?: string | null
+          status?: string
+        }
+        Update: {
+          club_id?: string
+          created_at?: string
+          id?: string
+          invited_by?: string
+          invitee_id?: string
+          responded_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_invitations_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "book_clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      club_join_requests: {
+        Row: {
+          club_id: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          message: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          club_id: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          message?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          club_id?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          message?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_join_requests_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "book_clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       club_members: {
         Row: {
           club_id: string
@@ -1125,6 +1204,14 @@ export type Database = {
       }
     }
     Functions: {
+      accept_club_invitation: {
+        Args: { _invitation_id: string }
+        Returns: {
+          club_id: string
+          message: string
+          success: boolean
+        }[]
+      }
       add_xp: {
         Args: {
           _amount: number
@@ -1136,6 +1223,13 @@ export type Database = {
           leveled_up: boolean
           new_level: number
           new_xp: number
+        }[]
+      }
+      approve_club_request: {
+        Args: { _request_id: string }
+        Returns: {
+          message: string
+          success: boolean
         }[]
       }
       array_intersect_count: {
@@ -1163,6 +1257,13 @@ export type Database = {
           xp_granted: number
         }[]
       }
+      decline_club_invitation: {
+        Args: { _invitation_id: string }
+        Returns: {
+          message: string
+          success: boolean
+        }[]
+      }
       ensure_invite: { Args: { _user_id: string }; Returns: string }
       get_collaborative_recommendations: {
         Args: { target_user_id: string }
@@ -1183,6 +1284,14 @@ export type Database = {
       grant_xp: {
         Args: { _amount: number; _user_id: string }
         Returns: undefined
+      }
+      has_pending_club_invite: {
+        Args: { _club: string; _user: string }
+        Returns: boolean
+      }
+      has_pending_club_request: {
+        Args: { _club: string; _user: string }
+        Returns: boolean
       }
       has_role: {
         Args: {
@@ -1220,6 +1329,13 @@ export type Database = {
         Args: { _code: string; _new_user_id: string }
         Returns: {
           inviter_id: string
+          message: string
+          success: boolean
+        }[]
+      }
+      reject_club_request: {
+        Args: { _request_id: string }
+        Returns: {
           message: string
           success: boolean
         }[]
