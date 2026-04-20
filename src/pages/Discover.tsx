@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,6 +7,7 @@ import { Book, UserBook } from "@/types/book";
 import { BookCard } from "@/components/books/BookCard";
 import { BookCover } from "@/components/books/BookCover";
 import { SearchAutocomplete } from "@/components/search/SearchAutocomplete";
+import { ContentTypeFilter, useContentFilter } from "@/components/books/ContentTypeFilter";
 import { Sparkles, ChevronRight, Library, ScanLine, Infinity as InfinityIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
