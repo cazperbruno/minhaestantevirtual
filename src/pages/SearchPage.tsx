@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
-import { Loader2, Search, ScanLine, BookOpen, Sparkles } from "lucide-react";
+import { Loader2, Search, ScanLine, BookOpen, Sparkles, ShoppingCart, ExternalLink } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { searchBooksGet, lookupIsbn } from "@/lib/books-api";
 import { searchManga } from "@/lib/anilist-api";
 import { trackSearch } from "@/lib/ai-tracking";
@@ -26,6 +27,29 @@ const TRENDING = [
   "Mindset",
   "Dom Casmurro",
 ];
+
+const AMAZON_TAG =
+  (import.meta.env.VITE_AMAZON_AFFILIATE_TAG as string | undefined) || "cazperbruno-20";
+
+/** Constrói URL Amazon BR de busca por termo livre, com tag de afiliado. */
+function amazonSearchUrlForQuery(query: string): string {
+  const params = new URLSearchParams({ k: query });
+  if (AMAZON_TAG) params.set("tag", AMAZON_TAG);
+  return `https://www.amazon.com.br/s?${params.toString()}`;
+}
+
+/** Registra clique Amazon vindo de busca sem resultados (sem book_id). */
+async function trackAmazonFallbackClick(query: string) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    // Usa search_log para o termo + meta indicando conversão Amazon.
+    await supabase.from("search_log").insert({
+      user_id: user.id,
+      query: `__amazon_fallback__:${query.toLowerCase().trim()}`,
+    });
+  } catch { /* silent */ }
+}
 
 export default function SearchPage() {
   const { user } = useAuth();
@@ -169,41 +193,65 @@ export default function SearchPage() {
           </div>
         )}
 
-        {/* No results — never decepciona, sempre oferece próximo passo */}
+        {/* No results — Amazon como fallback monetizado, demais opções secundárias */}
         {activeQuery && !busy && results.length === 0 && (
-          <div className="text-center py-12 animate-fade-in">
+          <div className="max-w-xl mx-auto text-center py-10 animate-fade-in">
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary/10 flex items-center justify-center">
               <Search className="w-7 h-7 text-primary" />
             </div>
-            <p className="font-display text-2xl font-semibold">
-              Nenhum resultado para “{activeQuery}”
+            <h2 className="font-display text-2xl md:text-3xl font-semibold">
+              Não encontramos esse livro no Readify
+            </h2>
+            <p className="text-muted-foreground mt-2">
+              Mas você pode encontrar na Amazon.
             </p>
-            <p className="text-muted-foreground mt-2 max-w-md mx-auto">
-              {isIsbn
-                ? "Esse ISBN não foi localizado em nenhuma fonte. Tente buscar pelo título e autor."
-                : "Tente outras palavras, verifique a grafia ou use o scanner."}
+
+            {/* CTA principal — Amazon */}
+            <a
+              href={amazonSearchUrlForQuery(activeQuery)}
+              target="_blank"
+              rel="noopener noreferrer sponsored"
+              onClick={() => trackAmazonFallbackClick(activeQuery)}
+              className="inline-flex items-center gap-2 mt-6 px-6 py-3 rounded-full bg-gradient-gold text-primary-foreground font-semibold shadow-glow hover:shadow-elevated hover:scale-[1.02] active:scale-[0.98] transition-all"
+            >
+              <ShoppingCart className="w-4 h-4" />
+              Ver na Amazon 🔥
+              <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+            </a>
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Buscando “<span className="text-foreground/80 font-medium">{activeQuery}</span>” na Amazon Brasil ·
+              Como afiliados, ganhamos uma pequena comissão sem custo extra para você.
             </p>
-            <div className="flex flex-wrap gap-2 justify-center mt-6">
-              {TRENDING.slice(0, 5).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => handleTrending(t)}
-                  className="px-3 py-1.5 rounded-full bg-card hover:bg-muted border border-border text-xs transition-colors"
-                >
-                  {t}
-                </button>
-              ))}
-              <Link to="/scanner">
-                <Button variant="outline" size="sm" className="rounded-full gap-1.5">
-                  <ScanLine className="w-3.5 h-3.5" /> Scanner
-                </Button>
-              </Link>
-            </div>
-            <div className="mt-8 pt-6 border-t border-border/40 max-w-md mx-auto">
+
+            {/* Ações secundárias */}
+            <div className="mt-8 pt-6 border-t border-border/40">
               <p className="text-xs text-muted-foreground mb-3">
-                Não encontrou? Adicione você mesmo — entra direto na sua biblioteca.
+                {isIsbn
+                  ? "Ou tente buscar pelo título e autor:"
+                  : "Ou tente outra coisa:"}
               </p>
-              <AddBookManualDialog initialTitle={activeQuery} />
+              <div className="flex flex-wrap gap-2 justify-center">
+                {TRENDING.slice(0, 5).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => handleTrending(t)}
+                    className="px-3 py-1.5 rounded-full bg-card hover:bg-muted border border-border text-xs transition-colors"
+                  >
+                    {t}
+                  </button>
+                ))}
+                <Link to="/scanner">
+                  <Button variant="outline" size="sm" className="rounded-full gap-1.5">
+                    <ScanLine className="w-3.5 h-3.5" /> Scanner
+                  </Button>
+                </Link>
+              </div>
+              <div className="mt-6">
+                <p className="text-xs text-muted-foreground mb-3">
+                  Já tem em casa? Adicione manualmente — entra direto na sua biblioteca.
+                </p>
+                <AddBookManualDialog initialTitle={activeQuery} />
+              </div>
             </div>
           </div>
         )}
