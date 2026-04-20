@@ -82,6 +82,9 @@ export function BottomNav() {
             <li key={to}>
               <NavLink
                 to={to}
+                onMouseEnter={() => prefetchFor(to)}
+                onTouchStart={() => prefetchFor(to)}
+                onFocus={() => prefetchFor(to)}
                 className={cn(
                   "flex flex-col items-center justify-center gap-1 py-3 text-[11px] transition-colors",
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground",
@@ -117,6 +120,9 @@ export function BottomNav() {
             <li key={to}>
               <NavLink
                 to={to}
+                onMouseEnter={() => prefetchFor(to)}
+                onTouchStart={() => prefetchFor(to)}
+                onFocus={() => prefetchFor(to)}
                 className={cn(
                   "flex flex-col items-center justify-center gap-1 py-3 text-[11px] transition-colors",
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground",
