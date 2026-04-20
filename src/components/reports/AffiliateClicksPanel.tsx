@@ -177,7 +177,7 @@ export function AffiliateClicksPanel() {
       </header>
 
       {/* Métricas */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-2">
         <MetricCard
           icon={MousePointerClick}
           label="Cliques"
@@ -198,7 +198,18 @@ export function AffiliateClicksPanel() {
           label="Livros clicados"
           value={loading ? "—" : String(totals.uniqueBooks)}
         />
+        <MetricCard
+          icon={Wallet}
+          label="Receita estimada"
+          value={loading ? "—" : BRL(totals.totalClicks * REVENUE_PER_CLICK)}
+          highlight
+        />
       </div>
+      <p className="text-[11px] text-muted-foreground mb-5">
+        Estimativa baseada em conversão de {(ASSUMED_CONVERSION * 100).toFixed(0)}%, comissão de{" "}
+        {(ASSUMED_COMMISSION * 100).toFixed(0)}% e ticket médio de {BRL(ASSUMED_TICKET_BRL)} (Amazon BR · livros).
+        Valores reais podem variar.
+      </p>
 
       {/* Tabela */}
       {loading ? (
