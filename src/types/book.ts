@@ -29,6 +29,8 @@ export interface UserBook {
   started_at?: string | null;
   finished_at?: string | null;
   is_public: boolean;
+  available_for_trade?: boolean;
+  available_for_loan?: boolean;
   created_at: string;
   updated_at: string;
   book?: Book;
