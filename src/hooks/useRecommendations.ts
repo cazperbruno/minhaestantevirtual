@@ -18,7 +18,7 @@ export interface FeedRecommendation {
   liked_by_me: boolean;
 }
 
-export const REC_PAGE_SIZE = 10;
+const REC_PAGE_SIZE = 10;
 
 interface RecPage {
   items: FeedRecommendation[];
