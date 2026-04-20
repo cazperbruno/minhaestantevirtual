@@ -65,9 +65,9 @@ export async function awardXp(
 
   // Recompute + invalidar caches relevantes em background (não-bloqueante)
   void supabase.rpc("recompute_challenge_progress", { _user_id: userId }).then(() => {
-    queryClient.invalidateQueries({ queryKey: qk.challenges?.(userId) ?? ["challenges", userId] });
+    queryClient.invalidateQueries({ queryKey: qk.challenges(userId) });
     queryClient.invalidateQueries({ queryKey: ["profile", userId] });
-    queryClient.invalidateQueries({ queryKey: qk.ranking?.() ?? ["ranking"] });
+    queryClient.invalidateQueries({ queryKey: qk.ranking() });
   });
 
   return { leveledUp: leveled_up, newLevel: new_level, amount };

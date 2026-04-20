@@ -29,6 +29,7 @@ const PublicProfile = lazy(() => import("./pages/PublicProfile"));
 const ReadersPage = lazy(() => import("./pages/ReadersPage"));
 const TradesPage = lazy(() => import("./pages/TradesPage"));
 const ReportsPage = lazy(() => import("./pages/ReportsPage"));
+const ProgressPage = lazy(() => import("./pages/ProgressPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const RouteFallback = () => (
@@ -64,6 +65,7 @@ const App = () => (
             <Route path="/leitores" element={<ProtectedRoute><ReadersPage /></ProtectedRoute>} />
             <Route path="/trocas" element={<ProtectedRoute><TradesPage /></ProtectedRoute>} />
             <Route path="/relatorios" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
+            <Route path="/progresso" element={<ProtectedRoute><ProgressPage /></ProtectedRoute>} />
             <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path="/livro/:id" element={<ProtectedRoute><BookDetail /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
