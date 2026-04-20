@@ -1553,6 +1553,15 @@ export type Database = {
         }[]
       }
       ensure_invite: { Args: { _user_id: string }; Returns: string }
+      get_affiliate_interactions_admin: {
+        Args: { _from: string }
+        Returns: {
+          book_id: string
+          created_at: string
+          kind: string
+          meta: Json
+        }[]
+      }
       get_collaborative_recommendations: {
         Args: { target_user_id: string }
         Returns: {
