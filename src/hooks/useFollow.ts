@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { CACHE, qk, queryClient, invalidate } from "@/lib/query-client";
 import { awardXp } from "@/lib/xp";
+import { haptic } from "@/lib/haptics";
 import { toast } from "sonner";
 
 /** Estado de "estou seguindo este usuário?" — cacheado. */
@@ -49,6 +50,7 @@ export function useToggleFollow(targetUserId: string) {
       return true;
     },
     onMutate: async (currentlyFollowing) => {
+      haptic("toggle");
       await queryClient.cancelQueries({ queryKey: stateKey });
       const previous = queryClient.getQueryData<boolean>(stateKey);
       queryClient.setQueryData<boolean>(stateKey, !currentlyFollowing);
@@ -58,11 +60,13 @@ export function useToggleFollow(targetUserId: string) {
       if (ctx?.previous !== undefined) {
         queryClient.setQueryData(stateKey, ctx.previous);
       }
-      toast.error("Erro ao atualizar seguidor");
+      toast.error("Não conseguimos atualizar quem você segue", {
+        description: "Verifique sua conexão e tente novamente.",
+      });
     },
     onSuccess: (nowFollowing) => {
       if (nowFollowing) {
-        toast.success("Seguindo");
+        toast.success("Você está seguindo");
         if (user) void awardXp(user.id, "follow", { silent: true });
       }
     },
