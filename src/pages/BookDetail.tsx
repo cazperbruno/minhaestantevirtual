@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { queryClient, qk } from "@/lib/query-client";
@@ -10,11 +11,17 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useBook, useUserBook, useCommitUserBook } from "@/hooks/useBookDetail";
 import { Book, UserBook } from "@/types/book";
+import { trackBookView } from "@/lib/ai-tracking";
 
 export default function BookDetail() {
   const { id } = useParams();
   const { user } = useAuth();
   const { data: book, isLoading: loadingBook } = useBook(id);
+
+  // AI: registra view (deduplicada por hora no servidor) — sinal de interesse implícito
+  useEffect(() => {
+    if (book?.id && user) trackBookView(book.id);
+  }, [book?.id, user]);
   const { data: ub } = useUserBook(book?.id);
   const commit = useCommitUserBook(book);
 
