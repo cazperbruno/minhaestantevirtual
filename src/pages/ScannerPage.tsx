@@ -291,7 +291,19 @@ export default function ScannerPage() {
         source: c.source,
       } as any);
       if (saved?.id) {
-        toast.success("Livro adicionado");
+        // Adicionar à biblioteca pessoal com status NEUTRO (usuário decide quando começar)
+        if (user) {
+          await supabase
+            .from("user_books")
+            .upsert(
+              { user_id: user.id, book_id: saved.id, status: "not_read" },
+              { onConflict: "user_id,book_id" },
+            );
+          void awardXp(user.id, "add_book", { silent: true });
+        }
+        toast.success("Adicionado à sua biblioteca", {
+          description: "Quando começar a ler, mude o status para 'Lendo'.",
+        });
         navigate(`/livro/${saved.id}`);
       } else {
         toast.error("Não foi possível salvar");
