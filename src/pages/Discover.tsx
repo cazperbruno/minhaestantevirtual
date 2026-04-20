@@ -175,7 +175,46 @@ export default function Discover() {
           </Link>
         )}
 
-        {/* Continue lendo */}
+        {/* Continuar série — atalho discreto para o próximo volume da série em andamento */}
+        {continueSeries && !loading && (
+          <Link
+            to={`/serie/${continueSeries.id}`}
+            className="block mb-10 group animate-fade-in"
+          >
+            <div className="glass rounded-2xl p-4 md:p-5 flex items-center gap-4 hover:border-primary/40 transition-all">
+              <div className="w-12 h-16 shrink-0 rounded-md overflow-hidden bg-muted shadow-book">
+                {continueSeries.cover_url ? (
+                  <img
+                    src={continueSeries.cover_url}
+                    alt={continueSeries.title}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="w-full h-full grid place-items-center text-muted-foreground">
+                    <Layers className="w-5 h-5" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] uppercase tracking-wider text-primary font-semibold flex items-center gap-1">
+                  <Layers className="w-3 h-3" /> Continuar série
+                </p>
+                <p className="font-display font-semibold leading-tight truncate group-hover:text-primary transition-colors">
+                  {continueSeries.title}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Próximo: vol. {continueSeries.next_volume} ·{" "}
+                  {continueSeries.read_count}/
+                  {continueSeries.total_volumes ?? continueSeries.owned_count} lidos
+                </p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+            </div>
+          </Link>
+        )}
+
+
         {visibleReading.length > 1 && (
           <Section title="Continue lendo">
             <Shelf>
