@@ -11,7 +11,9 @@
 import type { Book } from "@/types/book";
 import { track } from "@/lib/track";
 
-const AFFILIATE_TAG = (import.meta.env.VITE_AMAZON_AFFILIATE_TAG as string | undefined) || "";
+/** Tag de afiliados Amazon BR — pode ser sobrescrita via env VITE_AMAZON_AFFILIATE_TAG. */
+const AFFILIATE_TAG =
+  (import.meta.env.VITE_AMAZON_AFFILIATE_TAG as string | undefined) || "cazperbruno-20";
 
 /** Constrói URL de busca Amazon BR com fallback ISBN → título+autor. */
 export function amazonSearchUrl(book: Pick<Book, "title" | "authors" | "isbn_13" | "isbn_10">): string {
