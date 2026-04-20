@@ -50,6 +50,11 @@ export default function ScannerPage() {
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [manualIsbn, setManualIsbn] = useState("");
+  /** Modo contínuo: após adicionar, volta sozinho a escanear em 2s. */
+  const [continuous, setContinuous] = useState(true);
+  /** Histórico da sessão atual de escaneamento (para feedback social-style). */
+  const [sessionLog, setSessionLog] = useState<Array<{ id: string; title: string; cover_url?: string | null }>>([]);
+  const continuousTimerRef = useRef<number | null>(null);
 
   // Barcode state
   const [detected, setDetected] = useState<string | null>(null);
