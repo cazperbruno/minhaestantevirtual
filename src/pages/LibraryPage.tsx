@@ -2,9 +2,9 @@ import { useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { LibraryShelf } from "@/components/books/LibraryShelf";
 import { BookCard } from "@/components/books/BookCard";
-import { ShelfSkeleton } from "@/components/ui/skeletons";
+import { ShelfSkeleton, BookGridSkeleton } from "@/components/ui/skeletons";
 import { Button } from "@/components/ui/button";
-import { Library as LibraryIcon, LayoutGrid, Rows3, Search } from "lucide-react";
+import { Library as LibraryIcon, LayoutGrid, Rows3, Search, ScanLine } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLibrary } from "@/hooks/useLibrary";
 import {
@@ -81,7 +81,7 @@ export default function LibraryPage() {
 
         {loading ? (
           <div className="space-y-10 animate-fade-in">
-            {[0, 1].map((i) => <ShelfSkeleton key={i} />)}
+            {view === "grid" ? <BookGridSkeleton count={10} /> : [0, 1].map((i) => <ShelfSkeleton key={i} />)}
           </div>
         ) : totalCount === 0 ? (
           <EmptyState />
@@ -171,11 +171,18 @@ function EmptyState() {
       <p className="text-muted-foreground mb-6">
         Adicione livros à sua coleção pessoal e acompanhe sua jornada de leitura.
       </p>
-      <Link to="/buscar">
-        <Button variant="hero" size="lg" className="gap-2">
-          <Search className="w-4 h-4" /> Buscar primeiro livro
-        </Button>
-      </Link>
+      <div className="flex flex-wrap gap-2 justify-center">
+        <Link to="/buscar">
+          <Button variant="hero" size="lg" className="gap-2">
+            <Search className="w-4 h-4" /> Buscar primeiro livro
+          </Button>
+        </Link>
+        <Link to="/scanner">
+          <Button variant="outline" size="lg" className="gap-2">
+            <ScanLine className="w-4 h-4" /> Escanear ISBN
+          </Button>
+        </Link>
+      </div>
     </div>
   );
 }

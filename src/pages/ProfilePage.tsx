@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { LogOut, BookOpen, Star, Trophy, Lock, Globe, Users, Instagram, Twitter, Music2, ExternalLink, Eye, EyeOff } from "lucide-react";
 import { AchievementsPanel } from "@/components/profile/AchievementsPanel";
@@ -83,17 +84,17 @@ export default function ProfilePage() {
     <AppShell>
       <div className="px-5 md:px-10 pt-8 pb-16 max-w-3xl mx-auto space-y-6 animate-fade-in">
         <div className="flex items-center gap-5">
-          <div className="w-20 h-20 rounded-full skeleton-shimmer" />
+          <Skeleton className="w-20 h-20 rounded-full" />
           <div className="flex-1 space-y-3">
-            <div className="h-7 w-48 rounded skeleton-shimmer" />
-            <div className="h-3 w-40 rounded skeleton-shimmer" />
-            <div className="h-3 w-32 rounded skeleton-shimmer" />
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-3 w-40" />
+            <Skeleton className="h-3 w-32" />
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-3">
-          {[0,1,2].map(i => <div key={i} className="h-20 rounded-xl skeleton-shimmer" />)}
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+          {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
         </div>
-        <div className="h-64 rounded-2xl skeleton-shimmer" />
+        <Skeleton className="h-64 rounded-2xl" />
       </div>
     </AppShell>
   );

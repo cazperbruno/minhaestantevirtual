@@ -75,7 +75,7 @@ export default function FeedPage() {
           </p>
         </header>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="mb-6 sticky top-0 z-10 -mx-5 px-5 md:mx-0 md:px-0 py-2 bg-background/80 backdrop-blur-md">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="mb-6 sticky top-0 z-10 -mx-5 px-5 md:mx-0 md:px-0 py-2 bg-background/85 backdrop-blur-xl border-b border-border/30">
           <TabsList className="grid grid-cols-2 max-w-xs">
             <TabsTrigger value="all" className="gap-2"><MessageSquare className="w-3.5 h-3.5" /> Todos</TabsTrigger>
             <TabsTrigger value="following" className="gap-2"><Users className="w-3.5 h-3.5" /> Seguindo</TabsTrigger>
