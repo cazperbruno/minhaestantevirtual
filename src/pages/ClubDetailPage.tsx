@@ -12,6 +12,7 @@ import { ClubBookOfTheMonth } from "@/components/clubs/ClubBookOfTheMonth";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { awardXp } from "@/lib/xp";
 
 export default function ClubDetailPage() {
   const { id } = useParams();
