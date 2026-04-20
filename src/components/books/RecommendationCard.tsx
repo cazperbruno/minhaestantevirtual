@@ -59,9 +59,11 @@ function RecommendationCardImpl({ rec }: { rec: FeedRecommendation }) {
           variant="ghost"
           size="sm"
           onClick={() => toggleLike.mutate(rec)}
+          aria-label={rec.liked_by_me ? "Descurtir recomendação" : "Curtir recomendação"}
+          aria-pressed={rec.liked_by_me}
           className={`gap-2 transition-colors ${rec.liked_by_me ? "text-primary" : "text-muted-foreground"}`}
         >
-          <Heart className={`w-4 h-4 transition-all ${rec.liked_by_me ? "fill-primary scale-110" : ""}`} />
+          <Heart aria-hidden="true" className={`w-4 h-4 transition-all ${rec.liked_by_me ? "fill-primary scale-110" : ""}`} />
           <span className="tabular-nums">{rec.likes_count}</span>
         </Button>
         <CommentsThread targetId={rec.id} target="recommendation" initialCount={rec.comments_count || 0} />

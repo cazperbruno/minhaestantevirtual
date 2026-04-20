@@ -170,9 +170,11 @@ export function ReviewSection({ bookId }: { bookId: string }) {
                 variant="ghost"
                 size="sm"
                 onClick={() => toggleLike(r)}
+                aria-label={r.liked_by_me ? "Descurtir resenha" : "Curtir resenha"}
+                aria-pressed={r.liked_by_me}
                 className={`gap-2 mt-2 ${r.liked_by_me ? "text-primary" : "text-muted-foreground"}`}
               >
-                <Heart className={`w-4 h-4 ${r.liked_by_me ? "fill-primary" : ""}`} />
+                <Heart aria-hidden="true" className={`w-4 h-4 ${r.liked_by_me ? "fill-primary" : ""}`} />
                 {r.likes_count}
               </Button>
             </li>
