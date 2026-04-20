@@ -69,6 +69,10 @@ export default function Auth() {
         <img
           src={readifyMark}
           alt="Readify"
+          width={113}
+          height={112}
+          fetchPriority="high"
+          decoding="async"
           className="h-28 w-auto select-none mb-6 animate-float-soft"
           draggable={false}
         />
