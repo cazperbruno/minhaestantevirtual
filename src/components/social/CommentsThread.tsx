@@ -51,7 +51,7 @@ export function CommentsThread({ reviewId, targetId, target = "review", initialC
       .eq(fkColumn, id)
       .order("created_at", { ascending: true })
       .limit(200);
-    const ids = [...new Set((cs || []).map((c: any) => c.user_id))];
+    const ids = [...new Set(((cs || []) as any[]).map((c: any) => c.user_id as string))];
     const { data: profs } = ids.length
       ? await supabase.from("profiles").select("id,display_name,username,avatar_url").in("id", ids)
       : { data: [] as any[] };
