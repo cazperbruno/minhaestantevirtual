@@ -368,25 +368,76 @@ export default function ScannerPage() {
         </header>
 
         {/* Mode switch — Apple-style segmented control */}
-        <div className="inline-flex items-center gap-1 p-1 rounded-full bg-card/60 border border-border mb-6">
-          {(["barcode", "cover", "page"] as Mode[]).map((m) => (
-            <button
-              key={m}
-              onClick={() => { stop(); setMode(m); scanNext(); }}
-              className={cn(
-                "px-4 h-9 text-sm font-medium rounded-full transition-all flex items-center gap-1.5",
-                mode === m
-                  ? "bg-primary text-primary-foreground shadow-glow"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {m === "barcode" && <ScanBarcode className="w-3.5 h-3.5" />}
-              {m === "cover" && <ImageIcon className="w-3.5 h-3.5" />}
-              {m === "page" && <FileText className="w-3.5 h-3.5" />}
-              {MODE_LABEL[m]}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+          <div className="inline-flex items-center gap-1 p-1 rounded-full bg-card/60 border border-border">
+            {(["barcode", "cover", "page"] as Mode[]).map((m) => (
+              <button
+                key={m}
+                onClick={() => { stop(); setMode(m); scanNext(); }}
+                className={cn(
+                  "px-4 h-9 text-sm font-medium rounded-full transition-all flex items-center gap-1.5",
+                  mode === m
+                    ? "bg-primary text-primary-foreground shadow-glow"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {m === "barcode" && <ScanBarcode className="w-3.5 h-3.5" />}
+                {m === "cover" && <ImageIcon className="w-3.5 h-3.5" />}
+                {m === "page" && <FileText className="w-3.5 h-3.5" />}
+                {MODE_LABEL[m]}
+              </button>
+            ))}
+          </div>
+
+          {mode === "barcode" && (
+            <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-card/60 border border-border">
+              <Repeat className={cn("w-3.5 h-3.5 transition-colors", continuous ? "text-primary" : "text-muted-foreground")} />
+              <Label htmlFor="continuous-mode" className="text-xs font-medium cursor-pointer select-none">
+                Modo contínuo
+              </Label>
+              <Switch
+                id="continuous-mode"
+                checked={continuous}
+                onCheckedChange={setContinuous}
+                aria-label="Ativar modo contínuo de escaneamento"
+              />
+            </div>
+          )}
         </div>
+
+        {/* Histórico da sessão atual — feedback visual ao escanear vários livros */}
+        {mode === "barcode" && continuous && sessionLog.length > 0 && (
+          <div className="glass rounded-2xl p-4 mb-6 animate-fade-in">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                Adicionados nesta sessão · {sessionLog.length}
+              </p>
+              <Button variant="ghost" size="sm" onClick={() => setSessionLog([])} className="h-6 text-xs">
+                Limpar
+              </Button>
+            </div>
+            <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-1 snap-x snap-mandatory">
+              {sessionLog.map((b) => (
+                <button
+                  key={b.id}
+                  onClick={() => navigate(`/livro/${b.id}`)}
+                  className="shrink-0 w-14 snap-start group"
+                  aria-label={`Abrir ${b.title}`}
+                >
+                  <div className="aspect-[2/3] rounded-md overflow-hidden bg-muted ring-1 ring-border group-hover:ring-primary/60 transition-all">
+                    {b.cover_url ? (
+                      <img src={b.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                        <BookOpen className="w-4 h-4" />
+                      </div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* === BARCODE MODE === */}
         {mode === "barcode" && (
