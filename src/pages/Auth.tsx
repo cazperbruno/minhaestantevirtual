@@ -8,7 +8,7 @@ import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Loader2, Mail, ChevronRight } from "lucide-react";
-import readifyMark from "@/assets/readify-mark-v8.png";
+import readifyMark from "@/assets/readify-mark-v8.webp";
 
 export default function Auth() {
   const { user, loading } = useAuth();
