@@ -468,10 +468,16 @@ export type Database = {
           display_name: string | null
           favorite_genres: string[] | null
           id: string
+          instagram: string | null
           level: number
+          library_visibility: string
           onboarded_at: string | null
+          profile_visibility: string
+          tiktok: string | null
+          twitter: string | null
           updated_at: string
           username: string | null
+          website: string | null
           xp: number
         }
         Insert: {
@@ -481,10 +487,16 @@ export type Database = {
           display_name?: string | null
           favorite_genres?: string[] | null
           id: string
+          instagram?: string | null
           level?: number
+          library_visibility?: string
           onboarded_at?: string | null
+          profile_visibility?: string
+          tiktok?: string | null
+          twitter?: string | null
           updated_at?: string
           username?: string | null
+          website?: string | null
           xp?: number
         }
         Update: {
@@ -494,10 +506,16 @@ export type Database = {
           display_name?: string | null
           favorite_genres?: string[] | null
           id?: string
+          instagram?: string | null
           level?: number
+          library_visibility?: string
           onboarded_at?: string | null
+          profile_visibility?: string
+          tiktok?: string | null
+          twitter?: string | null
           updated_at?: string
           username?: string | null
+          website?: string | null
           xp?: number
         }
         Relationships: []
@@ -892,6 +910,10 @@ export type Database = {
         Args: { a: string[]; b: string[] }
         Returns: number
       }
+      can_view_library: {
+        Args: { _owner: string; _viewer: string }
+        Returns: boolean
+      }
       check_achievements: {
         Args: { _user_id: string }
         Returns: {
@@ -929,6 +951,10 @@ export type Database = {
       }
       is_club_member: {
         Args: { _club: string; _user: string }
+        Returns: boolean
+      }
+      is_following: {
+        Args: { _follower: string; _following: string }
         Returns: boolean
       }
       reading_streak: { Args: { _user_id: string }; Returns: number }
