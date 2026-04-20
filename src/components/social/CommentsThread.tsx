@@ -9,6 +9,7 @@ import { Loader2, Send, Trash2, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { profilePath } from "@/lib/profile-path";
 
 interface Comment {
   id: string;
@@ -105,7 +106,7 @@ export function CommentsThread({ reviewId, initialCount = 0 }: { reviewId: strin
             <ul className="space-y-3">
               {list.map((c) => (
                 <li key={c.id} className="flex gap-2.5 items-start group">
-                  <Link to={c.profile?.username ? `/u/${c.profile.username}` : "#"}>
+                  <Link to={profilePath({ id: c.user_id, username: c.profile?.username })}>
                     <Avatar className="w-7 h-7">
                       <AvatarImage src={c.profile?.avatar_url || undefined} />
                       <AvatarFallback className="bg-gradient-gold text-primary-foreground text-[10px]">

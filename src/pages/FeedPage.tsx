@@ -15,6 +15,7 @@ import { Heart, MessageSquare, Users, Sparkles, Search } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import { profilePath } from "@/lib/profile-path";
 
 interface FeedReview {
   id: string;
@@ -173,7 +174,7 @@ export default function FeedPage() {
             {reviews.map((r) => (
               <li key={r.id} className="glass rounded-2xl p-5 animate-fade-in hover:border-primary/30 transition-colors">
                 <div className="flex items-start gap-3 mb-4">
-                  <Link to={`/u/${r.profile?.username}`} className="shrink-0">
+                  <Link to={profilePath(r.profile)} className="shrink-0">
                     <Avatar className="w-10 h-10 ring-2 ring-transparent hover:ring-primary/40 transition-all">
                       <AvatarImage src={r.profile?.avatar_url} />
                       <AvatarFallback className="bg-gradient-gold text-primary-foreground text-sm font-display">
@@ -182,7 +183,7 @@ export default function FeedPage() {
                     </Avatar>
                   </Link>
                   <div className="flex-1 min-w-0">
-                    <Link to={`/u/${r.profile?.username}`} className="font-semibold text-sm truncate hover:text-primary transition-colors block leading-tight">
+                    <Link to={profilePath(r.profile)} className="font-semibold text-sm truncate hover:text-primary transition-colors block leading-tight">
                       {r.profile?.display_name || "Leitor"}
                     </Link>
                     <p className="text-xs text-muted-foreground">
