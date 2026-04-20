@@ -86,6 +86,13 @@ export type Database = {
             referencedRelation: "books"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "book_clubs_current_book_id_fkey"
+            columns: ["current_book_id"]
+            isOneToOne: false
+            referencedRelation: "trending_books"
+            referencedColumns: ["id"]
+          },
         ]
       }
       books: {
@@ -275,6 +282,13 @@ export type Database = {
             referencedRelation: "books"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "loans_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "trending_books"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profiles: {
@@ -414,6 +428,13 @@ export type Database = {
             referencedRelation: "books"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "reviews_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "trending_books"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_achievements: {
@@ -493,6 +514,58 @@ export type Database = {
             referencedRelation: "books"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "user_books_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "trending_books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_interactions: {
+        Row: {
+          book_id: string
+          created_at: string
+          id: string
+          kind: string
+          meta: Json | null
+          user_id: string
+          weight: number
+        }
+        Insert: {
+          book_id: string
+          created_at?: string
+          id?: string
+          kind: string
+          meta?: Json | null
+          user_id: string
+          weight?: number
+        }
+        Update: {
+          book_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          meta?: Json | null
+          user_id?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_interactions_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_interactions_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "trending_books"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_roles: {
@@ -529,8 +602,21 @@ export type Database = {
         }
         Relationships: []
       }
+      trending_books: {
+        Row: {
+          id: string | null
+          readers: number | null
+          recent_interactions: number | null
+          score: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      array_intersect_count: {
+        Args: { a: string[]; b: string[] }
+        Returns: number
+      }
       check_achievements: {
         Args: { _user_id: string }
         Returns: {
@@ -555,6 +641,30 @@ export type Database = {
         Returns: boolean
       }
       reading_streak: { Args: { _user_id: string }; Returns: number }
+      recommend_for_user: {
+        Args: { _limit?: number; _user_id: string }
+        Returns: {
+          affinity: number
+          id: string
+          popularity: number
+          reason: string
+          score: number
+        }[]
+      }
+      similar_books: {
+        Args: { _book_id: string; _limit?: number }
+        Returns: {
+          id: string
+          score: number
+        }[]
+      }
+      user_taste: {
+        Args: { _user_id: string }
+        Returns: {
+          category: string
+          weight: number
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "user"

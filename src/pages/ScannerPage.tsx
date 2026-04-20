@@ -37,6 +37,14 @@ export default function ScannerPage() {
   const [notFoundIsbn, setNotFoundIsbn] = useState<string | null>(null);
   const [detected, setDetected] = useState<string | null>(null);
 
+  // Auto-iniciar câmera no modo barcode (Steve Jobs: zero fricção)
+  useEffect(() => {
+    if (mode === "barcode" && !active && !busy) {
+      const t = setTimeout(() => { startBarcode().catch(() => { /* user can tap button */ }); }, 250);
+      return () => clearTimeout(t);
+    }
+  }, [mode]); // eslint-disable-line
+
   useEffect(() => () => stop(), []);
 
   const stop = () => {

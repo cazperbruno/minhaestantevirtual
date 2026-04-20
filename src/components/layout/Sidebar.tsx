@@ -1,4 +1,4 @@
-import { Book, Library, Heart, User as UserIcon, LogOut, Search, ScanBarcode, ArrowRightLeft, MessageSquare, Trophy, Target, Users, BarChart3 } from "lucide-react";
+import { Book, Library, Heart, User as UserIcon, LogOut, Search, ScanBarcode, ArrowRightLeft, MessageSquare, Trophy, Target, Users, BarChart3, Infinity as InfinityIcon } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -7,11 +7,12 @@ import { toast } from "sonner";
 
 const items = [
   { to: "/", label: "Descobrir", icon: Book },
+  { to: "/feed-infinito", label: "Feed infinito", icon: InfinityIcon },
   { to: "/biblioteca", label: "Biblioteca", icon: Library },
   { to: "/desejos", label: "Lista de desejos", icon: Heart },
   { to: "/emprestimos", label: "Empréstimos", icon: ArrowRightLeft },
   { to: "/scanner", label: "Scanner", icon: ScanBarcode },
-  { to: "/feed", label: "Feed", icon: MessageSquare },
+  { to: "/feed", label: "Feed social", icon: MessageSquare },
   { to: "/clubes", label: "Clubes", icon: Users },
   { to: "/ranking", label: "Ranking", icon: Trophy },
   { to: "/metas", label: "Metas", icon: Target },
