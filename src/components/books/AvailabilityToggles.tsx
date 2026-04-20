@@ -16,7 +16,10 @@ export function AvailabilityToggles({ userBookId, initialTrade = false, initialL
   const [loan, setLoan] = useState(initialLoan);
 
   const update = async (field: "available_for_trade" | "available_for_loan", value: boolean) => {
-    const { error } = await supabase.from("user_books").update({ [field]: value }).eq("id", userBookId);
+    const patch = field === "available_for_trade"
+      ? { available_for_trade: value }
+      : { available_for_loan: value };
+    const { error } = await supabase.from("user_books").update(patch).eq("id", userBookId);
     if (error) toast.error("Erro ao atualizar");
   };
 
