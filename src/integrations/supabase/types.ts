@@ -153,6 +153,42 @@ export type Database = {
           },
         ]
       }
+      book_recommendations: {
+        Row: {
+          book_id: string
+          comments_count: number
+          created_at: string
+          id: string
+          is_public: boolean
+          likes_count: number
+          message: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          book_id: string
+          comments_count?: number
+          created_at?: string
+          id?: string
+          is_public?: boolean
+          likes_count?: number
+          message?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          book_id?: string
+          comments_count?: number
+          created_at?: string
+          id?: string
+          is_public?: boolean
+          likes_count?: number
+          message?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       books: {
         Row: {
           authors: string[]
@@ -712,6 +748,90 @@ export type Database = {
           year?: number
         }
         Relationships: []
+      }
+      recommendation_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          recommendation_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          recommendation_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          recommendation_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendation_comments_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "book_recommendations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recommendation_likes: {
+        Row: {
+          created_at: string
+          recommendation_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          recommendation_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          recommendation_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendation_likes_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "book_recommendations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recommendation_recipients: {
+        Row: {
+          created_at: string
+          recipient_id: string
+          recommendation_id: string
+        }
+        Insert: {
+          created_at?: string
+          recipient_id: string
+          recommendation_id: string
+        }
+        Update: {
+          created_at?: string
+          recipient_id?: string
+          recommendation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendation_recipients_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "book_recommendations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       review_comments: {
         Row: {
@@ -1308,8 +1428,26 @@ export type Database = {
         Args: { _follower: string; _following: string }
         Returns: boolean
       }
+      is_rec_recipient: {
+        Args: { _rec_id: string; _user: string }
+        Returns: boolean
+      }
       level_for_xp: { Args: { _xp: number }; Returns: number }
       reading_streak: { Args: { _user_id: string }; Returns: number }
+      recommend_book: {
+        Args: {
+          _book_id: string
+          _is_public: boolean
+          _message: string
+          _recipient_ids: string[]
+        }
+        Returns: {
+          message: string
+          recommendation_id: string
+          success: boolean
+          xp_granted: number
+        }[]
+      }
       recommend_for_user: {
         Args: { _limit?: number; _user_id: string }
         Returns: {
