@@ -4,6 +4,8 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Loader2, Search, ScanLine, BookOpen, Sparkles } from "lucide-react";
 import { searchBooksGet, lookupIsbn } from "@/lib/books-api";
 import { trackSearch } from "@/lib/ai-tracking";
+import { rerankByTaste } from "@/lib/search-rerank";
+import { useAuth } from "@/hooks/useAuth";
 import { Book } from "@/types/book";
 import { BookCard } from "@/components/books/BookCard";
 import { SearchAutocomplete } from "@/components/search/SearchAutocomplete";
