@@ -28,6 +28,7 @@ import { NotificationsBell } from "@/components/social/NotificationsBell";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import readifyLogo from "@/assets/readify-logo-v8.png";
 
 type Item = { to: string; label: string; icon: typeof Book; group: string };
@@ -61,7 +62,11 @@ const groups = ["Descobrir", "Meus livros", "Comunidade", "Você"] as const;
 export function MobileHeader() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const { isAdmin } = useIsAdmin();
   const [open, setOpen] = useState(false);
+
+  // "Relatórios" só aparece para admins (contém painel de cliques de afiliados)
+  const visibleItems = isAdmin ? items : items.filter((i) => i.to !== "/relatorios");
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -98,7 +103,7 @@ export function MobileHeader() {
                     {g}
                   </p>
                   <ul className="space-y-0.5">
-                    {items.filter((i) => i.group === g).map(({ to, label, icon: Icon }) => {
+                    {visibleItems.filter((i) => i.group === g).map(({ to, label, icon: Icon }) => {
                       const active = pathname === to || (to !== "/" && pathname.startsWith(to));
                       return (
                         <li key={to}>
