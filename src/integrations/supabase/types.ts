@@ -945,6 +945,27 @@ export type Database = {
           },
         ]
       }
+      search_log: {
+        Row: {
+          created_at: string
+          id: string
+          query: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          query: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          query?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       trades: {
         Row: {
           created_at: string
@@ -1245,6 +1266,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_weights: {
+        Row: {
+          last_recomputed_at: string | null
+          recs_clicked: number
+          recs_dismissed: number
+          recs_shown: number
+          updated_at: string
+          user_id: string
+          w_collab: number
+          w_content: number
+          w_trending: number
+        }
+        Insert: {
+          last_recomputed_at?: string | null
+          recs_clicked?: number
+          recs_dismissed?: number
+          recs_shown?: number
+          updated_at?: string
+          user_id: string
+          w_collab?: number
+          w_content?: number
+          w_trending?: number
+        }
+        Update: {
+          last_recomputed_at?: string | null
+          recs_clicked?: number
+          recs_dismissed?: number
+          recs_shown?: number
+          updated_at?: string
+          user_id?: string
+          w_collab?: number
+          w_content?: number
+          w_trending?: number
+        }
+        Relationships: []
+      }
       xp_events: {
         Row: {
           amount: number
@@ -1331,6 +1388,16 @@ export type Database = {
           message: string
           success: boolean
         }[]
+      }
+      activity_relevance: {
+        Args: {
+          _activity_user: string
+          _book_id: string
+          _created_at: string
+          _kind: string
+          _user_id: string
+        }
+        Returns: number
       }
       add_xp: {
         Args: {
@@ -1463,6 +1530,15 @@ export type Database = {
         Args: { _user_id: string }
         Returns: number
       }
+      recompute_user_weights: {
+        Args: { _user_id: string }
+        Returns: {
+          ctr: number
+          w_collab: number
+          w_content: number
+          w_trending: number
+        }[]
+      }
       redeem_invite: {
         Args: { _code: string; _new_user_id: string }
         Returns: {
@@ -1497,6 +1573,11 @@ export type Database = {
           username: string
         }[]
       }
+      track_book_dismiss: { Args: { _book_id: string }; Returns: undefined }
+      track_book_view: { Args: { _book_id: string }; Returns: undefined }
+      track_rec_click: { Args: { _book_id: string }; Returns: undefined }
+      track_recs_shown: { Args: { _count: number }; Returns: undefined }
+      track_search: { Args: { _query: string }; Returns: undefined }
       update_streak: {
         Args: { _user_id: string }
         Returns: {
