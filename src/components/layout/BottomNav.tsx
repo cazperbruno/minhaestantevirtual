@@ -23,6 +23,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { prefetch } from "@/lib/prefetch";
 
 // Order requested: Biblioteca · Feed · Escanear (centro vermelho) · Ranking · Perfil.
 const left = [
@@ -53,12 +55,20 @@ const more = [
 export function BottomNav() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     toast.success("Até logo!");
     navigate("/auth");
+  };
+
+  const prefetchFor = (to: string) => {
+    if (to === "/biblioteca") prefetch.library(user?.id);
+    else if (to === "/ranking") prefetch.ranking();
+    else if (to === "/feed-infinito" || to === "/feed") prefetch.feed();
+    else if (to === "/perfil" && user?.id) prefetch.profile(user.id);
   };
 
   const groups = ["Descobrir", "Você", "Comunidade", "Livros"] as const;
@@ -80,6 +90,9 @@ export function BottomNav() {
             <li key={to}>
               <NavLink
                 to={to}
+                onMouseEnter={() => prefetchFor(to)}
+                onTouchStart={() => prefetchFor(to)}
+                onFocus={() => prefetchFor(to)}
                 className={cn(
                   "flex flex-col items-center justify-center gap-1 py-3 text-[11px] transition-colors",
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground",
@@ -115,6 +128,9 @@ export function BottomNav() {
             <li key={to}>
               <NavLink
                 to={to}
+                onMouseEnter={() => prefetchFor(to)}
+                onTouchStart={() => prefetchFor(to)}
+                onFocus={() => prefetchFor(to)}
                 className={cn(
                   "flex flex-col items-center justify-center gap-1 py-3 text-[11px] transition-colors",
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground",
