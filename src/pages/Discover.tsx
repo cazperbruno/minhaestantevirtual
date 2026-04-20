@@ -221,45 +221,39 @@ export default function Discover() {
         {/* Conquistas multi-formato perto de desbloquear */}
         {!loading && <NextAchievementsCard />}
 
+        {/* Continue lendo — prateleira cinematográfica com barra de progresso */}
         {visibleReading.length > 1 && (
-          <Section title="Continue lendo">
-            <Shelf>
-              {visibleReading.slice(1).map((ub) => ub.book && (
-                <BookCard key={ub.id} book={ub.book} size="md" source="shelf:reading" />
-              ))}
-            </Shelf>
-          </Section>
+          <ContinueReadingRow items={visibleReading.slice(1)} />
         )}
 
-        {/* Prateleiras dinâmicas (IA) */}
+        {/* Prateleiras dinâmicas (IA) — skeletons */}
         {loading && (
           <>
             {Array.from({ length: 3 }).map((_, i) => (
-              <Section key={i} title="">
-                <Shelf>
+              <div key={i} className="mb-10">
+                <Skeleton className="h-7 w-48 mb-4" />
+                <div className="flex gap-4 md:gap-5 overflow-hidden">
                   {Array.from({ length: 6 }).map((_, j) => (
-                    <Skeleton key={j} className="w-28 h-44 rounded-md shrink-0" />
+                    <Skeleton key={j} className="w-28 md:w-36 h-44 md:h-56 rounded-md shrink-0" />
                   ))}
-                </Shelf>
-              </Section>
+                </div>
+              </div>
             ))}
           </>
         )}
 
         {!loading && visibleShelves.map((shelf) => (
-          <Section
+          <CinematicShelf
             key={shelf.id}
             title={shelf.title}
             subtitle={shelf.reason}
           >
-            <Shelf>
-              {shelf.books.map((b) => (
-                <div key={b.id} className="shrink-0 w-28 md:w-auto">
-                  <BookCard book={b} size="md" source={`shelf:${shelf.id}`} />
-                </div>
-              ))}
-            </Shelf>
-          </Section>
+            {shelf.books.map((b) => (
+              <ShelfItem key={b.id}>
+                <BookCard book={b} size="md" source={`shelf:${shelf.id}`} />
+              </ShelfItem>
+            ))}
+          </CinematicShelf>
         ))}
 
         {/* CTA para feed infinito */}
