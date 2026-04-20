@@ -23,6 +23,17 @@ export default function FeedPage() {
     data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage,
   } = useFeed(tab);
   const toggleLike = useToggleReviewLike(tab);
+  const { data: recsData } = usePublicRecommendations();
+  const recs = useMemo(() => {
+    const seen = new Set<string>();
+    const out: any[] = [];
+    for (const p of recsData?.pages ?? []) {
+      for (const r of p.items) {
+        if (!seen.has(r.id)) { seen.add(r.id); out.push(r); }
+      }
+    }
+    return out.slice(0, 5); // só os 5 mais recentes no topo
+  }, [recsData]);
 
   // Achata + dedupe (realtime pode causar overlap entre páginas).
   const reviews = useMemo<FeedReview[]>(() => {
