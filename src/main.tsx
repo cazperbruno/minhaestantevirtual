@@ -26,6 +26,10 @@ if ((isPreviewHost || isInIframe) && "serviceWorker" in navigator) {
   navigator.serviceWorker.getRegistrations().then((regs) => {
     regs.forEach((r) => r.unregister());
   }).catch(() => { /* noop */ });
+  // Limpa também caches antigos do CacheStorage no preview, evitando assets travados.
+  if ("caches" in window) {
+    caches.keys().then((keys) => keys.forEach((k) => caches.delete(k))).catch(() => { /* noop */ });
+  }
 }
 
 createRoot(document.getElementById("root")!).render(<App />);
