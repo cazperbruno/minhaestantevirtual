@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Book } from "@/types/book";
 import { BookCover } from "./BookCover";
 import { Link } from "react-router-dom";
@@ -13,7 +14,7 @@ interface Props {
   source?: string;
 }
 
-export function BookCard({ book, size = "md", className, showMeta = true, source }: Props) {
+function BookCardImpl({ book, size = "md", className, showMeta = true, source }: Props) {
   return (
     <Link
       to={`/livro/${book.id}`}
@@ -42,3 +43,14 @@ export function BookCard({ book, size = "md", className, showMeta = true, source
     </Link>
   );
 }
+
+// Memoizado: cards aparecem em prateleiras com 20-50 itens; reduz re-renders ao 1/N
+export const BookCard = memo(BookCardImpl, (a, b) =>
+  a.book.id === b.book.id &&
+  a.book.cover_url === b.book.cover_url &&
+  a.size === b.size &&
+  a.className === b.className &&
+  a.showMeta === b.showMeta &&
+  a.source === b.source &&
+  a.book._reason === b.book._reason,
+);
