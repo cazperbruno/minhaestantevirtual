@@ -267,8 +267,31 @@ export default function SearchPage() {
               )}
             </p>
             {visible.length === 0 ? (
-              <div className="text-center py-12 text-sm text-muted-foreground">
-                Nenhum resultado nos formatos selecionados. Ajuste o filtro acima.
+              <div className="max-w-xl mx-auto text-center py-10 animate-fade-in">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary/10 flex items-center justify-center">
+                  <Search className="w-7 h-7 text-primary" />
+                </div>
+                <h2 className="font-display text-2xl md:text-3xl font-semibold">
+                  Nenhum resultado nos formatos selecionados
+                </h2>
+                <p className="text-muted-foreground mt-2">
+                  Ajuste o filtro acima — ou veja na Amazon.
+                </p>
+                <a
+                  href={amazonSearchUrlForQuery(activeQuery)}
+                  target="_blank"
+                  rel="noopener noreferrer sponsored"
+                  onClick={() => trackAmazonFallbackClick(activeQuery)}
+                  className="inline-flex items-center gap-2 mt-6 px-6 py-3 rounded-full bg-gradient-gold text-primary-foreground font-semibold shadow-glow hover:shadow-elevated hover:scale-[1.02] active:scale-[0.98] transition-all"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  Ver na Amazon 🔥
+                  <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+                </a>
+                <p className="text-[11px] text-muted-foreground mt-2">
+                  Buscando “<span className="text-foreground/80 font-medium">{activeQuery}</span>” na Amazon Brasil ·
+                  Como afiliados, ganhamos uma pequena comissão sem custo extra para você.
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-5 gap-y-8">
