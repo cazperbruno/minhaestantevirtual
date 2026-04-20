@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Users, Plus, Loader2, BookOpen } from "lucide-react";
+import { Users, Plus, Loader2, Lock, Globe2, Mail, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { BookCover } from "@/components/books/BookCover";
+import { useMyInvitations, useAcceptInvitation, useDeclineInvitation } from "@/hooks/useClubAccess";
 
 export default function ClubsPage() {
   const { user } = useAuth();
@@ -18,8 +20,13 @@ export default function ClubsPage() {
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
+  const [isPublic, setIsPublic] = useState(true);
   const [creating, setCreating] = useState(false);
   const [open, setOpen] = useState(false);
+
+  const myInvites = useMyInvitations(user?.id);
+  const acceptInv = useAcceptInvitation(user?.id);
+  const declineInv = useDeclineInvitation(user?.id);
 
   const load = async () => {
     setLoading(true);
@@ -47,25 +54,36 @@ export default function ClubsPage() {
   const create = async () => {
     if (!user || name.trim().length < 2) return;
     setCreating(true);
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("book_clubs")
-      .insert({ owner_id: user.id, name: name.trim(), description: desc.trim() || null })
+      .insert({ owner_id: user.id, name: name.trim(), description: desc.trim() || null, is_public: isPublic })
       .select().single();
     if (error) toast.error("Erro ao criar clube");
     else {
-      toast.success("Clube criado!");
+      toast.success(isPublic ? "Clube público criado!" : "Clube privado criado! Convide leitores manualmente.");
       setOpen(false);
-      setName(""); setDesc("");
+      setName(""); setDesc(""); setIsPublic(true);
       load();
     }
     setCreating(false);
   };
 
-  const join = async (clubId: string) => {
+  const join = async (club: any) => {
     if (!user) return;
-    const { error } = await supabase.from("club_members").insert({ club_id: clubId, user_id: user.id });
-    if (error) toast.error("Erro ao entrar");
-    else { toast.success("Você entrou no clube"); load(); }
+    if (club.is_public) {
+      const { error } = await supabase.from("club_members").insert({ club_id: club.id, user_id: user.id });
+      if (error) toast.error("Erro ao entrar");
+      else { toast.success("Você entrou no clube"); load(); }
+    } else {
+      // Privado: enviar pedido
+      const { error } = await supabase
+        .from("club_join_requests")
+        .insert({ club_id: club.id, user_id: user.id });
+      if (error) {
+        if ((error as any).code === "23505") toast.info("Você já solicitou entrada nesse clube");
+        else toast.error("Erro ao solicitar");
+      } else toast.success("Solicitação enviada", { description: "O administrador será notificado." });
+    }
   };
 
   return (
@@ -93,6 +111,24 @@ export default function ClubsPage() {
                   <Label htmlFor="desc">Descrição</Label>
                   <Textarea id="desc" value={desc} onChange={(e) => setDesc(e.target.value)} rows={3} />
                 </div>
+                <div className="flex items-start gap-3 p-3 rounded-xl bg-card/40 border border-border/40">
+                  <div className="mt-0.5">
+                    {isPublic ? <Globe2 className="w-5 h-5 text-primary" /> : <Lock className="w-5 h-5 text-primary" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="is_public" className="font-semibold cursor-pointer">
+                        {isPublic ? "Público" : "Privado"}
+                      </Label>
+                      <Switch id="is_public" checked={isPublic} onCheckedChange={setIsPublic} />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {isPublic
+                        ? "Qualquer leitor pode encontrar e entrar."
+                        : "Acesso só por convite ou aprovação do administrador."}
+                    </p>
+                  </div>
+                </div>
                 <Button variant="hero" onClick={create} disabled={creating || name.trim().length < 2} className="w-full">
                   Criar clube
                 </Button>
@@ -100,6 +136,34 @@ export default function ClubsPage() {
             </DialogContent>
           </Dialog>
         </header>
+
+        {/* CONVITES PENDENTES */}
+        {(myInvites.data || []).length > 0 && (
+          <section className="mb-6 glass rounded-2xl p-5 border border-primary/40 animate-fade-in">
+            <h2 className="font-display text-lg font-bold flex items-center gap-2 mb-3">
+              <Mail className="w-4 h-4 text-primary" /> Convites pendentes
+            </h2>
+            <ul className="space-y-2">
+              {(myInvites.data || []).map((inv) => (
+                <li key={inv.id} className="flex items-center gap-3 p-3 rounded-xl bg-card/40 border border-border/30">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{inv.club?.name || "Clube"}</p>
+                    <p className="text-xs text-muted-foreground">Convite recebido</p>
+                  </div>
+                  <Button size="sm" variant="hero" disabled={acceptInv.isPending}
+                    onClick={() => acceptInv.mutate(inv.id, { onSuccess: () => load() })}
+                    className="h-8 gap-1">
+                    <Check className="w-3.5 h-3.5" /> Aceitar
+                  </Button>
+                  <Button size="sm" variant="ghost" disabled={declineInv.isPending}
+                    onClick={() => declineInv.mutate(inv.id)} className="h-8 px-2">
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {loading ? (
           <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
