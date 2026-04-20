@@ -15,6 +15,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { InstallAppCard } from "@/components/pwa/InstallAppCard";
+import { VersionTag } from "@/components/pwa/VersionTag";
 
 type Visibility = "public" | "private";
 type LibVisibility = "public" | "followers" | "private";
@@ -221,6 +222,9 @@ export default function ProfilePage() {
           <Button variant="hero" onClick={save} disabled={saving} size="lg">
             {saving ? "Salvando…" : "Salvar alterações"}
           </Button>
+        </div>
+        <div className="pt-4 flex justify-center">
+          <VersionTag />
         </div>
       </div>
     </AppShell>
