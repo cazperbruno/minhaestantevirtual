@@ -94,15 +94,14 @@ export function useCommitUserBook(book: Book | null | undefined) {
       if (ctx?.previous !== undefined) queryClient.setQueryData(key, ctx.previous);
       toast.error("Não foi possível salvar");
     },
-    onSuccess: (saved, patch) => {
+    onSuccess: (saved, patch, ctx) => {
       queryClient.setQueryData(key, { ...saved, book });
       if (!user) return;
       invalidate.library(user.id);
 
-      // XP por evento real (somente em transições, não em re-saves)
-      const prev = (queryClient.getQueryData(key) as UserBook | null) ?? null;
-      const wasNew = !prev?.created_at || prev.id === "temp";
-      if (wasNew) void awardXp(user.id, "add_book");
+      // XP por evento real — usa o estado anterior capturado em onMutate
+      const prev = ctx?.previous ?? null;
+      if (!prev) void awardXp(user.id, "add_book");
       if (patch.status === "read" && prev?.status !== "read") void awardXp(user.id, "finish_book");
       if (patch.rating != null && patch.rating !== prev?.rating) void awardXp(user.id, "rate_book");
 
