@@ -1,0 +1,242 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { AppShell } from "@/components/layout/AppShell";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { BookCover } from "@/components/books/BookCover";
+import { Badge } from "@/components/ui/badge";
+import { ArrowRightLeft, Check, X, Loader2, Send, Inbox, Sparkles } from "lucide-react";
+import { toast } from "sonner";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
+interface Trade {
+  id: string;
+  proposer_id: string;
+  receiver_id: string;
+  proposer_book_id: string;
+  receiver_book_id: string;
+  message: string | null;
+  status: "pending" | "accepted" | "declined" | "completed" | "cancelled";
+  created_at: string;
+  proposer_book?: any;
+  receiver_book?: any;
+  proposer?: any;
+  receiver?: any;
+}
+
+export default function TradesPage() {
+  const { user } = useAuth();
+  const [tab, setTab] = useState<"incoming" | "outgoing" | "history">("incoming");
+  const [trades, setTrades] = useState<Trade[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    if (!user) return;
+    setLoading(true);
+    const { data } = await supabase
+      .from("trades")
+      .select("*, proposer_book:proposer_book_id(id,title,authors,cover_url), receiver_book:receiver_book_id(id,title,authors,cover_url)")
+      .or(`proposer_id.eq.${user.id},receiver_id.eq.${user.id}`)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    const list = (data || []) as Trade[];
+    const userIds = [...new Set(list.flatMap((t) => [t.proposer_id, t.receiver_id]))];
+    const { data: profs } = userIds.length
+      ? await supabase.from("profiles").select("id,display_name,username,avatar_url").in("id", userIds)
+      : { data: [] as any[] };
+    const m = new Map((profs || []).map((p: any) => [p.id, p]));
+    setTrades(
+      list.map((t) => ({
+        ...t,
+        proposer: m.get(t.proposer_id),
+        receiver: m.get(t.receiver_id),
+      })),
+    );
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    load();
+    if (!user) return;
+    const ch = supabase
+      .channel(`trades:${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "trades" }, () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  const update = async (id: string, status: Trade["status"]) => {
+    const prev = trades;
+    setTrades((arr) => arr.map((t) => (t.id === id ? { ...t, status } : t)));
+    const { error } = await supabase.from("trades").update({ status }).eq("id", id);
+    if (error) {
+      setTrades(prev);
+      toast.error("Erro ao atualizar proposta");
+      return;
+    }
+    const labels: Record<string, string> = {
+      accepted: "Proposta aceita",
+      declined: "Proposta recusada",
+      completed: "Troca concluída!",
+      cancelled: "Proposta cancelada",
+    };
+    toast.success(labels[status] || "Atualizado");
+  };
+
+  const incoming = trades.filter((t) => t.receiver_id === user?.id && t.status === "pending");
+  const outgoing = trades.filter((t) => t.proposer_id === user?.id && t.status === "pending");
+  const active = trades.filter((t) => t.status === "accepted");
+  const history = trades.filter((t) => ["completed", "declined", "cancelled"].includes(t.status));
+
+  const visible =
+    tab === "incoming" ? [...incoming, ...active]
+    : tab === "outgoing" ? [...outgoing, ...active]
+    : history;
+
+  return (
+    <AppShell>
+      <div className="px-5 md:px-10 pt-8 pb-20 max-w-4xl mx-auto">
+        <header className="mb-6 animate-fade-in">
+          <p className="text-sm text-primary font-medium mb-2 flex items-center gap-2">
+            <ArrowRightLeft className="w-4 h-4" /> Trocas de livros
+          </p>
+          <h1 className="font-display text-3xl md:text-5xl font-bold leading-tight">
+            Suas <span className="text-gradient-gold italic">trocas</span>
+          </h1>
+        </header>
+
+        <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="mb-6">
+          <TabsList className="grid grid-cols-3 max-w-md">
+            <TabsTrigger value="incoming" className="gap-2">
+              <Inbox className="w-3.5 h-3.5" /> Recebidas
+              {incoming.length > 0 && <Badge variant="default" className="h-4 px-1.5 ml-1">{incoming.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="outgoing" className="gap-2">
+              <Send className="w-3.5 h-3.5" /> Enviadas
+            </TabsTrigger>
+            <TabsTrigger value="history" className="gap-2">Histórico</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {loading ? (
+          <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+        ) : visible.length === 0 ? (
+          <div className="glass rounded-2xl p-10 text-center animate-fade-in">
+            <Sparkles className="w-10 h-10 text-primary/40 mx-auto mb-3" />
+            <h2 className="font-display text-xl mb-1">Nenhuma troca por aqui</h2>
+            <p className="text-sm text-muted-foreground mb-5">
+              Marque livros como "disponível para troca" na sua biblioteca e veja propostas chegando.
+            </p>
+            <Link to="/biblioteca">
+              <Button variant="hero">Ir para Biblioteca</Button>
+            </Link>
+          </div>
+        ) : (
+          <ul className="space-y-4 animate-stagger">
+            {visible.map((t) => {
+              const iAmReceiver = t.receiver_id === user?.id;
+              const other = iAmReceiver ? t.proposer : t.receiver;
+              const myBook = iAmReceiver ? t.receiver_book : t.proposer_book;
+              const theirBook = iAmReceiver ? t.proposer_book : t.receiver_book;
+              return (
+                <li key={t.id} className="glass rounded-2xl p-5 hover:border-primary/30 transition-all">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Link to={other?.username ? `/u/${other.username}` : "#"}>
+                      <Avatar className="w-9 h-9">
+                        <AvatarImage src={other?.avatar_url} />
+                        <AvatarFallback className="bg-gradient-gold text-primary-foreground text-xs">
+                          {(other?.display_name || "?").charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Link>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm truncate">
+                        {iAmReceiver ? "Proposta de" : "Para"}{" "}
+                        <Link to={other?.username ? `/u/${other.username}` : "#"} className="hover:text-primary transition-colors">
+                          {other?.display_name || "Leitor"}
+                        </Link>
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(t.created_at), { addSuffix: true, locale: ptBR })}
+                      </p>
+                    </div>
+                    <StatusBadge status={t.status} />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="text-center">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5 font-semibold">
+                        {iAmReceiver ? "Você dá" : "Você dá"}
+                      </p>
+                      {myBook && (
+                        <Link to={`/livro/${myBook.id}`} className="block group">
+                          <BookCover book={myBook} size="sm" className="mx-auto" />
+                          <p className="text-xs font-medium mt-2 line-clamp-2 group-hover:text-primary transition-colors">{myBook.title}</p>
+                        </Link>
+                      )}
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[10px] uppercase tracking-wider text-primary mb-1.5 font-semibold flex items-center justify-center gap-1">
+                        <ArrowRightLeft className="w-3 h-3" /> Você recebe
+                      </p>
+                      {theirBook && (
+                        <Link to={`/livro/${theirBook.id}`} className="block group">
+                          <BookCover book={theirBook} size="sm" className="mx-auto" />
+                          <p className="text-xs font-medium mt-2 line-clamp-2 group-hover:text-primary transition-colors">{theirBook.title}</p>
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+
+                  {t.message && (
+                    <p className="text-sm italic mt-4 px-3 py-2 bg-muted/30 rounded-lg text-foreground/80">
+                      "{t.message}"
+                    </p>
+                  )}
+
+                  <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-border/40">
+                    {t.status === "pending" && iAmReceiver && (
+                      <>
+                        <Button size="sm" variant="ghost" onClick={() => update(t.id, "declined")} className="gap-1.5">
+                          <X className="w-3.5 h-3.5" /> Recusar
+                        </Button>
+                        <Button size="sm" variant="hero" onClick={() => update(t.id, "accepted")} className="gap-1.5">
+                          <Check className="w-3.5 h-3.5" /> Aceitar
+                        </Button>
+                      </>
+                    )}
+                    {t.status === "pending" && !iAmReceiver && (
+                      <Button size="sm" variant="outline" onClick={() => update(t.id, "cancelled")}>Cancelar</Button>
+                    )}
+                    {t.status === "accepted" && (
+                      <Button size="sm" variant="hero" onClick={() => update(t.id, "completed")} className="gap-1.5">
+                        <Check className="w-3.5 h-3.5" /> Marcar como concluída
+                      </Button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </AppShell>
+  );
+}
+
+function StatusBadge({ status }: { status: Trade["status"] }) {
+  const map = {
+    pending: { label: "Pendente", cls: "bg-status-reading/15 text-status-reading border-status-reading/30" },
+    accepted: { label: "Aceita", cls: "bg-primary/15 text-primary border-primary/30" },
+    declined: { label: "Recusada", cls: "bg-destructive/15 text-destructive border-destructive/30" },
+    completed: { label: "Concluída", cls: "bg-status-read/15 text-status-read border-status-read/30" },
+    cancelled: { label: "Cancelada", cls: "bg-muted text-muted-foreground border-border" },
+  } as const;
+  const m = map[status];
+  return <Badge variant="outline" className={m.cls}>{m.label}</Badge>;
+}
