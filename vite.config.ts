@@ -21,6 +21,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
+      // autoUpdate + skipWaiting + clientsClaim → nova versão assume imediatamente
       registerType: "autoUpdate",
       // Service worker NEVER ativa em dev — evita poluição do preview do Lovable
       devOptions: { enabled: false },
@@ -44,11 +45,37 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        // Não interceptar callback de OAuth — precisa hit na rede
-        navigateFallbackDenylist: [/^\/~oauth/],
+        // CRÍTICO: nova versão do SW assume imediatamente sem esperar reload
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
+        // HTML é roteado pelo SPA: navegações vão para index.html via NetworkFirst
+        navigateFallback: "index.html",
+        navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         runtimeCaching: [
+          // 1) HTML / navegação → NetworkFirst (sempre tenta rede primeiro, fallback cache)
+          //    Garante que mudanças de deploy apareçam no próximo refresh.
+          {
+            urlPattern: ({ request }) => request.mode === "navigate",
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "html-pages",
+              networkTimeoutSeconds: 3,
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 },
+            },
+          },
+          // 2) JS/CSS com hash → StaleWhileRevalidate (carrega rápido + atualiza em bg)
+          {
+            urlPattern: ({ request }) => request.destination === "script" || request.destination === "style",
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "static-resources",
+              expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+          // 3) Fontes Google → CacheFirst (raramente mudam)
           {
             urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
             handler: "CacheFirst",
@@ -57,12 +84,23 @@ export default defineConfig(({ mode }) => ({
               expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
             },
           },
+          // 4) Capas de livros / imagens → CacheFirst com expiração
           {
             urlPattern: /\/(books|covers|images)\/.*\.(png|jpg|jpeg|webp|svg)$/i,
-            handler: "StaleWhileRevalidate",
+            handler: "CacheFirst",
             options: {
               cacheName: "book-covers",
               expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+          // 5) APIs Supabase → NetworkFirst com fallback rápido (nunca cacheia "forever")
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/(rest|functions)\/.*/i,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "supabase-api",
+              networkTimeoutSeconds: 5,
+              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 5 },
             },
           },
         ],
