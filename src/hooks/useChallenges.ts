@@ -2,6 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CACHE, qk, queryClient } from "@/lib/query-client";
 import { toast } from "sonner";
+import { goldenBurst } from "@/lib/confetti";
 
 export interface UserChallenge {
   id: string;
