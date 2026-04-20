@@ -53,7 +53,7 @@ function RecommendationCardImpl({ rec }: { rec: FeedRecommendation }) {
         </div>
       </header>
 
-      <Link to={`/livro/${rec.book_id}`} className="flex gap-4 mb-3 group/book">
+      <Link to={`/livro/${rec.book_id}`} onClick={handleBookClick} className="flex gap-4 mb-3 group/book">
         <BookCover book={rec.book} size="sm" />
         <div className="flex-1 min-w-0 self-center">
           <p className="font-display font-semibold leading-tight group-hover/book:text-primary transition-colors">
@@ -82,6 +82,16 @@ function RecommendationCardImpl({ rec }: { rec: FeedRecommendation }) {
           <span className="tabular-nums">{rec.likes_count}</span>
         </Button>
         <CommentsThread targetId={rec.id} target="recommendation" initialCount={rec.comments_count || 0} />
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleDismiss}
+          aria-label="Não me interessa"
+          className="ml-auto text-muted-foreground hover:text-foreground"
+          title="Não me interessa"
+        >
+          <X aria-hidden="true" className="w-4 h-4" />
+        </Button>
       </div>
     </article>
   );
