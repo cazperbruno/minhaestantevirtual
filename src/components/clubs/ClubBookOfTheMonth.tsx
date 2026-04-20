@@ -8,7 +8,7 @@ import { BookCover } from "@/components/books/BookCover";
 import { Vote, Plus, Crown, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { searchBooks } from "@/lib/books-api";
+import { searchBooksGet } from "@/lib/books-api";
 
 interface Nomination {
   id: string;
@@ -76,7 +76,7 @@ export function ClubBookOfTheMonth({ clubId, isOwner, isMember, onCrown }: Props
     if (query.trim().length < 2) return;
     setSearching(true);
     try {
-      const r = await searchBooks(query.trim());
+      const r = await searchBooksGet(query.trim());
       setResults((r || []).slice(0, 8));
     } catch {
       toast.error("Erro na busca");
