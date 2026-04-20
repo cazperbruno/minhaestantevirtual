@@ -7,6 +7,7 @@ import { ScannerFab } from "./ScannerFab";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 import { useAuth } from "@/hooks/useAuth";
 import { tickStreak } from "@/lib/xp";
+import { XpBurstHost } from "@/components/gamification/XpBurstHost";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
@@ -32,6 +33,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
       <ScannerFab />
       <BottomNav />
+      <XpBurstHost />
     </div>
   );
 }

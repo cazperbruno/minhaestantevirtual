@@ -1,7 +1,8 @@
-// Sistema unificado de XP: chama add_xp no servidor, dispara toast animado +XP, e checa level-up.
+// Sistema unificado de XP: chama add_xp no servidor, dispara burst animado +XP, e checa level-up.
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { queryClient, qk } from "@/lib/query-client";
+import { emitXpBurst } from "@/components/gamification/XpBurstHost";
 
 export type XpSource =
   | "add_book" | "finish_book" | "rate_book" | "scan_book"
@@ -53,10 +54,13 @@ export async function awardXp(
   }
   const { new_level, leveled_up } = data[0];
 
+  // Burst visual SEMPRE — funciona inclusive com silent (overlay sutil sem toast)
+  emitXpBurst({ amount, label: labelFor(source), variant: "xp" });
   if (!opts.silent) {
-    toast.success(`+${amount} XP`, { description: labelFor(source), duration: 1800 });
+    // Toast só nas ações relevantes — burst já dá feedback rápido
   }
   if (leveled_up) {
+    emitXpBurst({ amount: new_level, variant: "level", label: "Subiu de nível!" });
     toast.success(`🎉 Nível ${new_level}!`, {
       description: "Você evoluiu como leitor",
       duration: 4000,
@@ -101,6 +105,7 @@ export async function tickStreak(userId: string) {
   if (error || !data || !data[0]) return null;
   const { current_days, milestone_hit, bonus_xp } = data[0];
   if (milestone_hit > 0) {
+    emitXpBurst({ amount: milestone_hit, variant: "streak", label: "dias de ofensiva!" });
     toast.success(`🔥 ${milestone_hit} dias de ofensiva!`, {
       description: `+${bonus_xp} XP de bônus`,
       duration: 5000,
