@@ -29,28 +29,28 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
     ? Math.round((ub.current_page / book.page_count) * 100) : null;
 
   return (
-    <div className="relative overflow-hidden">
+    <div className="relative overflow-hidden bg-background">
       {book.cover_url && (
         <>
           <div
             aria-hidden
-            className="absolute inset-0 -z-10 opacity-40"
+            className="absolute inset-0 -z-10 opacity-30"
             style={{
               backgroundImage: `url(${book.cover_url})`,
               backgroundSize: "cover",
               backgroundPosition: "center",
-              filter: "blur(80px) saturate(160%)",
-              transform: "scale(1.2)",
+              filter: "blur(90px) saturate(140%)",
+              transform: "scale(1.25)",
             }}
           />
           <div className="absolute inset-0 -z-10 bg-gradient-cover-fade" />
-          <div className="absolute inset-0 -z-10 bg-background/30" />
+          <div className="absolute inset-0 -z-10 bg-background/50" />
         </>
       )}
 
       <div className="px-5 md:px-10 pt-10 md:pt-16 pb-12 max-w-6xl mx-auto">
         <div className="grid md:grid-cols-[280px_1fr] gap-8 md:gap-14 items-start">
-          <div className="mx-auto md:mx-0 animate-scale-in">
+          <div className="mx-auto md:mx-0 animate-scale-in drop-shadow-[0_25px_50px_hsl(var(--primary)/0.25)]">
             <BookCover book={book} size="xl" />
           </div>
 
@@ -58,7 +58,7 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
             {ub && <StatusBadge status={ub.status} />}
 
             <div className="space-y-2">
-              <h1 className="font-display text-4xl md:text-6xl font-bold leading-[1.05] text-balance">
+              <h1 className="font-display text-4xl md:text-6xl font-bold leading-[1.05] text-balance text-foreground">
                 {book.title}
               </h1>
               {book.subtitle && (
@@ -69,7 +69,7 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
             </div>
 
             <div className="space-y-1">
-              <p className="text-lg md:text-xl">
+              <p className="text-lg md:text-xl text-foreground/95">
                 {book.authors.length > 0 ? book.authors.join(", ") : "Autor desconhecido"}
               </p>
               <p className="text-sm text-muted-foreground">
@@ -84,7 +84,7 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
                   <Link
                     key={c}
                     to={`/buscar?q=${encodeURIComponent(c)}`}
-                    className="px-3 py-1 rounded-full bg-muted/40 hover:bg-muted/70 text-xs text-muted-foreground hover:text-foreground transition-all border border-border/40"
+                    className="px-3 py-1 rounded-full bg-muted/40 hover:bg-primary/15 hover:border-primary/40 text-xs text-muted-foreground hover:text-primary border border-border/40"
                   >
                     {c}
                   </Link>
@@ -100,7 +100,7 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
                 </div>
                 <div className="h-1.5 rounded-full bg-muted/40 overflow-hidden">
                   <div
-                    className="h-full bg-gradient-gold transition-all duration-700 rounded-full"
+                    className="h-full bg-primary shadow-glow rounded-full transition-all duration-700"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
@@ -114,14 +114,14 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
                   size="lg"
                   onClick={() => onStatusChange("reading")}
                   disabled={saving}
-                  className="gap-2 min-w-[200px]"
+                  className="gap-2 min-w-[220px] shadow-glow"
                 >
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                   Adicionar à biblioteca
                 </Button>
               ) : (
                 <Select value={ub.status} onValueChange={(v) => onStatusChange(v as BookStatus)}>
-                  <SelectTrigger className="w-[200px] h-11 bg-card/80 backdrop-blur-sm">
+                  <SelectTrigger className="w-[220px] h-11 bg-card/80 backdrop-blur-sm border-primary/40 shadow-glow">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -137,27 +137,37 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
                 size="lg"
                 onClick={onAddWishlist}
                 disabled={saving}
-                className="gap-2"
+                className="gap-2 hover:border-primary/60 hover:text-primary"
                 aria-label="Adicionar aos desejos"
               >
-                <Heart className={`w-4 h-4 ${ub?.status === "wishlist" ? "fill-status-wishlist text-status-wishlist" : ""}`} />
+                <Heart className={`w-4 h-4 ${ub?.status === "wishlist" ? "fill-primary text-primary" : ""}`} />
                 <span className="hidden sm:inline">Desejo</span>
               </Button>
 
-              <Button variant="outline" size="lg" onClick={onShare} className="gap-2" aria-label="Compartilhar">
-                <Share2 className="w-4 h-4" />
-              </Button>
-
-              <InstagramShareCard
-                book={book}
-                rating={ub?.rating}
-                progress={progress}
-              />
+              {/* Share + Instagram grouped side-by-side */}
+              <div className="inline-flex rounded-md overflow-hidden border border-border bg-card/50 backdrop-blur-sm">
+                <Button
+                  variant="ghost"
+                  size="lg"
+                  onClick={onShare}
+                  className="gap-2 rounded-none hover:bg-primary/10 hover:text-primary border-0"
+                  aria-label="Compartilhar"
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">Compartilhar</span>
+                </Button>
+                <div className="w-px bg-border" />
+                <InstagramShareCard
+                  book={book}
+                  rating={ub?.rating}
+                  progress={progress}
+                />
+              </div>
 
               <BookChat bookId={book.id} bookTitle={book.title} />
 
               <a href={amazonUrl} target="_blank" rel="noopener noreferrer">
-                <Button variant="outline" size="lg" className="gap-2">
+                <Button variant="outline" size="lg" className="gap-2 hover:border-primary/60 hover:text-primary">
                   <ShoppingBag className="w-4 h-4" />
                   <span className="hidden sm:inline">Amazon</span>
                 </Button>
@@ -167,7 +177,7 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
                 book={book}
                 onUpdated={onBookUpdated}
                 trigger={
-                  <Button variant="outline" size="lg" className="gap-2" aria-label="Editar livro">
+                  <Button variant="outline" size="lg" className="gap-2 hover:border-primary/60 hover:text-primary" aria-label="Editar livro">
                     <Pencil className="w-4 h-4" />
                     <span className="hidden sm:inline">Editar</span>
                   </Button>
