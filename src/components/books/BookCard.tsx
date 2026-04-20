@@ -2,6 +2,7 @@ import { memo, useState } from "react";
 import { Book } from "@/types/book";
 import { BookCover } from "./BookCover";
 import { ContentTypeBadge } from "./ContentTypeBadge";
+import { QuickSaveButton } from "./QuickSaveButton";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/track";
@@ -14,6 +15,8 @@ interface Props {
   size?: "sm" | "md" | "lg";
   className?: string;
   showMeta?: boolean;
+  /** Show the floating quick-save (wishlist) action over the cover. Default true. */
+  quickSave?: boolean;
   /** Optional source label for analytics (e.g. "shelf:trending"). */
   source?: string;
 }
