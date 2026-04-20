@@ -35,14 +35,14 @@ export function Sidebar() {
     navigate("/auth");
   };
   return (
-    <aside className="hidden md:flex flex-col w-60 shrink-0 border-r border-border bg-sidebar h-screen sticky top-0">
-      <div className="px-5 pt-6 pb-5 flex items-center justify-between gap-2">
+    <aside className="hidden md:flex flex-col w-60 shrink-0 border-r border-border bg-sidebar h-screen sticky top-0 overflow-hidden">
+      <div className="px-5 pt-6 pb-5 flex items-center justify-between gap-2 shrink-0">
         <NavLink to="/" className="flex items-center min-w-0">
           <img src={readifyLogo} alt="Readify" className="h-10 max-w-[180px] w-auto select-none object-contain" draggable={false} />
         </NavLink>
         <NotificationsBell compact />
       </div>
-      <nav className="flex-1 px-3 space-y-1">
+      <nav className="flex-1 min-h-0 px-3 space-y-1 overflow-y-auto overscroll-contain scroll-smooth [scrollbar-width:thin]">
         {items.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
@@ -75,7 +75,7 @@ export function Sidebar() {
           <Search className="h-4 w-4" /> Buscar livros
         </NavLink>
       </nav>
-      <div className="p-4 border-t border-sidebar-border">
+      <div className="p-4 border-t border-sidebar-border shrink-0">
         <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={handleLogout}>
           <LogOut className="h-4 w-4" /> Sair
         </Button>

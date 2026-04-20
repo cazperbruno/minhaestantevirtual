@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { LogOut, BookOpen, Star, Trophy, Lock, Globe, Users, Instagram, Twitter, Music2, ExternalLink, Eye, EyeOff } from "lucide-react";
 import { AchievementsPanel } from "@/components/profile/AchievementsPanel";
+import { LatestAchievementBanner } from "@/components/profile/LatestAchievementBanner";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Link } from "react-router-dom";
@@ -123,14 +124,15 @@ export default function ProfilePage() {
               </p>
             </div>
           </div>
-          {profile.username && (
-            <Button asChild variant="outline" size="sm" className="gap-1.5 hidden sm:inline-flex">
-              <Link to={`/u/${profile.username}`}>
-                <ExternalLink className="w-3.5 h-3.5" /> Ver público
-              </Link>
-            </Button>
-          )}
+          <Button asChild variant="outline" size="sm" className="gap-1.5 hidden sm:inline-flex">
+            <Link to={profile.username ? `/u/${profile.username}` : `/u/${user!.id}`}>
+              <ExternalLink className="w-3.5 h-3.5" /> Ver público
+            </Link>
+          </Button>
         </div>
+
+        {/* Última conquista — só aparece se houver pelo menos uma desbloqueada */}
+        <LatestAchievementBanner userId={user!.id} />
 
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-8">
           <Stat icon={<BookOpen className="w-4 h-4" />} value={stats.total} label="Acervo" />
