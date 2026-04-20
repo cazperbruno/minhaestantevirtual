@@ -15,6 +15,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { InstallAppCard } from "@/components/pwa/InstallAppCard";
+import { VersionTag } from "@/components/pwa/VersionTag";
 
 type Visibility = "public" | "private";
 type LibVisibility = "public" | "followers" | "private";
