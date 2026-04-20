@@ -631,17 +631,51 @@ async function findCachedByVariants(
 // ============================================================
 // 7) HTTP entrypoint
 // ============================================================
+// Sanitize free-text search queries to prevent PostgREST filter injection.
+// Allow letters (incl. accented), digits, spaces and a small set of safe punctuation.
+function sanitizeQuery(s: string): string {
+  return s
+    .normalize("NFC")
+    .replace(/[%(),{}\\]/g, " ") // strip PostgREST special chars
+    .replace(/[^\p{L}\p{N}\s'’\-:.]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 120);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const url = new URL(req.url);
     const action = url.searchParams.get("action") || "search";
     const supaUrl = Deno.env.get("SUPABASE_URL")!;
-    const supaKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const authHeader = req.headers.get("Authorization") || "";
-    const supabase = createClient(supaUrl, supaKey, {
+
+    // ---- AUTH GUARD ----
+    // Require a valid user JWT for every action. Unauthenticated callers are rejected.
+    if (!authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const authClient = createClient(supaUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
+    const { data: userData, error: userErr } = await authClient.auth.getUser();
+    if (userErr || !userData?.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Service-role client used ONLY for server-side cache writes (persistBook).
+    // Reads use the user-scoped client so RLS still applies.
+    const supabase = createClient(supaUrl, serviceKey);
+    const userClient = authClient;
 
     if (action === "isbn") {
       const isbnRaw = url.searchParams.get("isbn") || "";
