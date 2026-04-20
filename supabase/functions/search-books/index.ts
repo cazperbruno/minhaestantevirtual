@@ -631,17 +631,51 @@ async function findCachedByVariants(
 // ============================================================
 // 7) HTTP entrypoint
 // ============================================================
+// Sanitize free-text search queries to prevent PostgREST filter injection.
+// Allow letters (incl. accented), digits, spaces and a small set of safe punctuation.
+function sanitizeQuery(s: string): string {
+  return s
+    .normalize("NFC")
+    .replace(/[%(),{}\\]/g, " ") // strip PostgREST special chars
+    .replace(/[^\p{L}\p{N}\s'’\-:.]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 120);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const url = new URL(req.url);
     const action = url.searchParams.get("action") || "search";
     const supaUrl = Deno.env.get("SUPABASE_URL")!;
-    const supaKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const authHeader = req.headers.get("Authorization") || "";
-    const supabase = createClient(supaUrl, supaKey, {
+
+    // ---- AUTH GUARD ----
+    // Require a valid user JWT for every action. Unauthenticated callers are rejected.
+    if (!authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const authClient = createClient(supaUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
+    const { data: userData, error: userErr } = await authClient.auth.getUser();
+    if (userErr || !userData?.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Service-role client used ONLY for server-side cache writes (persistBook).
+    // Reads use the user-scoped client so RLS still applies.
+    const supabase = createClient(supaUrl, serviceKey);
+    const userClient = authClient;
 
     if (action === "isbn") {
       const isbnRaw = url.searchParams.get("isbn") || "";
@@ -721,8 +755,51 @@ Deno.serve(async (req) => {
     }
 
     if (action === "save") {
-      const body = await req.json();
-      const saved = await persistBook(supabase, body);
+      let body: any;
+      try {
+        body = await req.json();
+      } catch {
+        return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Validate payload
+      if (!body || typeof body !== "object") {
+        return new Response(JSON.stringify({ error: "Invalid payload" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const title = typeof body.title === "string" ? body.title.trim() : "";
+      if (!title || title.length > 500) {
+        return new Response(JSON.stringify({ error: "Title required (max 500 chars)" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const safe: NormalizedBook = {
+        title,
+        subtitle: typeof body.subtitle === "string" ? body.subtitle.slice(0, 500) : null,
+        authors: Array.isArray(body.authors)
+          ? body.authors.filter((a: any) => typeof a === "string").slice(0, 20).map((a: string) => a.slice(0, 200))
+          : [],
+        publisher: typeof body.publisher === "string" ? body.publisher.slice(0, 200) : null,
+        published_year: Number.isFinite(body.published_year) ? body.published_year : null,
+        description: typeof body.description === "string" ? body.description.slice(0, 5000) : null,
+        cover_url: typeof body.cover_url === "string" && /^https?:\/\//.test(body.cover_url) ? body.cover_url.slice(0, 1000) : null,
+        page_count: Number.isFinite(body.page_count) ? body.page_count : null,
+        language: typeof body.language === "string" ? body.language.slice(0, 16) : null,
+        categories: Array.isArray(body.categories)
+          ? body.categories.filter((c: any) => typeof c === "string").slice(0, 16).map((c: string) => c.slice(0, 80))
+          : [],
+        isbn_13: typeof body.isbn_13 === "string" && /^\d{13}$/.test(body.isbn_13) ? body.isbn_13 : null,
+        isbn_10: typeof body.isbn_10 === "string" && /^\d{9}[\dX]$/.test(body.isbn_10) ? body.isbn_10 : null,
+        source: typeof body.source === "string" ? body.source.slice(0, 32) : "manual",
+        source_id: typeof body.source_id === "string" ? body.source_id.slice(0, 200) : null,
+        raw: null,
+      };
+      const saved = await persistBook(supabase, safe);
       return new Response(JSON.stringify({ book: saved }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -731,18 +808,20 @@ Deno.serve(async (req) => {
     // Autocomplete: cache-first, then Open Library light search.
     // Returns up to 8 suggestions ultra-fast for typeahead UX.
     if (action === "suggest") {
-      const q = (url.searchParams.get("q") || "").trim();
+      const rawQ = (url.searchParams.get("q") || "").trim();
+      const q = sanitizeQuery(rawQ);
       if (q.length < 2) {
         return new Response(JSON.stringify({ suggestions: [] }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      // 1) Internal catalog first — instant, zero network
-      const { data: cached } = await supabase
+      // 1) Internal catalog first — use user-scoped client (RLS enforced)
+      // and parameterized .ilike (no string interpolation in .or() filter).
+      const { data: cached } = await userClient
         .from("books")
         .select("id,title,subtitle,authors,cover_url,published_year,isbn_13")
-        .or(`title.ilike.%${q}%,authors.cs.{${q}}`)
+        .ilike("title", `%${q}%`)
         .limit(6);
 
       const fromCache = (cached || []).map((b: any) => ({
