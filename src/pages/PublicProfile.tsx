@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LibraryShelf } from "@/components/books/LibraryShelf";
 import { AchievementsPanel } from "@/components/profile/AchievementsPanel";
 import { FollowButton } from "@/components/social/FollowButton";
+import { ProposeTradeDialog } from "@/components/social/ProposeTradeDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { Trophy, BookOpen, Star, Loader2, Users, Calendar } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -118,7 +119,10 @@ export default function PublicProfile() {
               {profile.username && <p className="text-muted-foreground text-sm">@{profile.username.replace(/^@+/, "")}</p>}
               {profile.bio && <p className="text-sm md:text-base mt-3 max-w-xl text-foreground/80">{profile.bio}</p>}
             </div>
-            <FollowButton targetUserId={profile.id} initiallyFollowing={stats.iFollow} size="default" />
+            <div className="flex flex-col gap-2 items-stretch">
+              <FollowButton targetUserId={profile.id} initiallyFollowing={stats.iFollow} size="default" />
+              <ProposeTradeDialog receiverId={profile.id} receiverName={profile.display_name || undefined} />
+            </div>
           </div>
 
           {/* Stats row */}

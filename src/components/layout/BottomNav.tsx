@@ -1,12 +1,12 @@
-import { Book, Library, ScanBarcode, Infinity as InfinityIcon, User as UserIcon } from "lucide-react";
+import { Book, Library, Infinity as InfinityIcon, Users, User as UserIcon } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 const items = [
   { to: "/", label: "Descobrir", icon: Book },
   { to: "/feed-infinito", label: "Para você", icon: InfinityIcon },
-  { to: "/scanner", label: "Scanner", icon: ScanBarcode },
   { to: "/biblioteca", label: "Biblioteca", icon: Library },
+  { to: "/leitores", label: "Leitores", icon: Users },
   { to: "/perfil", label: "Perfil", icon: UserIcon },
 ];
 

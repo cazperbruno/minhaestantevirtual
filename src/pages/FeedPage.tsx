@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FollowButton } from "@/components/social/FollowButton";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CommentsThread } from "@/components/social/CommentsThread";
 import { Heart, MessageSquare, Users, Sparkles, Search } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -22,6 +23,7 @@ interface FeedReview {
   rating: number | null;
   content: string;
   likes_count: number;
+  comments_count?: number;
   created_at: string;
   book: any;
   profile: any;
@@ -214,6 +216,7 @@ export default function FeedPage() {
                     <Heart className={`w-4 h-4 transition-all ${r.liked_by_me ? "fill-primary scale-110" : ""}`} />
                     <span className="tabular-nums">{r.likes_count}</span>
                   </Button>
+                  <CommentsThread reviewId={r.id} initialCount={r.comments_count || 0} />
                 </div>
               </li>
             ))}

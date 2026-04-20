@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BookCover } from "@/components/books/BookCover";
 import { ArrowLeft, Send, Loader2, Users, LogOut } from "lucide-react";
+import { ClubBookOfTheMonth } from "@/components/clubs/ClubBookOfTheMonth";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -113,6 +114,15 @@ export default function ClubDetailPage() {
           {isMember && club.owner_id !== user?.id && (
             <Button variant="ghost" size="sm" onClick={leave} className="gap-1.5"><LogOut className="w-3.5 h-3.5" /> Sair</Button>
           )}
+        </div>
+
+        <div className="mb-4">
+          <ClubBookOfTheMonth
+            clubId={id!}
+            isOwner={club.owner_id === user?.id}
+            isMember={isMember}
+            onCrown={() => load()}
+          />
         </div>
       </div>
 
