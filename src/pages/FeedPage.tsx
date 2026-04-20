@@ -10,6 +10,7 @@ import { usePublicRecommendations } from "@/hooks/useRecommendations";
 import { RecommendationCard } from "@/components/books/RecommendationCard";
 import { ContentTypeFilter, useContentFilter } from "@/components/books/ContentTypeFilter";
 import { ReviewFeedCard } from "@/components/social/ReviewFeedCard";
+import { FeedStoriesBar } from "@/components/social/FeedStoriesBar";
 
 export default function FeedPage() {
   const [tab, setTab] = useState<"all" | "following">("all");
@@ -32,14 +33,19 @@ export default function FeedPage() {
   const { active: activeTypes, available } = useContentFilter();
 
   // Achata + dedupe (realtime pode causar overlap entre páginas) e
-  // filtra por content_type ativo (livro relacionado).
+  // filtra por content_type ativo + usuários silenciados (sessionStorage).
   const reviews = useMemo<FeedReview[]>(() => {
     const seen = new Set<string>();
     const out: FeedReview[] = [];
     const typeSet = new Set(activeTypes);
+    let muted: Set<string>;
+    try {
+      muted = new Set<string>(JSON.parse(sessionStorage.getItem("muted_users") || "[]"));
+    } catch { muted = new Set(); }
     for (const page of data?.pages ?? []) {
       for (const r of page.items) {
         if (seen.has(r.id)) continue;
+        if (muted.has(r.user_id)) continue;
         const t = (r.book?.content_type ?? "book") as string;
         if (!typeSet.has(t as any)) continue;
         seen.add(r.id);
@@ -82,6 +88,8 @@ export default function FeedPage() {
         </Tabs>
 
         {available.length > 1 && <ContentTypeFilter className="mb-5" />}
+
+        {tab === "all" && <FeedStoriesBar />}
 
         {tab === "all" && recs.length > 0 && (
           <section className="mb-6 space-y-4">

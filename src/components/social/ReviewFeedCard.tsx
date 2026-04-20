@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { FollowButton } from "@/components/social/FollowButton";
 import { CommentsThread } from "@/components/social/CommentsThread";
 import { QuickSaveButton } from "@/components/books/QuickSaveButton";
+import { LikersAvatars } from "@/components/social/LikersAvatars";
+import { ReviewActionsMenu } from "@/components/social/ReviewActionsMenu";
 import { Heart, Share2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -74,7 +76,12 @@ export function ReviewFeedCard({ review: r, onToggleLike }: Props) {
   };
 
   return (
-    <article className="glass rounded-2xl p-5 animate-fade-in hover:border-primary/30 transition-colors">
+    <ReviewActionsMenu review={r}>
+      {(longPress) => (
+        <article
+          {...longPress}
+          className="glass rounded-2xl p-5 animate-fade-in hover:border-primary/30 transition-colors touch-manipulation"
+        >
       {/* Header: avatar + nome + follow */}
       <header className="flex items-start gap-3 mb-4">
         <Link to={profilePath(r.profile)} className="shrink-0">
@@ -141,6 +148,9 @@ export function ReviewFeedCard({ review: r, onToggleLike }: Props) {
       {/* Texto da resenha */}
       <p className="text-sm leading-relaxed whitespace-pre-line text-foreground/90">{r.content}</p>
 
+      {/* Avatares dos likers */}
+      <LikersAvatars reviewId={r.id} totalLikes={r.likes_count} className="mt-3" />
+
       {/* Barra de ações */}
       <div className="flex items-center gap-1 mt-4 pt-3 border-t border-border/40">
         <Button
@@ -178,6 +188,8 @@ export function ReviewFeedCard({ review: r, onToggleLike }: Props) {
           <Share2 className="w-4 h-4" />
         </Button>
       </div>
-    </article>
+        </article>
+      )}
+    </ReviewActionsMenu>
   );
 }
