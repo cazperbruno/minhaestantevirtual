@@ -75,7 +75,7 @@ export function Sidebar() {
           <Search className="h-4 w-4" /> Buscar livros
         </NavLink>
       </nav>
-      <div className="p-4 border-t border-sidebar-border">
+      <div className="p-4 border-t border-sidebar-border shrink-0">
         <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={handleLogout}>
           <LogOut className="h-4 w-4" /> Sair
         </Button>
