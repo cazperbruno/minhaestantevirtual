@@ -2,6 +2,7 @@
  * Página de detalhe de uma série (mangá / HQ).
  * Mostra capa, banner (se anilist), sinopse, e lista de volumes com progresso.
  */
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { useSeriesDetail } from "@/hooks/useSeries";
@@ -10,7 +11,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { ContentTypeBadge } from "@/components/books/ContentTypeBadge";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, BookOpen, Circle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CheckCircle2, BookOpen, Circle, Plus } from "lucide-react";
+import { AddVolumeDialog } from "@/components/series/AddVolumeDialog";
+import { useAuth } from "@/hooks/useAuth";
 
 const STATUS_LABEL: Record<string, string> = {
   finished: "Finalizada",
@@ -22,7 +26,9 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default function SeriesDetailPage() {
   const { id } = useParams();
+  const { user } = useAuth();
   const { data, isLoading } = useSeriesDetail(id);
+  const [addOpen, setAddOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -113,17 +119,24 @@ export default function SeriesDetailPage() {
 
           {/* Volumes */}
           <section className="mt-14">
-            <h2 className="font-display text-2xl font-bold mb-5 flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-primary" />
-              Volumes
-              <span className="text-sm font-normal text-muted-foreground tabular-nums">
-                · {volumes.length} {volumes.length === 1 ? "no acervo" : "no acervo"}
-              </span>
-            </h2>
+            <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
+              <h2 className="font-display text-2xl font-bold flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-primary" />
+                Volumes
+                <span className="text-sm font-normal text-muted-foreground tabular-nums">
+                  · {volumes.length} no acervo
+                </span>
+              </h2>
+              {user && (
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setAddOpen(true)}>
+                  <Plus className="w-4 h-4" /> Adicionar volume
+                </Button>
+              )}
+            </div>
 
             {volumes.length === 0 ? (
               <div className="glass rounded-2xl p-8 text-center text-muted-foreground text-sm">
-                Nenhum volume cadastrado ainda. Adicione volumes a esta série para acompanhar seu progresso.
+                Nenhum volume cadastrado ainda. {user && "Clique em \"Adicionar volume\" para começar."}
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-5 gap-y-8">
@@ -157,6 +170,9 @@ export default function SeriesDetailPage() {
           </section>
         </div>
       </div>
+      {user && data && (
+        <AddVolumeDialog open={addOpen} onOpenChange={setAddOpen} detail={data} />
+      )}
     </AppShell>
   );
 }
