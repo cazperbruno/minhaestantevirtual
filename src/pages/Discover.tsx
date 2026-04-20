@@ -75,6 +75,21 @@ export default function Discover() {
 
   const featured: Book | null = visibleReading[0]?.book ?? visibleShelves[0]?.books?.[0] ?? null;
 
+  // Próxima série a continuar — mostra atalho discreto após o Featured.
+  const continueSeries = useMemo(() => {
+    if (!mySeries) return null;
+    const set = new Set(activeTypes);
+    return (
+      mySeries.find(
+        (s) =>
+          set.has(s.content_type) &&
+          s.next_volume != null &&
+          s.reading_count + s.read_count > 0,
+      ) ?? null
+    );
+  }, [mySeries, activeTypes]);
+
+
   return (
     <AppShell>
       <div className="px-5 md:px-10 pt-8 md:pt-12 pb-20 max-w-7xl mx-auto">
