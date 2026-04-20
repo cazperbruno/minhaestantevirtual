@@ -8,7 +8,7 @@ import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import readifyLogo from "@/assets/readify-logo-v2.png";
+import readifyMark from "@/assets/readify-mark-v3.png";
 
 export default function Auth() {
   const { user, loading } = useAuth();
@@ -61,12 +61,7 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center px-5 py-10 bg-gradient-hero">
       <div className="w-full max-w-md animate-scale-in">
         <div className="text-center mb-8">
-          <img
-            src={readifyLogo}
-            alt="Readify"
-            className="mx-auto mb-2 w-64 max-w-full h-auto select-none"
-            draggable={false}
-          />
+          <img src={readifyMark} alt="Readify" className="mx-auto mb-2 h-24 w-auto select-none" draggable={false} />
           <p className="text-muted-foreground mt-2">Sua biblioteca pessoal, redesenhada.</p>
         </div>
 
