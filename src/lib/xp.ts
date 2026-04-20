@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { queryClient, qk } from "@/lib/query-client";
 import { emitXpBurst } from "@/components/gamification/XpBurstHost";
+import { goldenBurst } from "@/lib/confetti";
 
 export type XpSource =
   | "add_book" | "finish_book" | "rate_book" | "scan_book"
@@ -61,6 +62,7 @@ export async function awardXp(
   }
   if (leveled_up) {
     emitXpBurst({ amount: new_level, variant: "level", label: "Subiu de nível!" });
+    goldenBurst();
     toast.success(`🎉 Nível ${new_level}!`, {
       description: "Você evoluiu como leitor",
       duration: 4000,
