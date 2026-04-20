@@ -20,7 +20,17 @@ interface Comment {
   profile?: { display_name: string | null; username: string | null; avatar_url: string | null };
 }
 
-export function CommentsThread({ reviewId, initialCount = 0 }: { reviewId: string; initialCount?: number }) {
+type Target = "review" | "recommendation";
+
+interface Props {
+  /** Compat: id da resenha (modo legado). Use `targetId` + `target` para outros tipos. */
+  reviewId?: string;
+  targetId?: string;
+  target?: Target;
+  initialCount?: number;
+}
+
+export function CommentsThread({ reviewId, targetId, target = "review", initialCount = 0 }: Props) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [list, setList] = useState<Comment[]>([]);
@@ -29,12 +39,16 @@ export function CommentsThread({ reviewId, initialCount = 0 }: { reviewId: strin
   const [sending, setSending] = useState(false);
   const [count, setCount] = useState(initialCount);
 
+  const id = (targetId ?? reviewId) as string;
+  const tableName = target === "recommendation" ? "recommendation_comments" : "review_comments";
+  const fkColumn = target === "recommendation" ? "recommendation_id" : "review_id";
+
   const load = async () => {
     setLoading(true);
-    const { data: cs } = await supabase
-      .from("review_comments")
+    const { data: cs } = await (supabase as any)
+      .from(tableName)
       .select("*")
-      .eq("review_id", reviewId)
+      .eq(fkColumn, id)
       .order("created_at", { ascending: true })
       .limit(200);
     const ids = [...new Set((cs || []).map((c: any) => c.user_id))];
@@ -49,16 +63,18 @@ export function CommentsThread({ reviewId, initialCount = 0 }: { reviewId: strin
   useEffect(() => {
     if (open) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, reviewId]);
+  }, [open, id]);
 
   const send = async () => {
     if (!user) return toast.error("Entre para comentar");
     const content = text.trim();
     if (content.length < 1) return;
     setSending(true);
-    const { data, error } = await supabase
-      .from("review_comments")
-      .insert({ review_id: reviewId, user_id: user.id, content })
+    const payload: any = { user_id: user.id, content };
+    payload[fkColumn] = id;
+    const { data, error } = await (supabase as any)
+      .from(tableName)
+      .insert(payload)
       .select()
       .single();
     setSending(false);
@@ -71,14 +87,14 @@ export function CommentsThread({ reviewId, initialCount = 0 }: { reviewId: strin
     setList((prev) => [...prev, { ...(data as any), profile: prof }]);
     setCount((c) => c + 1);
     setText("");
-    void awardXp(user.id, "comment_review", { silent: true });
+    if (target === "review") void awardXp(user.id, "comment_review", { silent: true });
   };
 
-  const remove = async (id: string) => {
+  const remove = async (cid: string) => {
     const prev = list;
-    setList((arr) => arr.filter((c) => c.id !== id));
+    setList((arr) => arr.filter((c) => c.id !== cid));
     setCount((c) => Math.max(0, c - 1));
-    const { error } = await supabase.from("review_comments").delete().eq("id", id);
+    const { error } = await (supabase as any).from(tableName).delete().eq("id", cid);
     if (error) {
       setList(prev);
       setCount((c) => c + 1);
