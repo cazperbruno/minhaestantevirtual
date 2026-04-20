@@ -62,6 +62,7 @@ export async function awardXp(
   }
   if (leveled_up) {
     emitXpBurst({ amount: new_level, variant: "level", label: "Subiu de nível!" });
+    goldenBurst();
     toast.success(`🎉 Nível ${new_level}!`, {
       description: "Você evoluiu como leitor",
       duration: 4000,
