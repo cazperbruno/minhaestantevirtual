@@ -1,5 +1,4 @@
 import { useRef, useState } from "react";
-import html2canvas from "html2canvas";
 import { Book } from "@/types/book";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -19,6 +18,8 @@ export function InstagramShareCard({ book, rating, progress }: Props) {
 
   const generate = async (): Promise<Blob | null> => {
     if (!cardRef.current) return null;
+    // Dynamic import: html2canvas (~200kB) só carrega quando o usuário clica em compartilhar
+    const { default: html2canvas } = await import("html2canvas");
     const canvas = await html2canvas(cardRef.current, {
       backgroundColor: "#000000",
       scale: 2,
@@ -71,7 +72,7 @@ export function InstagramShareCard({ book, rating, progress }: Props) {
           className="gap-2 rounded-none hover:bg-primary/10 hover:text-primary border-0"
           aria-label="Compartilhar no Instagram"
         >
-          <Instagram className="w-4 h-4" />
+          <Instagram className="w-4 h-4" aria-hidden="true" />
           <span className="hidden sm:inline">Instagram</span>
         </Button>
       </DialogTrigger>
@@ -96,6 +97,8 @@ export function InstagramShareCard({ book, rating, progress }: Props) {
                 src={book.cover_url}
                 alt=""
                 crossOrigin="anonymous"
+                loading="lazy"
+                decoding="async"
                 className="w-44 rounded shadow-2xl"
                 style={{ boxShadow: "0 30px 60px -10px rgba(0,0,0,0.7)" }}
               />
@@ -117,10 +120,10 @@ export function InstagramShareCard({ book, rating, progress }: Props) {
         </div>
         <div className="flex gap-2">
           <Button variant="hero" className="flex-1 gap-2" onClick={shareNative} disabled={busy}>
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Instagram className="w-4 h-4" />} Compartilhar
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Instagram className="w-4 h-4" aria-hidden="true" />} Compartilhar
           </Button>
           <Button variant="outline" className="gap-2" onClick={download} disabled={busy}>
-            <Download className="w-4 h-4" /> Baixar
+            <Download className="w-4 h-4" aria-hidden="true" /> Baixar
           </Button>
         </div>
         <p className="text-xs text-muted-foreground text-center">
