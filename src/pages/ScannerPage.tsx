@@ -307,6 +307,41 @@ export default function ScannerPage() {
               </div>
             </form>
 
+            {foundBook && (
+              <div className="glass rounded-2xl p-5 border border-primary/40 shadow-glow animate-scale-in">
+                <div className="flex items-start gap-4">
+                  <div className="w-16 h-24 shrink-0 rounded-md overflow-hidden bg-muted">
+                    {foundBook.cover_url ? (
+                      <img src={foundBook.cover_url} alt={foundBook.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                        <Book className="w-6 h-6" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-primary font-medium flex items-center gap-1.5 mb-1">
+                      <Check className="w-3.5 h-3.5" /> Livro encontrado
+                    </p>
+                    <h3 className="font-display font-semibold text-lg leading-tight line-clamp-2">
+                      {foundBook.title}
+                    </h3>
+                    {foundBook.authors?.length ? (
+                      <p className="text-sm text-muted-foreground line-clamp-1">{foundBook.authors.join(", ")}</p>
+                    ) : null}
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      <Button variant="hero" onClick={() => navigate(`/livro/${foundBook.id}`)} className="gap-2">
+                        Ver livro <ArrowRight className="w-4 h-4" />
+                      </Button>
+                      <Button variant="outline" onClick={scanNext} className="gap-2">
+                        <ScanBarcode className="w-4 h-4" /> Escanear próximo
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {notFoundIsbn && (
               <div className="glass rounded-2xl p-5 border border-destructive/40 animate-fade-in">
                 <div className="flex items-start gap-3">
@@ -329,8 +364,8 @@ export default function ScannerPage() {
                       >
                         <Search className="w-4 h-4" /> Buscar por título/autor
                       </Button>
-                      <Button variant="outline" onClick={() => { setNotFoundIsbn(null); startBarcode(); }}>
-                        Tentar outro ISBN
+                      <Button variant="outline" onClick={scanNext} className="gap-2">
+                        <ScanBarcode className="w-4 h-4" /> Escanear próximo
                       </Button>
                     </div>
                   </div>
