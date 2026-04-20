@@ -187,6 +187,12 @@
   100% { background-position: -200% 0; }
 }
 
+@keyframes floatSoft {
+  0%, 100% { transform: translateY(0); filter: drop-shadow(0 10px 30px hsl(var(--primary) / 0.18)); }
+  50%      { transform: translateY(-4px); filter: drop-shadow(0 18px 38px hsl(var(--primary) / 0.30)); }
+}
+.animate-float-soft { animation: floatSoft 4.5s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
