@@ -159,6 +159,10 @@ export function AffiliateClicksPanel() {
     return { totalClicks, totalViews, ctr, uniqueBooks };
   }, [interactions, ranked]);
 
+  // Defesa em profundidade: oculta totalmente o painel para não-admins.
+  if (adminLoading) return null;
+  if (!isAdmin) return null;
+
   return (
     <Card className="p-5 bg-card/60 backdrop-blur">
       <header className="flex items-center justify-between gap-3 flex-wrap mb-4">
@@ -166,9 +170,12 @@ export function AffiliateClicksPanel() {
           <h3 className="font-display text-xl font-bold flex items-center gap-2">
             <ShoppingCart className="h-5 w-5 text-primary" />
             Cliques na Amazon
+            <Badge variant="secondary" className="gap-1 text-[10px] uppercase tracking-wider">
+              <ShieldAlert className="h-3 w-3" /> Admin · global
+            </Badge>
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Quais livros geram mais interesse de compra (link de afiliado).
+            Visão agregada de todos os usuários — quais livros geram mais cliques de afiliado.
           </p>
         </div>
         <Select value={period} onValueChange={setPeriod}>
