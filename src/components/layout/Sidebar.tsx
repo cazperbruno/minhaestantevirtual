@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { NotificationsBell } from "@/components/social/NotificationsBell";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import readifyLogo from "@/assets/readify-logo-v8.png";
 
-const items = [
+const baseItems = [
   { to: "/", label: "Descobrir", icon: Book },
   { to: "/feed-infinito", label: "Para você", icon: InfinityIcon },
   { to: "/biblioteca", label: "Biblioteca", icon: Library },
@@ -23,12 +24,18 @@ const items = [
   { to: "/ranking", label: "Ranking", icon: Trophy },
   { to: "/metas", label: "Metas", icon: Target },
   { to: "/estatisticas", label: "Estatísticas", icon: BarChart3 },
-  { to: "/relatorios", label: "Relatórios", icon: FileText },
   { to: "/perfil", label: "Perfil", icon: UserIcon },
 ];
 
+const adminItem = { to: "/relatorios", label: "Relatórios", icon: FileText };
+
 export function Sidebar() {
   const navigate = useNavigate();
+  const { isAdmin } = useIsAdmin();
+  // Insere "Relatórios" antes de "Perfil" apenas para admins
+  const items = isAdmin
+    ? [...baseItems.slice(0, -1), adminItem, baseItems[baseItems.length - 1]]
+    : baseItems;
   const handleLogout = async () => {
     await supabase.auth.signOut();
     toast.success("Até logo!");
