@@ -43,19 +43,17 @@ export function NotificationsBell({ compact = false }: { compact?: boolean }) {
   };
 
   useEffect(() => {
-    load();
     if (!user) return;
-    const ch = supabase
-      .channel(`notif:${user.id}:${Math.random().toString(36).slice(2)}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
-        (payload) => setItems((prev) => [payload.new as Notif, ...prev]),
-      )
-      .subscribe();
+    load();
+    const ch = supabase.channel(`notif:${user.id}:${Date.now()}:${Math.random().toString(36).slice(2)}`);
+    ch.on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+      (payload) => setItems((prev) => [payload.new as Notif, ...prev]),
+    ).subscribe();
     return () => { supabase.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user?.id]);
 
   const markAllRead = async () => {
     if (!user || unread === 0) return;
