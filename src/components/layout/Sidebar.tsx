@@ -42,14 +42,17 @@ export function Sidebar() {
     navigate("/auth");
   };
   return (
-    <aside className="hidden md:flex flex-col w-60 shrink-0 border-r border-border bg-sidebar h-screen sticky top-0 overflow-hidden">
+    <aside className="hidden md:flex flex-col w-60 shrink-0 border-r border-border bg-sidebar h-screen max-h-screen sticky top-0 overflow-hidden">
       <div className="px-5 pt-6 pb-5 flex items-center justify-between gap-2 shrink-0">
         <NavLink to="/" className="flex items-center min-w-0">
           <img src={readifyLogo} alt="Readify" className="h-10 max-w-[180px] w-auto select-none object-contain" draggable={false} />
         </NavLink>
         <NotificationsBell compact />
       </div>
-      <nav className="flex-1 min-h-0 px-3 space-y-1 overflow-y-auto overscroll-contain scroll-smooth [scrollbar-width:thin]">
+      <nav
+        className="flex-1 min-h-0 px-3 space-y-1 overflow-y-auto overscroll-contain scroll-smooth [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
         {items.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
