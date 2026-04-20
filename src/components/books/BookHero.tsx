@@ -10,6 +10,7 @@ import { InstagramShareCard } from "./InstagramShareCard";
 import { BookChat } from "./BookChat";
 import { EditBookDialog } from "./EditBookDialog";
 import { Heart, ShoppingBag, Share2, Plus, Loader2, Pencil } from "lucide-react";
+import { openAmazon } from "@/lib/amazon";
 
 interface Props {
   book: Book;
@@ -22,9 +23,6 @@ interface Props {
 }
 
 export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onShare, onBookUpdated }: Props) {
-  const amazonUrl = `https://www.amazon.com.br/s?k=${encodeURIComponent(
-    book.isbn_13 || `${book.title} ${book.authors[0] || ""}`,
-  )}&tag=`;
   const progress = book.page_count && ub?.current_page
     ? Math.round((ub.current_page / book.page_count) * 100) : null;
 
@@ -175,12 +173,16 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
 
               <BookChat bookId={book.id} bookTitle={book.title} />
 
-              <a href={amazonUrl} target="_blank" rel="noopener noreferrer">
-                <Button variant="outline" size="lg" className="gap-2 hover:border-primary/60 hover:text-primary">
-                  <ShoppingBag className="w-4 h-4" />
-                  <span className="hidden sm:inline">Amazon</span>
-                </Button>
-              </a>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => openAmazon(book)}
+                className="gap-2 hover:border-primary/60 hover:text-primary"
+                aria-label="Comprar na Amazon"
+              >
+                <ShoppingBag className="w-4 h-4" />
+                <span className="hidden sm:inline">Comprar</span>
+              </Button>
 
               <EditBookDialog
                 book={book}
