@@ -164,9 +164,11 @@ export default function FeedPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => toggleLike.mutate(r)}
+                      aria-label={r.liked_by_me ? "Descurtir resenha" : "Curtir resenha"}
+                      aria-pressed={r.liked_by_me}
                       className={`gap-2 transition-colors ${r.liked_by_me ? "text-primary" : "text-muted-foreground"}`}
                     >
-                      <Heart className={`w-4 h-4 transition-all ${r.liked_by_me ? "fill-primary scale-110" : ""}`} />
+                      <Heart aria-hidden="true" className={`w-4 h-4 transition-all ${r.liked_by_me ? "fill-primary scale-110" : ""}`} />
                       <span className="tabular-nums">{r.likes_count}</span>
                     </Button>
                     <CommentsThread reviewId={r.id} initialCount={r.comments_count || 0} />

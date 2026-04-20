@@ -190,6 +190,23 @@
   .animate-stagger > *:nth-child(7) { animation-delay: 0.26s; }
   .animate-stagger > *:nth-child(8) { animation-delay: 0.30s; }
   .gpu { transform: translateZ(0); will-change: transform; }
+
+  /* Skip-link: visível apenas quando recebe foco via teclado (Tab) */
+  .skip-link {
+    position: fixed;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index: 100;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    font-weight: 600;
+    font-size: 0.875rem;
+    transform: translateY(-200%);
+    transition: transform 0.15s ease-out;
+  }
+  .skip-link:focus { transform: translateY(0); outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
 }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }

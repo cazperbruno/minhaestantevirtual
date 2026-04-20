@@ -25,10 +25,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [user?.id]);
   return (
     <div className="min-h-screen flex">
+      <a href="#main-content" className="skip-link">Pular para o conteúdo</a>
       <Sidebar />
       <div className="flex-1 min-w-0 flex flex-col">
         <MobileHeader />
-        <main key={pathname} className="flex-1 min-w-0 pb-24 md:pb-0 animate-page-in">
+        <main id="main-content" key={pathname} className="flex-1 min-w-0 pb-24 md:pb-0 animate-page-in" tabIndex={-1}>
           {children}
         </main>
       </div>
