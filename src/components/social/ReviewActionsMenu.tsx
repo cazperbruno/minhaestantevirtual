@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Bookmark, Share2, Flag, VolumeX, X } from "lucide-react";
+import { Bookmark, Share2, Flag, VolumeX, X, Instagram } from "lucide-react";
+import { ReviewStoryShareCard } from "./ReviewStoryShareCard";
 import { cn } from "@/lib/utils";
 import { haptic } from "@/lib/haptics";
 import { toast } from "sonner";
@@ -139,6 +140,20 @@ export function ReviewActionsMenu({ review, children }: Props) {
             <ul className="divide-y divide-border/40">
               <ActionRow icon={Bookmark} label="Salvar para depois" onClick={onSave} />
               <ActionRow icon={Share2} label="Compartilhar" onClick={onShare} />
+              <li>
+                <ReviewStoryShareCard
+                  review={review}
+                  trigger={
+                    <button
+                      onClick={close}
+                      className="w-full flex items-center gap-3 px-5 py-4 text-left transition-colors active:bg-muted/60 hover:bg-muted/40"
+                    >
+                      <Instagram className="w-5 h-5 shrink-0" />
+                      <span className="text-sm font-medium">Compartilhar como Story</span>
+                    </button>
+                  }
+                />
+              </li>
               {user && user.id !== review.user_id && (
                 <ActionRow icon={VolumeX} label="Silenciar este leitor" onClick={onMute} />
               )}

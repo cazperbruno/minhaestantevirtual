@@ -27,6 +27,7 @@ const ClubsPage = lazy(() => import("./pages/ClubsPage"));
 const ClubDetailPage = lazy(() => import("./pages/ClubDetailPage"));
 const ClubMembersPage = lazy(() => import("./pages/ClubMembersPage"));
 const PublicProfile = lazy(() => import("./pages/PublicProfile"));
+const PublicWishlistPage = lazy(() => import("./pages/PublicWishlistPage"));
 const ReadersPage = lazy(() => import("./pages/ReadersPage"));
 const TradesPage = lazy(() => import("./pages/TradesPage"));
 const ReportsPage = lazy(() => import("./pages/ReportsPage"));
@@ -67,6 +68,8 @@ const App = () => (
             <Route path="/clubes/:id" element={<ProtectedRoute><ClubDetailPage /></ProtectedRoute>} />
             <Route path="/clubes/:id/membros" element={<ProtectedRoute><ClubMembersPage /></ProtectedRoute>} />
             <Route path="/u/:username" element={<ProtectedRoute><PublicProfile /></ProtectedRoute>} />
+            {/* Lista de desejos pública — sem proteção, acessível por qualquer pessoa */}
+            <Route path="/u/:username/desejos" element={<PublicWishlistPage />} />
             <Route path="/leitores" element={<ProtectedRoute><ReadersPage /></ProtectedRoute>} />
             <Route path="/trocas" element={<ProtectedRoute><TradesPage /></ProtectedRoute>} />
             <Route path="/relatorios" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />

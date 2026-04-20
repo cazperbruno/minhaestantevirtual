@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Camera, Loader2, ScanBarcode, Sparkles, X, Search, BookX,
-  Zap, ZapOff, Check, ArrowRight, BookOpen, FileText, Image as ImageIcon, Plus,
+  Zap, ZapOff, Check, ArrowRight, BookOpen, FileText, Image as ImageIcon, Plus, Repeat,
 } from "lucide-react";
 import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
@@ -50,6 +52,11 @@ export default function ScannerPage() {
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [manualIsbn, setManualIsbn] = useState("");
+  /** Modo contínuo: após adicionar, volta sozinho a escanear em 2s. */
+  const [continuous, setContinuous] = useState(true);
+  /** Histórico da sessão atual de escaneamento (para feedback social-style). */
+  const [sessionLog, setSessionLog] = useState<Array<{ id: string; title: string; cover_url?: string | null }>>([]);
+  const continuousTimerRef = useRef<number | null>(null);
 
   // Barcode state
   const [detected, setDetected] = useState<string | null>(null);
@@ -74,7 +81,10 @@ export default function ScannerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
-  useEffect(() => () => stop(), []);
+  useEffect(() => () => {
+    stop();
+    if (continuousTimerRef.current) clearTimeout(continuousTimerRef.current);
+  }, []);
 
   const stop = () => {
     try { controlsRef.current?.stop(); } catch { /* noop */ }
@@ -178,13 +188,39 @@ export default function ScannerPage() {
           authors: (book as any).authors,
           cover_url: (book as any).cover_url,
         });
-        toast.success("Livro encontrado");
         // Registra a interação 'scan' (alimenta desafios) e concede XP
         if (user) {
           void supabase.from("user_interactions").insert({
             user_id: user.id, book_id: book.id, kind: "scan", weight: 1,
           });
           void awardXp(user.id, "scan_book", { silent: true });
+
+          // Modo contínuo: auto-adiciona à biblioteca como 'not_read' e reagenda scan
+          if (continuous) {
+            await supabase.from("user_books").upsert(
+              { user_id: user.id, book_id: book.id, status: "not_read" },
+              { onConflict: "user_id,book_id" },
+            );
+            setSessionLog((log) => [
+              { id: book.id, title: book.title, cover_url: (book as any).cover_url },
+              ...log,
+            ].slice(0, 10));
+            toast.success(`✓ ${book.title}`, {
+              description: "Adicionado · escaneando próximo…",
+              duration: 1800,
+            });
+            // Reagenda novo scan automaticamente
+            if (continuousTimerRef.current) clearTimeout(continuousTimerRef.current);
+            continuousTimerRef.current = window.setTimeout(() => {
+              setFoundBook(null);
+              setDetected(null);
+              if (mode === "barcode") startBarcode();
+            }, 1500);
+          } else {
+            toast.success("Livro encontrado");
+          }
+        } else {
+          toast.success("Livro encontrado");
         }
       } else {
         vibrate([100, 50, 100]);
@@ -332,25 +368,76 @@ export default function ScannerPage() {
         </header>
 
         {/* Mode switch — Apple-style segmented control */}
-        <div className="inline-flex items-center gap-1 p-1 rounded-full bg-card/60 border border-border mb-6">
-          {(["barcode", "cover", "page"] as Mode[]).map((m) => (
-            <button
-              key={m}
-              onClick={() => { stop(); setMode(m); scanNext(); }}
-              className={cn(
-                "px-4 h-9 text-sm font-medium rounded-full transition-all flex items-center gap-1.5",
-                mode === m
-                  ? "bg-primary text-primary-foreground shadow-glow"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {m === "barcode" && <ScanBarcode className="w-3.5 h-3.5" />}
-              {m === "cover" && <ImageIcon className="w-3.5 h-3.5" />}
-              {m === "page" && <FileText className="w-3.5 h-3.5" />}
-              {MODE_LABEL[m]}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+          <div className="inline-flex items-center gap-1 p-1 rounded-full bg-card/60 border border-border">
+            {(["barcode", "cover", "page"] as Mode[]).map((m) => (
+              <button
+                key={m}
+                onClick={() => { stop(); setMode(m); scanNext(); }}
+                className={cn(
+                  "px-4 h-9 text-sm font-medium rounded-full transition-all flex items-center gap-1.5",
+                  mode === m
+                    ? "bg-primary text-primary-foreground shadow-glow"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {m === "barcode" && <ScanBarcode className="w-3.5 h-3.5" />}
+                {m === "cover" && <ImageIcon className="w-3.5 h-3.5" />}
+                {m === "page" && <FileText className="w-3.5 h-3.5" />}
+                {MODE_LABEL[m]}
+              </button>
+            ))}
+          </div>
+
+          {mode === "barcode" && (
+            <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-card/60 border border-border">
+              <Repeat className={cn("w-3.5 h-3.5 transition-colors", continuous ? "text-primary" : "text-muted-foreground")} />
+              <Label htmlFor="continuous-mode" className="text-xs font-medium cursor-pointer select-none">
+                Modo contínuo
+              </Label>
+              <Switch
+                id="continuous-mode"
+                checked={continuous}
+                onCheckedChange={setContinuous}
+                aria-label="Ativar modo contínuo de escaneamento"
+              />
+            </div>
+          )}
         </div>
+
+        {/* Histórico da sessão atual — feedback visual ao escanear vários livros */}
+        {mode === "barcode" && continuous && sessionLog.length > 0 && (
+          <div className="glass rounded-2xl p-4 mb-6 animate-fade-in">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                Adicionados nesta sessão · {sessionLog.length}
+              </p>
+              <Button variant="ghost" size="sm" onClick={() => setSessionLog([])} className="h-6 text-xs">
+                Limpar
+              </Button>
+            </div>
+            <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-1 snap-x snap-mandatory">
+              {sessionLog.map((b) => (
+                <button
+                  key={b.id}
+                  onClick={() => navigate(`/livro/${b.id}`)}
+                  className="shrink-0 w-14 snap-start group"
+                  aria-label={`Abrir ${b.title}`}
+                >
+                  <div className="aspect-[2/3] rounded-md overflow-hidden bg-muted ring-1 ring-border group-hover:ring-primary/60 transition-all">
+                    {b.cover_url ? (
+                      <img src={b.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                        <BookOpen className="w-4 h-4" />
+                      </div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* === BARCODE MODE === */}
         {mode === "barcode" && (
