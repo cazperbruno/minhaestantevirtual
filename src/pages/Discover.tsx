@@ -16,6 +16,7 @@ import { trackRecsShown, recomputeUserWeights } from "@/lib/ai-tracking";
 
 export default function Discover() {
   const { user } = useAuth();
+  const { active: activeTypes } = useContentFilter();
   const [shelves, setShelves] = useState<Shelf[]>([]);
   const [loading, setLoading] = useState(true);
   const [reading, setReading] = useState<UserBook[]>([]);
