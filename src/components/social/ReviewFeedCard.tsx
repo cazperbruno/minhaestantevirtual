@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { FollowButton } from "@/components/social/FollowButton";
 import { CommentsThread } from "@/components/social/CommentsThread";
 import { QuickSaveButton } from "@/components/books/QuickSaveButton";
+import { LikersAvatars } from "@/components/social/LikersAvatars";
+import { ReviewActionsMenu } from "@/components/social/ReviewActionsMenu";
 import { Heart, Share2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
