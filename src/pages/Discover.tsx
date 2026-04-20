@@ -56,7 +56,22 @@ export default function Discover() {
     return () => { cancelled = true; };
   }, [user]);
 
-  const featured: Book | null = reading[0]?.book ?? shelves[0]?.books?.[0] ?? null;
+  // Filtra prateleiras pelos tipos ativos (livros sem content_type → "book")
+  const visibleShelves = useMemo(() => {
+    return shelves
+      .map((s) => ({
+        ...s,
+        books: s.books.filter((b) => activeTypes.includes(b.content_type || "book")),
+      }))
+      .filter((s) => s.books.length > 0);
+  }, [shelves, activeTypes]);
+
+  const visibleReading = useMemo(
+    () => reading.filter((ub) => activeTypes.includes(ub.book?.content_type || "book")),
+    [reading, activeTypes],
+  );
+
+  const featured: Book | null = visibleReading[0]?.book ?? visibleShelves[0]?.books?.[0] ?? null;
 
   return (
     <AppShell>
