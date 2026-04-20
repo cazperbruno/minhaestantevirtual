@@ -4,14 +4,29 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BookCover } from "@/components/books/BookCover";
 import { Button } from "@/components/ui/button";
 import { CommentsThread } from "@/components/social/CommentsThread";
-import { Heart, Sparkles } from "lucide-react";
+import { Heart, Sparkles, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { profilePath } from "@/lib/profile-path";
 import { FeedRecommendation, useToggleRecommendationLike } from "@/hooks/useRecommendations";
+import { trackBookDismiss, trackRecClick } from "@/lib/ai-tracking";
+import { toast } from "sonner";
+import { haptic } from "@/lib/haptics";
 
 function RecommendationCardImpl({ rec }: { rec: FeedRecommendation }) {
   const toggleLike = useToggleRecommendationLike();
+
+  const handleDismiss = () => {
+    haptic("tap");
+    trackBookDismiss(rec.book_id);
+    toast.success("Não vamos mais te mostrar isso", {
+      description: "Suas recomendações vão ficar melhores.",
+    });
+  };
+
+  const handleBookClick = () => {
+    trackRecClick(rec.book_id);
+  };
 
   return (
     <article className="glass rounded-2xl p-5 animate-fade-in border border-primary/15 bg-gradient-to-br from-primary/5 to-transparent">
@@ -38,7 +53,7 @@ function RecommendationCardImpl({ rec }: { rec: FeedRecommendation }) {
         </div>
       </header>
 
-      <Link to={`/livro/${rec.book_id}`} className="flex gap-4 mb-3 group/book">
+      <Link to={`/livro/${rec.book_id}`} onClick={handleBookClick} className="flex gap-4 mb-3 group/book">
         <BookCover book={rec.book} size="sm" />
         <div className="flex-1 min-w-0 self-center">
           <p className="font-display font-semibold leading-tight group-hover/book:text-primary transition-colors">
@@ -67,6 +82,16 @@ function RecommendationCardImpl({ rec }: { rec: FeedRecommendation }) {
           <span className="tabular-nums">{rec.likes_count}</span>
         </Button>
         <CommentsThread targetId={rec.id} target="recommendation" initialCount={rec.comments_count || 0} />
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleDismiss}
+          aria-label="Não me interessa"
+          className="ml-auto text-muted-foreground hover:text-foreground"
+          title="Não me interessa"
+        >
+          <X aria-hidden="true" className="w-4 h-4" />
+        </Button>
       </div>
     </article>
   );

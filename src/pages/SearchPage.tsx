@@ -3,6 +3,9 @@ import { useSearchParams, Link } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { Loader2, Search, ScanLine, BookOpen, Sparkles } from "lucide-react";
 import { searchBooksGet, lookupIsbn } from "@/lib/books-api";
+import { trackSearch } from "@/lib/ai-tracking";
+import { rerankByTaste } from "@/lib/search-rerank";
+import { useAuth } from "@/hooks/useAuth";
 import { Book } from "@/types/book";
 import { BookCard } from "@/components/books/BookCard";
 import { SearchAutocomplete } from "@/components/search/SearchAutocomplete";
@@ -23,6 +26,7 @@ const TRENDING = [
 ];
 
 export default function SearchPage() {
+  const { user } = useAuth();
   const [params, setParams] = useSearchParams();
   const initialQ = params.get("q") ?? "";
   const [results, setResults] = useState<Book[]>([]);
@@ -41,6 +45,8 @@ export default function SearchPage() {
     lastRunRef.current = value;
     setBusy(true);
     setActiveQuery(value);
+    // AI: registra busca como sinal de interesse temporário (boost por 7 dias)
+    trackSearch(value);
     try {
       const digits = value.replace(/\D/g, "");
       const looksLikeIsbn = digits.length === 10 || digits.length === 13;
@@ -55,7 +61,9 @@ export default function SearchPage() {
         }
       } else {
         const list = await searchBooksGet(value);
-        setResults(list);
+        // AI: reordena por afinidade do usuário (categorias × user_taste)
+        const ranked = user ? await rerankByTaste(list, user.id, value) : list;
+        setResults(ranked);
       }
     } catch (err: any) {
       toast.error(err.message || "Erro na busca");

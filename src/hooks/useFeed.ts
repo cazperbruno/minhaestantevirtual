@@ -36,6 +36,47 @@ interface FeedPage {
  *   primeira página em background; páginas antigas continuam servidas do cache
  *   até o usuário rolar.
  */
+/**
+ * Re-rank inteligente da PRIMEIRA página do feed.
+ *
+ * Busca 2x mais resenhas, calcula score por afinidade (categorias do livro
+ * × gosto do usuário) + recência + autores favoritos + tipo de tab,
+ * e devolve as TOP N. Páginas seguintes ficam cronológicas (preserva cursor).
+ *
+ * Custo: 1 query extra a `user_taste` na primeira página, depois cacheada.
+ */
+async function fetchUserTaste(userId: string): Promise<Map<string, number>> {
+  const { data } = await supabase.rpc("user_taste", { _user_id: userId });
+  const map = new Map<string, number>();
+  (data || []).forEach((t: any) => map.set(t.category, t.weight));
+  return map;
+}
+
+function scoreReview(
+  rev: any,
+  taste: Map<string, number>,
+  lovedAuthors: Set<string>,
+): number {
+  // Recência (decay 24h)
+  const hoursOld = (Date.now() - new Date(rev.created_at).getTime()) / 3_600_000;
+  const recency = Math.exp(-hoursOld / 24);
+
+  // Afinidade por categorias do livro
+  let affinity = 0;
+  const cats: string[] = rev.book?.categories || [];
+  for (const c of cats) affinity += taste.get(c) || 0;
+  affinity = Math.min(affinity, 20);
+
+  // Boost: autor amado
+  const authors: string[] = rev.book?.authors || [];
+  const authorBoost = authors.some((a) => lovedAuthors.has(a)) ? 1.5 : 0;
+
+  // Boost: rating alto na resenha
+  const ratingBoost = rev.rating && rev.rating >= 4 ? 0.5 : 0;
+
+  return recency * (1 + affinity * 0.05) * (1 + authorBoost + ratingBoost);
+}
+
 export function useFeed(tab: "all" | "following") {
   const { user } = useAuth();
   return useInfiniteQuery<FeedPage>({
@@ -43,6 +84,7 @@ export function useFeed(tab: "all" | "following") {
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor,
     queryFn: async ({ pageParam }) => {
+      const isFirstPage = !pageParam;
       let followingIds: string[] = [];
       if (user) {
         const { data: f } = await supabase
@@ -50,19 +92,19 @@ export function useFeed(tab: "all" | "following") {
         followingIds = (f || []).map((x: any) => x.following_id);
       }
 
-      // Tiebreaker por id evita duplicação quando dois reviews têm o mesmo
-      // created_at (até o ms). Cursor é "<created_at>|<id>".
+      // Primeira página: busca 2x mais para re-rank por relevância
+      const fetchSize = isFirstPage && user ? FEED_PAGE_SIZE * 2 : FEED_PAGE_SIZE;
+
       let q = supabase
         .from("reviews")
         .select("*, book:books(*)")
         .eq("is_public", true)
         .order("created_at", { ascending: false })
         .order("id", { ascending: false })
-        .limit(FEED_PAGE_SIZE);
+        .limit(fetchSize);
 
       if (pageParam) {
         const [cursorTs, cursorId] = (pageParam as string).split("|");
-        // (created_at, id) < (cursorTs, cursorId)
         q = q.or(`created_at.lt.${cursorTs},and(created_at.eq.${cursorTs},id.lt.${cursorId})`);
       }
       if (tab === "following") {
@@ -77,7 +119,7 @@ export function useFeed(tab: "all" | "following") {
       const userIds = [...new Set(list.map((r: any) => r.user_id))];
       const reviewIds = list.map((r: any) => r.id);
 
-      const [{ data: profs }, { data: myLikes }] = await Promise.all([
+      const [{ data: profs }, { data: myLikes }, taste] = await Promise.all([
         supabase.from("profiles")
           .select("id,display_name,username,avatar_url,level")
           .in("id", userIds),
@@ -85,21 +127,48 @@ export function useFeed(tab: "all" | "following") {
           ? supabase.from("review_likes")
               .select("review_id").eq("user_id", user.id).in("review_id", reviewIds)
           : Promise.resolve({ data: [] as any[] }),
+        // AI: gosto do usuário (só na primeira página, depois irrelevante)
+        isFirstPage && user ? fetchUserTaste(user.id) : Promise.resolve(new Map<string, number>()),
       ]);
 
       const profMap = new Map((profs || []).map((p: any) => [p.id, p]));
       const likedSet = new Set((myLikes || []).map((l: any) => l.review_id));
 
-      const items: FeedReview[] = list.map((r: any) => ({
+      let items: FeedReview[] = list.map((r: any) => ({
         ...r,
         profile: profMap.get(r.user_id),
         liked_by_me: likedSet.has(r.id),
       }));
 
+      // AI: re-rank na primeira página (apenas se temos sinal de gosto)
+      if (isFirstPage && user && (taste as Map<string, number>).size > 0) {
+        // Carrega autores amados (rating>=4) do cache se disponível
+        const { data: loved } = await supabase
+          .from("user_books")
+          .select("book:books(authors)")
+          .eq("user_id", user.id)
+          .gte("rating", 4)
+          .limit(50);
+        const lovedAuthors = new Set<string>();
+        (loved || []).forEach((ub: any) =>
+          (ub.book?.authors || []).forEach((a: string) => lovedAuthors.add(a)),
+        );
+
+        items = items
+          .map((r) => ({ r, s: scoreReview(r, taste as Map<string, number>, lovedAuthors) }))
+          .sort((a, b) => b.s - a.s)
+          .slice(0, FEED_PAGE_SIZE)
+          .map(({ r }) => r);
+      }
+
       const last = items[items.length - 1];
+      // Cursor: usa o created_at mais antigo retornado (não o último do re-rank)
+      const oldestInBatch = list[list.length - 1];
       return {
         items,
-        nextCursor: items.length === FEED_PAGE_SIZE ? `${last.created_at}|${last.id}` : null,
+        nextCursor: list.length >= fetchSize
+          ? `${oldestInBatch.created_at}|${oldestInBatch.id}`
+          : null,
       };
     },
     ...CACHE.SOCIAL,

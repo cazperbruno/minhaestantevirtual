@@ -11,6 +11,7 @@ import { Sparkles, ChevronRight, Library, ScanLine, Infinity as InfinityIcon } f
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchShelves, type Shelf } from "@/lib/recommend-api";
+import { trackRecsShown, recomputeUserWeights } from "@/lib/ai-tracking";
 
 export default function Discover() {
   const { user } = useAuth();
@@ -38,6 +39,17 @@ export default function Discover() {
       setShelves(shelvesData);
       setReading(readingData);
       setLoading(false);
+
+      // AI: contabiliza recomendações exibidas (denominador do CTR)
+      const totalRecs = shelvesData.reduce((sum, s) => sum + (s.books?.length || 0), 0);
+      if (totalRecs > 0) trackRecsShown(totalRecs);
+
+      // AI: 1x por sessão, recalcula pesos personalizados (collab/content/trending)
+      const sessionKey = `ai-weights-recomputed-${user.id}`;
+      if (!sessionStorage.getItem(sessionKey)) {
+        sessionStorage.setItem(sessionKey, "1");
+        recomputeUserWeights(user.id);
+      }
     })();
     return () => { cancelled = true; };
   }, [user]);
