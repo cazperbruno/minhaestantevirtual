@@ -66,6 +66,9 @@ export function BookSidePanel({ book, ub, onUpdate, onCommit }: Props) {
           initialLoan={!!ub.available_for_loan}
           compact
         />
+        <div className="mt-3">
+          <RecommendBookDialog bookId={book.id} bookTitle={book.title} />
+        </div>
       </div>
 
       {ub.status === "read" && (
