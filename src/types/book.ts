@@ -1,5 +1,21 @@
 export type BookStatus = "not_read" | "reading" | "read" | "wishlist";
 
+export type ContentType = "book" | "manga" | "comic" | "magazine";
+
+export const CONTENT_TYPE_LABEL: Record<ContentType, string> = {
+  book: "Livros",
+  manga: "Mangás",
+  comic: "Quadrinhos",
+  magazine: "Revistas",
+};
+
+export const CONTENT_TYPE_ICON: Record<ContentType, string> = {
+  book: "📚",
+  manga: "📖",
+  comic: "🦸",
+  magazine: "📰",
+};
+
 export interface Book {
   id: string;
   isbn_13?: string | null;
@@ -16,6 +32,9 @@ export interface Book {
   categories?: string[] | null;
   source?: string | null;
   source_id?: string | null;
+  content_type?: ContentType;
+  series_id?: string | null;
+  volume_number?: number | null;
 }
 
 export interface UserBook {
