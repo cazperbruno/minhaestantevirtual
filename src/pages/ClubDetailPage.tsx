@@ -64,6 +64,9 @@ export default function ClubDetailPage() {
   }, [id]);
 
   const isMember = !!user && members.some((m) => m.user_id === user.id);
+  const isOwner = !!user && club?.owner_id === user.id;
+  const { data: myRequest } = useMyJoinRequest(user?.id, id);
+  const requestJoin = useRequestJoin(id || "", user?.id);
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,19 +128,52 @@ export default function ClubDetailPage() {
         <div className="mb-4">
           <ClubBookOfTheMonth
             clubId={id!}
-            isOwner={club.owner_id === user?.id}
+            isOwner={isOwner}
             isMember={isMember}
             onCrown={() => load()}
           />
         </div>
+
+        {isOwner && (
+          <div className="mb-4">
+            <ClubAdminPanel clubId={id!} ownerId={user!.id} />
+          </div>
+        )}
       </div>
 
       <div className="px-5 md:px-10 max-w-4xl mx-auto pb-24">
         {!isMember ? (
           <div className="glass rounded-2xl p-8 text-center">
+            <div className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground mb-3">
+              {club.is_public ? (<><Globe2 className="w-3.5 h-3.5" /> Clube público</>) : (<><Lock className="w-3.5 h-3.5" /> Clube privado</>)}
+            </div>
             <Users className="w-10 h-10 text-primary mx-auto mb-3" />
-            <p className="mb-4">Entre no clube para ver e enviar mensagens</p>
-            <Button variant="hero" onClick={join}>Entrar no clube</Button>
+            {club.is_public ? (
+              <>
+                <p className="mb-4">Entre no clube para ver e enviar mensagens</p>
+                <Button variant="hero" onClick={join}>Entrar no clube</Button>
+              </>
+            ) : myRequest?.status === "pending" ? (
+              <>
+                <p className="mb-2 font-semibold">Solicitação enviada</p>
+                <p className="text-sm text-muted-foreground inline-flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" /> Aguardando aprovação do administrador
+                </p>
+              </>
+            ) : myRequest?.status === "rejected" ? (
+              <p className="text-sm text-muted-foreground">Sua solicitação anterior foi recusada.</p>
+            ) : (
+              <>
+                <p className="mb-4">Esse clube é privado. Solicite entrada para participar das discussões.</p>
+                <Button
+                  variant="hero"
+                  disabled={requestJoin.isPending || !user}
+                  onClick={() => requestJoin.mutate(null)}
+                >
+                  {requestJoin.isPending ? "Enviando…" : "Solicitar entrada"}
+                </Button>
+              </>
+            )}
           </div>
         ) : (
           <>
