@@ -26,7 +26,7 @@ import { NotificationsBell } from "@/components/social/NotificationsBell";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import readifyLogo from "@/assets/readify-logo-v3.png";
+import readifyLogo from "@/assets/readify-logo-v5.png";
 
 type Item = { to: string; label: string; icon: typeof Book; group: string };
 
@@ -83,7 +83,7 @@ export function MobileHeader() {
           <SheetContent side="left" className="p-0 w-[85vw] max-w-[340px] flex flex-col">
             <SheetHeader className="px-5 pt-6 pb-4 border-b border-border text-left">
               <SheetTitle className="sr-only">Readify</SheetTitle>
-              <img src={readifyLogo} alt="Readify" className="h-8 w-auto select-none" draggable={false} />
+               <img src={readifyLogo} alt="Readify" className="h-8 max-w-[180px] w-auto select-none" draggable={false} />
               <p className="text-xs text-muted-foreground mt-1">Sua biblioteca pessoal</p>
             </SheetHeader>
 
@@ -139,7 +139,7 @@ export function MobileHeader() {
         </Sheet>
 
         <NavLink to="/" className="flex items-center" aria-label="Readify">
-          <img src={readifyLogo} alt="Readify" className="h-7 w-auto select-none" draggable={false} />
+          <img src={readifyLogo} alt="Readify" className="h-7 max-w-[150px] w-auto select-none" draggable={false} />
         </NavLink>
 
         <NotificationsBell compact />
