@@ -16,6 +16,7 @@ import { profilePath } from "@/lib/profile-path";
 import { useFeed, useToggleReviewLike, FeedReview } from "@/hooks/useFeed";
 import { usePublicRecommendations } from "@/hooks/useRecommendations";
 import { RecommendationCard } from "@/components/books/RecommendationCard";
+import { ContentTypeFilter, useContentFilter } from "@/components/books/ContentTypeFilter";
 
 export default function FeedPage() {
   const [tab, setTab] = useState<"all" | "following">("all");
@@ -35,20 +36,25 @@ export default function FeedPage() {
     return out.slice(0, 5); // só os 5 mais recentes no topo
   }, [recsData]);
 
-  // Achata + dedupe (realtime pode causar overlap entre páginas).
+  const { active: activeTypes, available } = useContentFilter();
+
+  // Achata + dedupe (realtime pode causar overlap entre páginas) e
+  // filtra por content_type ativo (livro relacionado).
   const reviews = useMemo<FeedReview[]>(() => {
     const seen = new Set<string>();
     const out: FeedReview[] = [];
+    const typeSet = new Set(activeTypes);
     for (const page of data?.pages ?? []) {
       for (const r of page.items) {
-        if (!seen.has(r.id)) {
-          seen.add(r.id);
-          out.push(r);
-        }
+        if (seen.has(r.id)) continue;
+        const t = (r.book?.content_type ?? "book") as string;
+        if (!typeSet.has(t as any)) continue;
+        seen.add(r.id);
+        out.push(r);
       }
     }
     return out;
-  }, [data]);
+  }, [data, activeTypes]);
 
   // IntersectionObserver — dispara fetch quando sentinela entra na viewport.
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -75,12 +81,14 @@ export default function FeedPage() {
           </p>
         </header>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="mb-6 sticky top-0 z-10 -mx-5 px-5 md:mx-0 md:px-0 py-2 bg-background/85 backdrop-blur-xl border-b border-border/30">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="mb-4 sticky top-0 z-10 -mx-5 px-5 md:mx-0 md:px-0 py-2 bg-background/85 backdrop-blur-xl border-b border-border/30">
           <TabsList className="grid grid-cols-2 max-w-xs">
             <TabsTrigger value="all" className="gap-2"><MessageSquare className="w-3.5 h-3.5" /> Todos</TabsTrigger>
             <TabsTrigger value="following" className="gap-2"><Users className="w-3.5 h-3.5" /> Seguindo</TabsTrigger>
           </TabsList>
         </Tabs>
+
+        {available.length > 1 && <ContentTypeFilter className="mb-5" />}
 
         {tab === "all" && recs.length > 0 && (
           <section className="mb-6 space-y-4">
