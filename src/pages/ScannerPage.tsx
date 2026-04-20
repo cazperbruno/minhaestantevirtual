@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Camera, Loader2, ScanBarcode, Upload, Sparkles, X, Search, BookX, Zap, ZapOff } from "lucide-react";
+import { Camera, Loader2, ScanBarcode, Upload, Sparkles, X, Search, BookX, Zap, ZapOff, Check, ArrowRight } from "lucide-react";
 import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 import { lookupIsbn, recognizeCover, searchBooksGet } from "@/lib/books-api";
@@ -36,6 +36,7 @@ export default function ScannerPage() {
   const [recognized, setRecognized] = useState<{ title?: string; author?: string } | null>(null);
   const [notFoundIsbn, setNotFoundIsbn] = useState<string | null>(null);
   const [detected, setDetected] = useState<string | null>(null);
+  const [foundBook, setFoundBook] = useState<{ id: string; title: string; authors?: string[]; cover_url?: string | null } | null>(null);
 
   // Auto-iniciar câmera no modo barcode (Steve Jobs: zero fricção)
   useEffect(() => {
@@ -140,12 +141,18 @@ export default function ScannerPage() {
   const resolveIsbn = async (isbn: string) => {
     setBusy(true);
     setNotFoundIsbn(null);
+    setFoundBook(null);
     try {
       const book = await lookupIsbn(isbn);
       if (book?.id) {
         vibrate([20, 30, 60]); // success pattern
+        setFoundBook({
+          id: book.id,
+          title: book.title,
+          authors: (book as any).authors,
+          cover_url: (book as any).cover_url,
+        });
         toast.success("Livro encontrado");
-        navigate(`/livro/${book.id}`);
       } else {
         vibrate([100, 50, 100]); // error pattern
         setNotFoundIsbn(isbn);
@@ -157,6 +164,14 @@ export default function ScannerPage() {
       setBusy(false);
       lockRef.current = false;
     }
+  };
+
+  const scanNext = () => {
+    setFoundBook(null);
+    setNotFoundIsbn(null);
+    setDetected(null);
+    setManualIsbn("");
+    startBarcode();
   };
 
   const submitManual = (e: React.FormEvent) => {
