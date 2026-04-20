@@ -8,15 +8,17 @@ import { BookCard } from "@/components/books/BookCard";
 import { BookCover } from "@/components/books/BookCover";
 import { SearchAutocomplete } from "@/components/search/SearchAutocomplete";
 import { ContentTypeFilter, useContentFilter } from "@/components/books/ContentTypeFilter";
-import { Sparkles, ChevronRight, Library, ScanLine, Infinity as InfinityIcon } from "lucide-react";
+import { Sparkles, ChevronRight, Library, ScanLine, Infinity as InfinityIcon, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchShelves, type Shelf } from "@/lib/recommend-api";
 import { trackRecsShown, recomputeUserWeights } from "@/lib/ai-tracking";
+import { useMySeries } from "@/hooks/useMySeries";
 
 export default function Discover() {
   const { user } = useAuth();
   const { active: activeTypes } = useContentFilter();
+  const { data: mySeries } = useMySeries();
   const [shelves, setShelves] = useState<Shelf[]>([]);
   const [loading, setLoading] = useState(true);
   const [reading, setReading] = useState<UserBook[]>([]);
