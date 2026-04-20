@@ -20,7 +20,7 @@ export function InstagramShareCard({ book, rating, progress }: Props) {
   const generate = async (): Promise<Blob | null> => {
     if (!cardRef.current) return null;
     const canvas = await html2canvas(cardRef.current, {
-      backgroundColor: "#0F0E0C",
+      backgroundColor: "#000000",
       scale: 2,
       useCORS: true,
       allowTaint: true,
@@ -65,8 +65,14 @@ export function InstagramShareCard({ book, rating, progress }: Props) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="lg" className="gap-2">
+        <Button
+          variant="ghost"
+          size="lg"
+          className="gap-2 rounded-none hover:bg-primary/10 hover:text-primary border-0"
+          aria-label="Compartilhar no Instagram"
+        >
           <Instagram className="w-4 h-4" />
+          <span className="hidden sm:inline">Instagram</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
@@ -77,13 +83,13 @@ export function InstagramShareCard({ book, rating, progress }: Props) {
             className="relative w-[360px] h-[640px] mx-auto flex flex-col items-center justify-between p-8"
             style={{
               background: book.cover_url
-                ? `linear-gradient(180deg, hsla(30,15%,5%,0.55), hsla(30,15%,5%,0.95)), url(${book.cover_url}) center/cover`
-                : "linear-gradient(135deg, hsl(36 60% 52%), hsl(28 80% 60%))",
+                ? `linear-gradient(180deg, hsla(0,0%,0%,0.55), hsla(0,0%,0%,0.95)), url(${book.cover_url}) center/cover`
+                : "linear-gradient(135deg, hsl(4 100% 59%), hsl(0 0% 0%))",
             }}
           >
             <div className="text-center">
-              <p className="text-xs uppercase tracking-[0.3em] text-amber-200/80 font-semibold">Página</p>
-              <p className="text-xs text-white/60 mt-1">minha leitura</p>
+              <p className="text-xs uppercase tracking-[0.3em] font-semibold" style={{ color: "hsl(4 100% 70%)" }}>Readify</p>
+              <p className="text-xs mt-1" style={{ color: "hsla(0,0%,100%,0.6)" }}>minha leitura</p>
             </div>
             {book.cover_url && (
               <img
@@ -95,15 +101,15 @@ export function InstagramShareCard({ book, rating, progress }: Props) {
               />
             )}
             <div className="text-center w-full">
-              <h2 className="font-serif text-2xl font-bold text-white leading-tight">{book.title}</h2>
-              {book.authors[0] && <p className="text-sm text-white/70 mt-1 italic">{book.authors[0]}</p>}
-              {rating ? <p className="text-amber-300 text-lg mt-3 tracking-widest">{stars}</p> : null}
+              <h2 className="font-serif text-2xl font-bold leading-tight" style={{ color: "hsl(0 0% 100%)" }}>{book.title}</h2>
+              {book.authors[0] && <p className="text-sm mt-1 italic" style={{ color: "hsla(0,0%,100%,0.7)" }}>{book.authors[0]}</p>}
+              {rating ? <p className="text-lg mt-3 tracking-widest" style={{ color: "hsl(4 100% 65%)" }}>{stars}</p> : null}
               {progress != null && progress > 0 && (
                 <div className="mt-4">
-                  <div className="h-1.5 bg-white/15 rounded-full overflow-hidden">
-                    <div className="h-full bg-amber-300" style={{ width: `${progress}%` }} />
+                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "hsla(0,0%,100%,0.15)" }}>
+                    <div className="h-full" style={{ width: `${progress}%`, background: "hsl(4 100% 59%)" }} />
                   </div>
-                  <p className="text-xs text-white/70 mt-1.5">{progress}% lido</p>
+                  <p className="text-xs mt-1.5" style={{ color: "hsla(0,0%,100%,0.7)" }}>{progress}% lido</p>
                 </div>
               )}
             </div>

@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -12,9 +12,10 @@ interface Props {
 
 export function BookSynopsis({ bookId, description, onDescriptionUpdated }: Props) {
   const [loading, setLoading] = useState(false);
-  const has = description && description.trim().length > 40;
+  const has = !!(description && description.trim().length > 40);
+  const autoTriedRef = useRef<string | null>(null);
 
-  const generate = async () => {
+  const generate = async (silent = false) => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("generate-synopsis", {
@@ -23,23 +24,39 @@ export function BookSynopsis({ bookId, description, onDescriptionUpdated }: Prop
       if (error) throw error;
       if (data?.description) {
         onDescriptionUpdated(data.description);
-        toast.success("Sinopse gerada");
+        if (!silent) toast.success("Sinopse gerada");
       }
     } catch (e) {
-      toast.error("Não foi possível gerar a sinopse");
+      if (!silent) toast.error("Não foi possível gerar a sinopse");
     } finally {
       setLoading(false);
     }
   };
 
+  // Auto-generate silently on first view when missing — never leave empty
+  useEffect(() => {
+    if (has) return;
+    if (autoTriedRef.current === bookId) return;
+    autoTriedRef.current = bookId;
+    generate(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookId, has]);
+
   return (
     <article>
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-display text-2xl md:text-3xl font-semibold">Sobre o livro</h2>
-        {!has && (
-          <Button variant="hero" size="sm" onClick={generate} disabled={loading} className="gap-2">
-            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-            {loading ? "Gerando…" : "Gerar com IA"}
+        {has && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => generate(false)}
+            disabled={loading}
+            className="gap-1.5 text-xs text-muted-foreground hover:text-primary"
+            aria-label="Regerar sinopse com IA"
+          >
+            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+            Regerar
           </Button>
         )}
       </div>
@@ -48,16 +65,19 @@ export function BookSynopsis({ bookId, description, onDescriptionUpdated }: Prop
           {description}
         </p>
       ) : loading ? (
-        <div className="space-y-2.5">
-          <div className="h-4 bg-muted/40 rounded animate-pulse" />
-          <div className="h-4 bg-muted/40 rounded animate-pulse w-[95%]" />
-          <div className="h-4 bg-muted/40 rounded animate-pulse w-[88%]" />
-          <div className="h-4 bg-muted/40 rounded animate-pulse w-[92%]" />
+        <div className="space-y-2.5" aria-label="Gerando sinopse">
+          <div className="h-4 skeleton-shimmer rounded" />
+          <div className="h-4 skeleton-shimmer rounded w-[95%]" />
+          <div className="h-4 skeleton-shimmer rounded w-[88%]" />
+          <div className="h-4 skeleton-shimmer rounded w-[92%]" />
+          <p className="text-xs text-muted-foreground pt-1 flex items-center gap-1.5">
+            <Sparkles className="w-3 h-3 text-primary" /> Gerando sinopse com IA…
+          </p>
         </div>
       ) : (
-        <p className="italic text-muted-foreground">
-          Sinopse indisponível. Clique em <span className="text-primary font-medium">"Gerar com IA"</span> para criar uma agora.
-        </p>
+        <Button variant="hero" size="sm" onClick={() => generate(false)} className="gap-2">
+          <Sparkles className="w-3.5 h-3.5" /> Gerar sinopse com IA
+        </Button>
       )}
     </article>
   );
