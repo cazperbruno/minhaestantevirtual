@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
-import { Loader2, Search, ScanLine, BookOpen, Sparkles } from "lucide-react";
+import { Loader2, Search, ScanLine, BookOpen, Sparkles, ShoppingCart, ExternalLink } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { searchBooksGet, lookupIsbn } from "@/lib/books-api";
 import { searchManga } from "@/lib/anilist-api";
 import { trackSearch } from "@/lib/ai-tracking";
