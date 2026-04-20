@@ -6,6 +6,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { LazyErrorBoundary } from "@/components/LazyErrorBoundary";
 import Auth from "./pages/Auth";
 
 // Code-splitting: páginas carregadas sob demanda
@@ -49,6 +50,7 @@ const App = () => (
       <Toaster />
       <Sonner theme="dark" />
       <BrowserRouter>
+        <LazyErrorBoundary>
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/auth" element={<Auth />} />
@@ -82,6 +84,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
+        </LazyErrorBoundary>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
