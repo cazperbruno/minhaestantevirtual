@@ -5,8 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { ShoppingCart, Eye, MousePointerClick, TrendingUp, ExternalLink, Wallet } from "lucide-react";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { ShoppingCart, Eye, MousePointerClick, TrendingUp, ExternalLink, Wallet, ShieldAlert } from "lucide-react";
 import { openAmazon } from "@/lib/amazon";
 import type { Book } from "@/types/book";
 
@@ -45,20 +45,29 @@ const PERIOD_OPTIONS = [
 
 /**
  * Painel de afiliados Amazon — agrega cliques (kind='click', meta.target='amazon')
- * e views (kind='view') do `user_interactions` do usuário para calcular CTR
- * por livro e identificar campeões de conversão.
+ * e views (kind='view') para calcular CTR por livro e identificar campeões de
+ * conversão.
  *
- * Privacidade: usa apenas as interações do próprio usuário (RLS já garante isso).
+ * **Restrito a admins.** Usa a RPC SECURITY DEFINER `get_affiliate_interactions_admin`,
+ * que retorna dados globais (todos os usuários) e bloqueia chamadas de não-admins
+ * no servidor. O componente também esconde a UI inteira para não-admins como
+ * defesa em profundidade.
  */
 export function AffiliateClicksPanel() {
-  const { user } = useAuth();
+  const { isAdmin, loading: adminLoading } = useIsAdmin();
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("30d");
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [books, setBooks] = useState<Map<string, BookRow>>(new Map());
 
   useEffect(() => {
-    if (!user) return;
+    if (adminLoading) return;
+    if (!isAdmin) {
+      setInteractions([]);
+      setBooks(new Map());
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -72,13 +81,9 @@ export function AffiliateClicksPanel() {
         return d.toISOString();
       })();
 
-      let q = supabase
-        .from("user_interactions")
-        .select("book_id, kind, created_at, meta")
-        .eq("user_id", user.id)
-        .in("kind", ["click", "view"]);
-      if (from) q = q.gte("created_at", from);
-      const { data, error } = await q.limit(5000);
+      const { data, error } = await supabase.rpc("get_affiliate_interactions_admin", {
+        _from: from,
+      });
       if (cancelled) return;
 
       if (error || !data) {
@@ -108,7 +113,7 @@ export function AffiliateClicksPanel() {
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [user, period]);
+  }, [isAdmin, adminLoading, period]);
 
   // Agregação: clicks Amazon vs views por book_id
   const ranked: RankedBook[] = useMemo(() => {
