@@ -49,14 +49,21 @@ export function useFeed(tab: "all" | "following") {
         followingIds = (f || []).map((x: any) => x.following_id);
       }
 
+      // Tiebreaker por id evita duplicação quando dois reviews têm o mesmo
+      // created_at (até o ms). Cursor é "<created_at>|<id>".
       let q = supabase
         .from("reviews")
         .select("*, book:books(*)")
         .eq("is_public", true)
         .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
         .limit(FEED_PAGE_SIZE);
 
-      if (pageParam) q = q.lt("created_at", pageParam as string);
+      if (pageParam) {
+        const [cursorTs, cursorId] = (pageParam as string).split("|");
+        // (created_at, id) < (cursorTs, cursorId)
+        q = q.or(`created_at.lt.${cursorTs},and(created_at.eq.${cursorTs},id.lt.${cursorId})`);
+      }
       if (tab === "following") {
         if (followingIds.length === 0) return { items: [], nextCursor: null };
         q = q.in("user_id", followingIds);
@@ -88,9 +95,10 @@ export function useFeed(tab: "all" | "following") {
         liked_by_me: likedSet.has(r.id),
       }));
 
+      const last = items[items.length - 1];
       return {
         items,
-        nextCursor: items.length === FEED_PAGE_SIZE ? items[items.length - 1].created_at : null,
+        nextCursor: items.length === FEED_PAGE_SIZE ? `${last.created_at}|${last.id}` : null,
       };
     },
     ...CACHE.SOCIAL,

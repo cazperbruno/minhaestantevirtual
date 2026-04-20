@@ -55,14 +55,9 @@ export function useRealtimeInvalidation() {
           }
         },
       )
-      // -------- NOTIFICATIONS (sempre minhas, RLS já garante) --------
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
-        () => {
-          queryClient.invalidateQueries({ queryKey: qk.notifications(userId) });
-        },
-      )
+      // NOTE: notifications NÃO está no publication supabase_realtime (removido por
+      // segurança na Onda 2.5 — evita broadcast cross-user). A UI atualiza via
+      // polling de 15s (CACHE.LIVE) em useNotifications.
       // -------- REVIEWS (qualquer mudança afeta o feed global) --------
       .on(
         "postgres_changes",
