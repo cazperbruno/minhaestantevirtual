@@ -6,6 +6,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { Book, UserBook } from "@/types/book";
 import { BookCard } from "@/components/books/BookCard";
 import { BookCover } from "@/components/books/BookCover";
+import { CinematicShelf, ShelfItem } from "@/components/books/CinematicShelf";
+import { ContinueReadingRow } from "@/components/books/ContinueReadingRow";
 import { SearchAutocomplete } from "@/components/search/SearchAutocomplete";
 import { ContentTypeFilter, useContentFilter } from "@/components/books/ContentTypeFilter";
 import { Sparkles, ChevronRight, Library, ScanLine, Infinity as InfinityIcon, Layers } from "lucide-react";
