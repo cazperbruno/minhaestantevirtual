@@ -4,14 +4,29 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BookCover } from "@/components/books/BookCover";
 import { Button } from "@/components/ui/button";
 import { CommentsThread } from "@/components/social/CommentsThread";
-import { Heart, Sparkles } from "lucide-react";
+import { Heart, Sparkles, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { profilePath } from "@/lib/profile-path";
 import { FeedRecommendation, useToggleRecommendationLike } from "@/hooks/useRecommendations";
+import { trackBookDismiss, trackRecClick } from "@/lib/ai-tracking";
+import { toast } from "sonner";
+import { haptic } from "@/lib/haptics";
 
 function RecommendationCardImpl({ rec }: { rec: FeedRecommendation }) {
   const toggleLike = useToggleRecommendationLike();
+
+  const handleDismiss = () => {
+    haptic("tap");
+    trackBookDismiss(rec.book_id);
+    toast.success("Não vamos mais te mostrar isso", {
+      description: "Suas recomendações vão ficar melhores.",
+    });
+  };
+
+  const handleBookClick = () => {
+    trackRecClick(rec.book_id);
+  };
 
   return (
     <article className="glass rounded-2xl p-5 animate-fade-in border border-primary/15 bg-gradient-to-br from-primary/5 to-transparent">
