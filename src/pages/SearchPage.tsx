@@ -28,6 +28,29 @@ const TRENDING = [
   "Dom Casmurro",
 ];
 
+const AMAZON_TAG =
+  (import.meta.env.VITE_AMAZON_AFFILIATE_TAG as string | undefined) || "cazperbruno-20";
+
+/** Constrói URL Amazon BR de busca por termo livre, com tag de afiliado. */
+function amazonSearchUrlForQuery(query: string): string {
+  const params = new URLSearchParams({ k: query });
+  if (AMAZON_TAG) params.set("tag", AMAZON_TAG);
+  return `https://www.amazon.com.br/s?${params.toString()}`;
+}
+
+/** Registra clique Amazon vindo de busca sem resultados (sem book_id). */
+async function trackAmazonFallbackClick(query: string) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    // Usa search_log para o termo + meta indicando conversão Amazon.
+    await supabase.from("search_log").insert({
+      user_id: user.id,
+      query: `__amazon_fallback__:${query.toLowerCase().trim()}`,
+    });
+  } catch { /* silent */ }
+}
+
 export default function SearchPage() {
   const { user } = useAuth();
   const { active: activeTypes, available } = useContentFilter();
