@@ -1,11 +1,13 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sparkles, Send, Loader2, X } from "lucide-react";
-import ReactMarkdown from "react-markdown";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+// Lazy: ReactMarkdown só carrega quando o chat abre (economiza ~50kB do BookDetail)
+const ReactMarkdown = lazy(() => import("react-markdown"));
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -155,7 +157,9 @@ export function BookChat({ bookId, bookTitle }: { bookId: string; bookTitle: str
                 )}>
                   {m.role === "assistant" ? (
                     <div className="prose prose-sm prose-invert max-w-none prose-p:my-1.5 prose-headings:my-2">
-                      <ReactMarkdown>{m.content || "…"}</ReactMarkdown>
+                      <Suspense fallback={<span className="text-muted-foreground">…</span>}>
+                        <ReactMarkdown>{m.content || "…"}</ReactMarkdown>
+                      </Suspense>
                     </div>
                   ) : (
                     m.content
