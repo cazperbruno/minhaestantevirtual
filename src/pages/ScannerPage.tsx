@@ -239,7 +239,7 @@ export default function ScannerPage() {
     // Dedupe por ISBN dentro da sessão atual (ignora itens já salvos)
     const exists = batch.some((b) => b.isbn === isbn && b.status !== "saved");
     if (exists) {
-      vibrate(20);
+      haptic("tap");
       toast.info("Já está no lote", { duration: 1200 });
       rescheduleScan(800);
       return;
@@ -257,7 +257,7 @@ export default function ScannerPage() {
     try {
       const book = await lookupIsbn(isbn);
       if (book?.id) {
-        vibrate([20, 30, 60]);
+        haptic("success");
         setBatch((prev) => prev.map((it) => it.key === key ? {
           ...it,
           status: "ready",
@@ -272,7 +272,7 @@ export default function ScannerPage() {
           });
         }
       } else {
-        vibrate([100, 50, 100]);
+        haptic("error");
         setBatch((prev) => prev.map((it) => it.key === key ? {
           ...it, status: "error", errorMessage: "ISBN não encontrado",
         } : it));
@@ -299,7 +299,7 @@ export default function ScannerPage() {
     try {
       const book = await lookupIsbn(isbn);
       if (book?.id) {
-        vibrate([20, 30, 60]);
+        haptic("success");
         setFoundBook({
           id: book.id,
           title: book.title,
@@ -335,7 +335,7 @@ export default function ScannerPage() {
           toast.success("Livro encontrado");
         }
       } else {
-        vibrate([100, 50, 100]);
+        haptic("error");
         setNotFoundIsbn(isbn);
       }
     } catch (e: any) {
@@ -393,7 +393,7 @@ export default function ScannerPage() {
       const books = await searchBooksGet(rec.query);
       setCoverResults(books.slice(0, 12));
       if (books.length === 0) toast.warning("Nenhum livro encontrado para esta capa");
-      else vibrate([20, 30, 60]);
+      else haptic("success");
     } catch (e: any) {
       toast.error(e.message || "Erro ao reconhecer capa");
     } finally {
@@ -414,7 +414,7 @@ export default function ScannerPage() {
       if (rec.candidates.length === 0) {
         toast.warning("Não consegui identificar o livro a partir desta página");
       } else {
-        vibrate([20, 30, 60]);
+        haptic("success");
         toast.success(`Encontramos ${rec.candidates.length} possível${rec.candidates.length === 1 ? "" : "is"}`);
       }
     } catch (e: any) {
