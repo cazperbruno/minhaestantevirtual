@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Database, Sparkles, Loader2, RefreshCw, BookOpen, Image, FileText, Tag, Wand2, GitMerge, Brush, Zap } from "lucide-react";
+import { Database, Sparkles, Loader2, RefreshCw, BookOpen, Image, FileText, Tag, Wand2, GitMerge, Brush, Zap, Download } from "lucide-react";
 
 interface Quality {
   total_books: number;
@@ -30,7 +30,7 @@ export function CatalogQualityPanel() {
   const [normQueue, setNormQueue] = useState<QueueStat[]>([]);
   const [mergeSuggestions, setMergeSuggestions] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [draining, setDraining] = useState<null | "enrich" | "normalize" | "clean" | "clean-aggressive">(null);
+  const [draining, setDraining] = useState<null | "enrich" | "normalize" | "clean" | "clean-aggressive" | "seed">(null);
 
   const aggregate = (rows: any[] | null): QueueStat[] => {
     if (!rows) return [];
@@ -92,6 +92,26 @@ export function CatalogQualityPanel() {
     }
   };
 
+  const runSeed = async () => {
+    setDraining("seed");
+    try {
+      const { data, error } = await supabase.functions.invoke("seed-book-database", {
+        body: { mode: "mixed", limit: 200 },
+      });
+      if (error) throw error;
+      const d: any = data ?? {};
+      toast.success(
+        `Importou ${d.inserted ?? 0} livros novos · ${d.already_existed ?? 0} já existiam · ` +
+        `${d.enqueued_for_enrichment ?? 0} na fila de enriquecimento`,
+      );
+      await load();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao importar");
+    } finally {
+      setDraining(null);
+    }
+  };
+
   if (loading) {
     return (
       <Card className="p-6 space-y-4">
@@ -135,6 +155,17 @@ export function CatalogQualityPanel() {
         <div className="flex items-center gap-2 flex-wrap">
           <Button variant="ghost" size="sm" onClick={load} aria-label="Atualizar">
             <RefreshCw className="w-4 h-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={runSeed}
+            disabled={draining !== null}
+            className="gap-2"
+            title="Importa 200 livros públicos novos do OpenLibrary (idempotente)"
+          >
+            {draining === "seed" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            Importar lote
           </Button>
           <Button
             size="sm"
