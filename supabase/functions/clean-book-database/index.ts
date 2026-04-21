@@ -354,7 +354,7 @@ Deno.serve(async (req) => {
                 similarity_score: 1.0,
                 status: "pending",
               },
-              { onConflict: "canonical_id,duplicate_id", ignoreDuplicates: true },
+              { onConflict: "duplicate_id", ignoreDuplicates: true },
             );
           if (!insErr) summary.duplicate_suggestions_created++;
         }
