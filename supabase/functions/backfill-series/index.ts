@@ -442,6 +442,19 @@ Deno.serve(async (req) => {
             .in("book_id", allIds)
             .in("status", ["pending", "processing"]);
 
+          // Auto-enriquecimento: dispara em background para descobrir total real
+          // de volumes (cache global → AniList → IA). Fire-and-forget.
+          try {
+            fetch(`${supaUrl}/functions/v1/enrich-series`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${serviceKey}`,
+              },
+              body: JSON.stringify({ series_id: created.id }),
+            }).catch((e) => console.warn("enrich-series trigger failed", e));
+          } catch (_) { /* ignore */ }
+
           stats.created_series++;
           continue;
         }
