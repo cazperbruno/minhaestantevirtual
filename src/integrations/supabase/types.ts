@@ -1343,7 +1343,10 @@ export type Database = {
       user_streaks: {
         Row: {
           current_days: number
+          freezes_available: number
           last_active_date: string | null
+          last_freeze_grant: string | null
+          last_freeze_used_date: string | null
           longest_days: number
           next_milestone: number
           updated_at: string
@@ -1351,7 +1354,10 @@ export type Database = {
         }
         Insert: {
           current_days?: number
+          freezes_available?: number
           last_active_date?: string | null
+          last_freeze_grant?: string | null
+          last_freeze_used_date?: string | null
           longest_days?: number
           next_milestone?: number
           updated_at?: string
@@ -1359,7 +1365,10 @@ export type Database = {
         }
         Update: {
           current_days?: number
+          freezes_available?: number
           last_active_date?: string | null
+          last_freeze_grant?: string | null
+          last_freeze_used_date?: string | null
           longest_days?: number
           next_milestone?: number
           updated_at?: string
@@ -1525,6 +1534,16 @@ export type Database = {
         Returns: number
       }
       assign_daily_challenges: { Args: { _user_id: string }; Returns: number }
+      books_read_by_following: {
+        Args: { _limit?: number; _user_id: string }
+        Returns: {
+          book_id: string
+          reader_avatars: string[]
+          reader_count: number
+          reader_names: string[]
+          recent_at: string
+        }[]
+      }
       can_view_library: {
         Args: { _owner: string; _viewer: string }
         Returns: boolean
@@ -1694,6 +1713,14 @@ export type Database = {
           bonus_xp: number
           current_days: number
           milestone_hit: number
+        }[]
+      }
+      use_streak_freeze: {
+        Args: { _user_id: string }
+        Returns: {
+          freezes_left: number
+          message: string
+          success: boolean
         }[]
       }
       user_content_types: {
