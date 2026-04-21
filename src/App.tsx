@@ -36,6 +36,7 @@ const ProgressPage = lazy(() => import("./pages/ProgressPage"));
 const XpHistoryPage = lazy(() => import("./pages/XpHistoryPage"));
 const SeriesDetailPage = lazy(() => import("./pages/SeriesDetailPage"));
 const MySeriesPage = lazy(() => import("./pages/MySeriesPage"));
+const ManageSeriesPage = lazy(() => import("./pages/ManageSeriesPage"));
 const BuddyReadsPage = lazy(() => import("./pages/BuddyReadsPage"));
 const BuddyReadDetailPage = lazy(() => import("./pages/BuddyReadDetailPage"));
 const InstallAppPage = lazy(() => import("./pages/InstallAppPage"));
@@ -86,6 +87,7 @@ const App = () => (
             <Route path="/livro/:id" element={<ProtectedRoute><BookDetail /></ProtectedRoute>} />
             <Route path="/serie/:id" element={<ProtectedRoute><SeriesDetailPage /></ProtectedRoute>} />
             <Route path="/series" element={<ProtectedRoute><MySeriesPage /></ProtectedRoute>} />
+            <Route path="/series/gerenciar" element={<ProtectedRoute><ManageSeriesPage /></ProtectedRoute>} />
             <Route path="/buddy" element={<ProtectedRoute><BuddyReadsPage /></ProtectedRoute>} />
             <Route path="/buddy/:id" element={<ProtectedRoute><BuddyReadDetailPage /></ProtectedRoute>} />
             <Route path="/instalar" element={<InstallAppPage />} />

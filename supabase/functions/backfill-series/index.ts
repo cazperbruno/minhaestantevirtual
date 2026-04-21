@@ -313,8 +313,33 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Se há ≥ 1 peer (= 2+ volumes detectados), cria série nova + linka todos
+        // Se há ≥ 1 peer, GUARD: não criar série de duplicatas do mesmo livro.
+        // Critério (espelha consolidate-series): pelo menos 2 volume_numbers distintos
+        // OU todos os títulos originais (após fold) precisam ser distintos.
         if (matchingPeers.length >= 1) {
+          const groupAll = [b, ...matchingPeers];
+          const distinctVols = new Set(
+            groupAll
+              .map((p) => normalizeSeriesTitle(p.title).volume ?? p.volume_number)
+              .filter((v): v is number => Number.isFinite(v as number)),
+          );
+          const distinctTitles = new Set(groupAll.map((p) => strFold(p.title)));
+          const hasMultipleDistinctVols = distinctVols.size >= 2;
+          const allTitlesDistinct =
+            distinctTitles.size >= 2 && distinctTitles.size === groupAll.length;
+          if (!hasMultipleDistinctVols && !allTitlesDistinct) {
+            // são duplicatas do mesmo livro → NÃO é série, marca skipped permanente
+            await supabase
+              .from("series_backfill_queue")
+              .update({
+                status: "skipped",
+                processed_at: new Date().toISOString(),
+                last_error: "duplicates of same book, not a series",
+              })
+              .eq("id", qRow.id);
+            stats.skipped++;
+            continue;
+          }
           let totalVols: number | null = null;
           if (ct === "manga") {
             const ctrl = new AbortController();
