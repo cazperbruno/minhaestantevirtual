@@ -6,6 +6,7 @@ import { BookHero } from "@/components/books/BookHero";
 import { BookSynopsis } from "@/components/books/BookSynopsis";
 import { BookSidePanel } from "@/components/books/BookSidePanel";
 import { ReviewSection } from "@/components/books/ReviewSection";
+import { BookSuggestions } from "@/components/books/BookSuggestions";
 import { ShelfNavigator } from "@/components/books/ShelfNavigator";
 import { BookDetailSkeleton } from "@/components/ui/skeletons";
 import { toast } from "sonner";
@@ -103,8 +104,12 @@ export default function BookDetail() {
           )}
         </div>
 
-        <div className="px-5 md:px-10 pb-24 max-w-6xl mx-auto">
+        <div className="px-5 md:px-10 pb-10 max-w-6xl mx-auto">
           <ReviewSection bookId={book.id} />
+        </div>
+
+        <div className="px-5 md:px-10 pb-24 max-w-6xl mx-auto">
+          <BookSuggestions book={book} />
         </div>
       </ShelfNavigator>
     </AppShell>
