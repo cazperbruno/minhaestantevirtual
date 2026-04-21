@@ -13,11 +13,12 @@ import { AppShell } from "@/components/layout/AppShell";
 import { useMySeries, type MySeriesRow } from "@/hooks/useMySeries";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { BookOpen, Layers, CheckCircle2, PlayCircle, Search, Settings } from "lucide-react";
+import { BookOpen, Layers, CheckCircle2, PlayCircle, Search, Settings, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ContentTypeFilter, useContentFilter } from "@/components/books/ContentTypeFilter";
 import { CONTENT_TYPE_ICON, CONTENT_TYPE_LABEL } from "@/types/book";
 import { cn } from "@/lib/utils";
+import { useEnrichSeries } from "@/hooks/useEnrichSeries";
 
 export default function MySeriesPage() {
   const { data, isLoading } = useMySeries();
@@ -141,24 +142,34 @@ function Section({
 
 function SeriesCard({ s }: { s: MySeriesRow }) {
   const total = s.total_volumes ?? Math.max(s.owned_count, s.read_count);
-  const pct = s.completion_pct; // agora baseado em owned_count
+  const pct = s.completion_pct;
   const complete = total > 0 && s.owned_count >= total;
+  // Heurística: se total_volumes não foi informado OU é igual ao que tenho
+  // mas tenho poucos, provavelmente o sistema ainda não sabe o total real.
+  const totalUnknown = s.total_volumes == null || (s.total_volumes === s.owned_count && s.owned_count < 30);
+  const enrich = useEnrichSeries();
+  const enriching = enrich.isPending && enrich.variables?.seriesId === s.id;
+
+  const handleEnrich = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    enrich.mutate({ seriesId: s.id, force: true });
+  };
 
   return (
-    <Link
-      to={`/serie/${s.id}`}
+    <div
       className={cn(
         "group glass rounded-2xl p-4 flex gap-3 hover:border-primary/40 transition-all relative overflow-hidden",
         complete && "ring-1 ring-primary/30",
       )}
     >
-      {/* Pct badge destaque */}
       {pct > 0 && (
         <div className="absolute top-2 right-2 z-10 px-2 py-0.5 rounded-full bg-primary/15 backdrop-blur text-primary text-[10px] font-bold tabular-nums">
           {pct}%
         </div>
       )}
-      <div className="w-16 h-24 shrink-0 rounded-md overflow-hidden bg-muted shadow-book">
+      <Link to={`/serie/${s.id}`} className="absolute inset-0 z-0" aria-label={s.title} />
+      <div className="w-16 h-24 shrink-0 rounded-md overflow-hidden bg-muted shadow-book relative z-[1] pointer-events-none">
         {s.cover_url ? (
           <img
             src={s.cover_url}
@@ -172,7 +183,7 @@ function SeriesCard({ s }: { s: MySeriesRow }) {
           </div>
         )}
       </div>
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col relative z-[1] pointer-events-none">
         <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
           <span aria-hidden>{CONTENT_TYPE_ICON[s.content_type]}</span>
           {CONTENT_TYPE_LABEL[s.content_type]}
@@ -209,8 +220,24 @@ function SeriesCard({ s }: { s: MySeriesRow }) {
               Faltam <span className="font-semibold text-foreground/80">{s.missing_count}</span> volume{s.missing_count !== 1 ? "s" : ""}
             </p>
           )}
+          {totalUnknown && (
+            <button
+              type="button"
+              onClick={handleEnrich}
+              disabled={enriching}
+              className="pointer-events-auto relative z-[2] mt-1 w-full inline-flex items-center justify-center gap-1.5 text-[10px] font-medium px-2 py-1 rounded-md border border-primary/30 bg-primary/5 hover:bg-primary/15 text-primary transition disabled:opacity-60"
+              aria-label="Buscar total de volumes com IA"
+            >
+              {enriching ? (
+                <><Loader2 className="w-3 h-3 animate-spin" /> Buscando…</>
+              ) : (
+                <><Sparkles className="w-3 h-3" /> Descobrir total de volumes</>
+              )}
+            </button>
+          )}
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
+

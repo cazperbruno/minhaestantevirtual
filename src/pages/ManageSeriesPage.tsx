@@ -46,7 +46,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, BookOpen, Layers, Pencil, Plus, Settings, Trash2, Link2, Unlink } from "lucide-react";
+import { AlertTriangle, BookOpen, Layers, Pencil, Plus, Settings, Trash2, Link2, Unlink, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { CONTENT_TYPE_LABEL, type ContentType } from "@/types/book";
 import {
@@ -63,6 +63,7 @@ import {
   type UnlinkedUserBook,
 } from "@/hooks/useManageSeries";
 import { useSeriesDetail } from "@/hooks/useSeries";
+import { useEnrichSeries } from "@/hooks/useEnrichSeries";
 import { cn } from "@/lib/utils";
 
 const CONTENT_TYPES: ContentType[] = ["manga", "comic", "book", "magazine"];
@@ -92,9 +93,12 @@ export default function ManageSeriesPage() {
               Crie, edite e organize manualmente quando o detector automático não acerta.
             </p>
           </div>
-          <Button onClick={() => setCreating(true)} className="gap-2 shrink-0">
-            <Plus className="w-4 h-4" /> Nova série
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <BulkEnrichButton series={series ?? []} />
+            <Button onClick={() => setCreating(true)} className="gap-2">
+              <Plus className="w-4 h-4" /> Nova série
+            </Button>
+          </div>
         </header>
 
         <div className="mb-6">
@@ -175,8 +179,11 @@ function SeriesRow({
   onLink: () => void;
 }) {
   const del = useDeleteSeries();
+  const enrich = useEnrichSeries();
+  const enriching = enrich.isPending && enrich.variables?.seriesId === s.id;
   const total = s.total_volumes ?? s.user_volume_count;
   const pct = total > 0 ? Math.min(100, Math.round((s.user_volume_count / total) * 100)) : 0;
+  const totalUnknown = s.total_volumes == null;
 
   return (
     <li className="glass rounded-2xl p-4 flex flex-col sm:flex-row gap-4 items-start">
@@ -219,6 +226,24 @@ function SeriesRow({
             <BookOpen className="w-3.5 h-3.5" /> Ver
           </Button>
         </Link>
+        <Button
+          size="sm"
+          variant={totalUnknown ? "outline" : "ghost"}
+          onClick={() => enrich.mutate({ seriesId: s.id, force: true })}
+          disabled={enriching}
+          className={cn(
+            "gap-1.5",
+            totalUnknown && "border-primary/40 text-primary hover:bg-primary/10",
+          )}
+          title="Buscar metadados oficiais (volumes, status, sinopse) com IA + AniList"
+        >
+          {enriching ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Sparkles className="w-3.5 h-3.5" />
+          )}
+          IA
+        </Button>
         <Button size="sm" variant="ghost" onClick={onLink} className="gap-1.5">
           <Link2 className="w-3.5 h-3.5" /> Volumes
         </Button>
@@ -701,5 +726,51 @@ function CandidateRow({
         <Plus className="w-3.5 h-3.5" /> Add
       </Button>
     </li>
+  );
+}
+
+// ---------------- Botão de enriquecimento em massa ----------------
+/**
+ * Dispara enrich-series para todas as séries que ainda não têm total_volumes.
+ * Roda sequencialmente com pequeno delay para não sobrecarregar AniList/IA.
+ */
+function BulkEnrichButton({ series }: { series: ManageableSeries[] }) {
+  const enrich = useEnrichSeries();
+  const pending = series.filter((s) => s.total_volumes == null);
+  const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  if (pending.length === 0) return null;
+
+  const handleRun = async () => {
+    setRunning(true);
+    setProgress(0);
+    let ok = 0;
+    for (let i = 0; i < pending.length; i++) {
+      try {
+        await enrich.mutateAsync({ seriesId: pending[i].id, force: false, silent: true });
+        ok++;
+      } catch (_) { /* segue */ }
+      setProgress(i + 1);
+      await new Promise((r) => setTimeout(r, 350));
+    }
+    setRunning(false);
+    toast.success(`Enriquecimento concluído: ${ok}/${pending.length} séries atualizadas.`);
+  };
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={handleRun}
+      disabled={running}
+      className="gap-1.5 border-primary/40 text-primary hover:bg-primary/10"
+    >
+      {running ? (
+        <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {progress}/{pending.length}</>
+      ) : (
+        <><Sparkles className="w-3.5 h-3.5" /> Enriquecer {pending.length}</>
+      )}
+    </Button>
   );
 }
