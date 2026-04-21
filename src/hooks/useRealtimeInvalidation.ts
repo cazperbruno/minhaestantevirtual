@@ -89,6 +89,30 @@ export function useRealtimeInvalidation() {
           queryClient.invalidateQueries({ queryKey: qk.feed() });
         },
       )
+      // -------- USER_BOOKS (status, rating, current_page) --------
+      // Quem é dono do registro precisa ver sua biblioteca atualizada.
+      // Quem segue precisa ver o feed atualizado (status_change vira atividade).
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "user_books" },
+        (payload: any) => {
+          const ownerId = payload.new?.user_id || payload.old?.user_id;
+          if (ownerId === userId) {
+            queryClient.invalidateQueries({ queryKey: qk.library(userId) });
+            queryClient.invalidateQueries({ queryKey: qk.wishlist(userId) });
+          }
+          // Atividade de qualquer usuário pode aparecer no feed "Seguindo"
+          queryClient.invalidateQueries({ queryKey: qk.feed() });
+        },
+      )
+      // -------- ACTIVITIES (feed social bruto) --------
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "activities" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: qk.feed() });
+        },
+      )
       .subscribe();
 
     return () => {

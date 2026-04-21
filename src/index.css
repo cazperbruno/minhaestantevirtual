@@ -60,6 +60,10 @@
     --gradient-hero: radial-gradient(ellipse at top, hsl(4 100% 59% / 0.18), transparent 60%),
                      radial-gradient(ellipse at bottom right, hsl(4 100% 50% / 0.12), transparent 55%);
 
+    /* Modo Casa — madeira da prateleira física */
+    --shelf-wood: linear-gradient(180deg, hsl(28 35% 18%) 0%, hsl(25 40% 10%) 100%);
+    --shadow-shelf: inset 0 1px 0 hsl(0 0% 100% / 0.06), 0 2px 6px hsl(0 0% 0% / 0.5);
+
     /* Shadows */
     --shadow-book: 0 20px 50px -20px hsl(0 0% 0% / 0.85), 0 8px 20px -10px hsl(0 0% 0% / 0.6);
     --shadow-glow: 0 0 36px hsl(4 100% 59% / 0.35);

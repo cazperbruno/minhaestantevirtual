@@ -8,7 +8,7 @@ import { useSmartShelves } from "@/hooks/useSmartShelves";
 import { BookCard } from "@/components/books/BookCard";
 import { ShelfSkeleton, BookGridSkeleton } from "@/components/ui/skeletons";
 import { Button } from "@/components/ui/button";
-import { Library as LibraryIcon, LayoutGrid, Rows3, Search, ScanLine } from "lucide-react";
+import { Library as LibraryIcon, LayoutGrid, Rows3, Search, ScanLine, Home as HomeIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLibrary } from "@/hooks/useLibrary";
 import {
@@ -18,13 +18,15 @@ import {
   type LibraryFiltersValue,
 } from "@/components/books/LibraryFilters";
 import { ContentTypeFilter, useContentFilter } from "@/components/books/ContentTypeFilter";
-
-type View = "shelves" | "grid";
+import { useViewMode } from "@/hooks/useViewMode";
+import { HomeMode } from "@/components/books/HomeMode";
+import { ShelfFilter, applyShelfFilter, type ShelfFilterValue } from "@/components/books/ShelfFilter";
 
 export default function LibraryPage() {
   const { data: allItems = [], isLoading: loading } = useLibrary();
-  const [view, setView] = useState<View>("shelves");
+  const [view, setView] = useViewMode();
   const [filters, setFilters] = useState<LibraryFiltersValue>(DEFAULT_FILTERS);
+  const [shelfFilter, setShelfFilter] = useState<ShelfFilterValue>({ kind: "none" });
   const { active: activeTypes, available } = useContentFilter();
 
   // Filtra a biblioteca pelos tipos de conteúdo ativos do usuário.
@@ -40,7 +42,11 @@ export default function LibraryPage() {
   );
   const gridFiltered = useMemo(() => applyLibraryFilters(items, filters), [items, filters]);
 
-  const smartShelves = useSmartShelves(shelfFiltered);
+  const rawShelves = useSmartShelves(shelfFiltered);
+  const smartShelves = useMemo(
+    () => applyShelfFilter(rawShelves, shelfFilter),
+    [rawShelves, shelfFilter],
+  );
   const readShelf = useMemo(
     () => shelfFiltered.filter((i) => i.status === "read"),
     [shelfFiltered],
@@ -73,18 +79,29 @@ export default function LibraryPage() {
               <StreakFreezeButton />
               <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/30 border border-border/40">
                 <Button
-                  variant={view === "shelves" ? "default" : "ghost"}
+                  variant={view === "home" ? "default" : "ghost"}
                   size="sm"
-                  onClick={() => setView("shelves")}
+                  onClick={() => setView("home")}
                   className="gap-1.5 h-8"
+                  title="Modo Casa: visual simples"
                 >
-                  <Rows3 className="w-3.5 h-3.5" /> Prateleiras
+                  <HomeIcon className="w-3.5 h-3.5" /> Casa
+                </Button>
+                <Button
+                  variant={view === "interactive" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setView("interactive")}
+                  className="gap-1.5 h-8"
+                  title="Modo Interativo: prateleiras Netflix"
+                >
+                  <Rows3 className="w-3.5 h-3.5" /> Interativo
                 </Button>
                 <Button
                   variant={view === "grid" ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setView("grid")}
                   className="gap-1.5 h-8"
+                  title="Grade clássica"
                 >
                   <LayoutGrid className="w-3.5 h-3.5" /> Grade
                 </Button>
@@ -99,7 +116,11 @@ export default function LibraryPage() {
           </div>
         ) : totalCount === 0 ? (
           <EmptyState />
+        ) : view === "home" ? (
+          // ─── MODO CASA ─────────────────────────────────────
+          <HomeMode items={items} />
         ) : (
+          // ─── MODOS INTERATIVO / GRADE ──────────────────────
           <>
             {available.length > 1 && <ContentTypeFilter className="mb-4" />}
             <LibraryFilters
@@ -109,35 +130,43 @@ export default function LibraryPage() {
               showStatusFilter={view === "grid"}
             />
 
-            {view === "shelves" ? (
-              shelfFiltered.length === 0 ? (
-                <NoMatchState />
-              ) : (
-                <div className="space-y-2">
-                  {smartShelves.map((s) => (
-                    <SmartShelfRow
-                      key={s.id}
-                      id={s.id}
-                      title={s.title}
-                      subtitle={s.subtitle}
-                      items={s.items}
-                    />
-                  ))}
-                  {/* Garante "Concluídos" como prateleira final dedicada quando faz sentido */}
-                  {readShelf.length >= 3 && !smartShelves.some((s) => s.id === "read") && (
-                    <SmartShelfRow
-                      id="read"
-                      title="Concluídos"
-                      subtitle={`${readShelf.length} ${readShelf.length === 1 ? "livro lido" : "livros lidos"}`}
-                      items={readShelf}
-                    />
-                  )}
-                  {/* Social: livros lidos pela sua rede */}
-                  <FollowingReadsShelfRow />
-                  {/* Descoberta: livros que você ainda não tem, recomendados pela IA */}
-                  <DiscoveryShelfRow />
-                </div>
-              )
+            {view === "interactive" ? (
+              <>
+                <ShelfFilter items={shelfFiltered} value={shelfFilter} onChange={setShelfFilter} />
+
+                {shelfFiltered.length === 0 ? (
+                  <NoMatchState />
+                ) : smartShelves.length === 0 ? (
+                  <NoMatchState hint="Nenhuma prateleira combina com esse filtro." />
+                ) : (
+                  <div className="space-y-2">
+                    {smartShelves.map((s) => (
+                      <SmartShelfRow
+                        key={s.id}
+                        id={s.id}
+                        title={s.title}
+                        subtitle={s.subtitle}
+                        items={s.items}
+                      />
+                    ))}
+                    {/* Concluídos como prateleira final dedicada (só sem filtro ativo) */}
+                    {shelfFilter.kind === "none" && readShelf.length >= 3 && !smartShelves.some((s) => s.id === "read") && (
+                      <SmartShelfRow
+                        id="read"
+                        title="Concluídos"
+                        subtitle={`${readShelf.length} ${readShelf.length === 1 ? "livro lido" : "livros lidos"}`}
+                        items={readShelf}
+                      />
+                    )}
+                    {shelfFilter.kind === "none" && (
+                      <>
+                        <FollowingReadsShelfRow />
+                        <DiscoveryShelfRow />
+                      </>
+                    )}
+                  </div>
+                )}
+              </>
             ) : (
               gridFiltered.length === 0 ? (
                 <NoMatchState />
@@ -160,12 +189,12 @@ export default function LibraryPage() {
   );
 }
 
-function NoMatchState() {
+function NoMatchState({ hint }: { hint?: string }) {
   return (
     <div className="text-center py-20 text-muted-foreground animate-fade-in">
       <Search className="w-10 h-10 mx-auto mb-3 text-muted-foreground/50" />
       <p className="font-display text-xl text-foreground mb-1">Nenhum livro com esses filtros</p>
-      <p className="text-sm">Ajuste os filtros ou limpe-os para ver mais resultados.</p>
+      <p className="text-sm">{hint || "Ajuste os filtros ou limpe-os para ver mais resultados."}</p>
     </div>
   );
 }
