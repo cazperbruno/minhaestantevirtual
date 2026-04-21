@@ -15,6 +15,7 @@ import { viewTransition, bookCoverTransitionName } from "@/lib/view-transitions"
  * Cada card tem ação rápida "Quero ler" (sem precisar abrir o livro).
  */
 export function DiscoveryShelfRow() {
+  const navigate = useNavigate();
   const { data: items = [], isLoading } = useDiscoveryShelf(18);
   const addBook = useAddBook();
   const [added, setAdded] = useState<Set<string>>(new Set());
@@ -70,11 +71,21 @@ export function DiscoveryShelfRow() {
                 state={{ shelfId: "discovery", shelfTitle: "Você pode gostar" }}
                 aria-label={book.title}
                 className="block relative"
+                onClick={(e) => {
+                  e.preventDefault();
+                  haptic("tap");
+                  void viewTransition(() =>
+                    navigate(`/livro/${book.id}`, {
+                      state: { shelfId: "discovery", shelfTitle: "Você pode gostar" },
+                    }),
+                  );
+                }}
               >
                 <BookCover
                   book={book}
                   size="lg"
                   interactive={false}
+                  transitionName={bookCoverTransitionName(book.id)}
                   className="w-full h-auto aspect-[2/3] group-hover/disc:shadow-elevated transition-all duration-300 group-hover/disc:scale-[1.03]"
                 />
                 {reason && (
