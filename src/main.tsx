@@ -3,6 +3,27 @@ import App from "./App.tsx";
 import "./index.css";
 import { setupOfflineSync } from "@/lib/offline-queue";
 import { checkForceUpdate } from "@/lib/force-update";
+import readifyMarkUrl from "@/assets/readify-mark-v8.webp";
+
+// LCP optimization: inject a <link rel="preload"> for the Readify mark
+// (the LCP image on the auth/landing screen) as early as possible so the
+// browser discovers and fetches it from the initial HTML parse, instead
+// of waiting for the React tree to mount the <img>. Vite hashes the asset
+// filename so we resolve it via the ES import URL.
+(() => {
+  try {
+    if (typeof document === "undefined") return;
+    if (document.querySelector('link[rel="preload"][as="image"][data-lcp="readify-mark"]')) return;
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "image";
+    link.href = readifyMarkUrl;
+    link.type = "image/webp";
+    link.setAttribute("fetchpriority", "high");
+    link.setAttribute("data-lcp", "readify-mark");
+    document.head.appendChild(link);
+  } catch { /* noop */ }
+})();
 
 // Initialize offline action sync (replays queued writes when network returns)
 setupOfflineSync();
