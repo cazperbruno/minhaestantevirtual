@@ -7,7 +7,6 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { InstagramShareCard } from "./InstagramShareCard";
-import { BookChat } from "./BookChat";
 import { EditBookDialog } from "./EditBookDialog";
 import { Heart, ShoppingBag, Share2, Plus, Loader2, Pencil } from "lucide-react";
 import { openAmazon } from "@/lib/amazon";
@@ -118,14 +117,15 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-2 pt-2 hero-stagger sm:flex sm:flex-wrap" style={{ animationDelay: "480ms" }}>
+            {/* Status / CTA principal — sempre acima da linha de ações */}
+            <div className="pt-2 hero-stagger" style={{ animationDelay: "480ms" }}>
               {!ub ? (
                 <Button
                   variant="hero"
                   size="lg"
                   onClick={() => onStatusChange("not_read")}
                   disabled={saving}
-                  className="col-span-2 w-full sm:w-auto sm:min-w-[220px] shadow-glow"
+                  className="w-full sm:w-auto sm:min-w-[240px] shadow-glow"
                   title="Adiciona à sua biblioteca. Você decide quando começar a leitura."
                 >
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
@@ -133,7 +133,7 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
                 </Button>
               ) : (
                 <Select value={ub.status} onValueChange={(v) => onStatusChange(v as BookStatus)}>
-                  <SelectTrigger className="col-span-2 h-11 w-full bg-card/80 backdrop-blur-sm border-primary/40 shadow-glow sm:w-[220px]">
+                  <SelectTrigger className="h-11 w-full bg-card/80 backdrop-blur-sm border-primary/40 shadow-glow sm:w-[240px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -143,63 +143,66 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
                   </SelectContent>
                 </Select>
               )}
+            </div>
 
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={onAddWishlist}
-                disabled={saving}
-                className="w-full sm:w-auto hover:border-primary/60 hover:text-primary"
-                aria-label="Adicionar aos desejos"
-              >
-                <Heart className={`w-4 h-4 ${ub?.status === "wishlist" ? "fill-primary text-primary" : ""}`} />
-                <span className="hidden sm:inline">Desejo</span>
-              </Button>
+            {/* Linha única de ações — scroll horizontal no mobile, flex no desktop.
+                Mesma altura, mesmo gap, ícone + texto curto sempre visível. */}
+            <div
+              className="hero-stagger -mx-5 md:mx-0 px-5 md:px-0 overflow-x-auto scrollbar-hide"
+              style={{ animationDelay: "560ms" }}
+            >
+              <div className="flex items-center gap-2 w-max md:w-auto md:flex-wrap">
+                <EditBookDialog
+                  book={book}
+                  onUpdated={onBookUpdated}
+                  trigger={
+                    <Button variant="outline" size="default" className="h-10 shrink-0 gap-2 hover:border-primary/60 hover:text-primary" aria-label="Editar livro">
+                      <Pencil className="w-4 h-4" />
+                      <span>Editar</span>
+                    </Button>
+                  }
+                />
 
-              <div className="col-span-2 inline-flex w-full overflow-hidden rounded-md border border-border bg-card/50 backdrop-blur-sm sm:w-auto">
                 <Button
-                  variant="ghost"
-                  size="lg"
+                  variant="outline"
+                  size="default"
                   onClick={onShare}
-                  className="min-w-0 flex-1 rounded-none border-0 hover:bg-primary/10 hover:text-primary sm:flex-none"
+                  className="h-10 shrink-0 gap-2 hover:border-primary/60 hover:text-primary"
                   aria-label="Compartilhar"
                 >
                   <Share2 className="w-4 h-4" />
-                  <span className="hidden sm:inline">Compartilhar</span>
+                  <span>Compartilhar</span>
                 </Button>
-                <div className="w-px bg-border" />
+
                 <InstagramShareCard
                   book={book}
                   rating={ub?.rating}
                   progress={progress}
                 />
+
+                <Button
+                  variant="outline"
+                  size="default"
+                  onClick={() => openAmazon(book)}
+                  className="h-10 shrink-0 gap-2 hover:border-primary/60 hover:text-primary"
+                  aria-label="Comprar na Amazon"
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                  <span>Amazon</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="default"
+                  onClick={onAddWishlist}
+                  disabled={saving}
+                  className="h-10 shrink-0 gap-2 hover:border-primary/60 hover:text-primary"
+                  aria-label="Adicionar à lista de desejos"
+                >
+                  <Heart className={`w-4 h-4 ${ub?.status === "wishlist" ? "fill-primary text-primary" : ""}`} />
+                  <span>Desejo</span>
+                </Button>
               </div>
-
-              <div className="col-span-2 sm:col-span-1">
-                <BookChat bookId={book.id} bookTitle={book.title} />
-              </div>
-
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => openAmazon(book)}
-                className="w-full sm:w-auto hover:border-primary/60 hover:text-primary"
-                aria-label="Comprar na Amazon"
-              >
-                <ShoppingBag className="w-4 h-4" />
-                <span className="hidden sm:inline">Comprar</span>
-              </Button>
-
-              <EditBookDialog
-                book={book}
-                onUpdated={onBookUpdated}
-                trigger={
-                  <Button variant="outline" size="lg" className="w-full sm:w-auto hover:border-primary/60 hover:text-primary" aria-label="Editar livro">
-                    <Pencil className="w-4 h-4" />
-                    <span className="hidden sm:inline">Editar</span>
-                  </Button>
-                }
-              />
             </div>
           </div>
         </div>

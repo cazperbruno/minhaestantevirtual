@@ -67,13 +67,13 @@ export function InstagramShareCard({ book, rating, progress }: Props) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
-          variant="ghost"
-          size="lg"
-          className="gap-2 rounded-none hover:bg-primary/10 hover:text-primary border-0"
+          variant="outline"
+          size="default"
+          className="h-10 shrink-0 gap-2 hover:border-primary/60 hover:text-primary"
           aria-label="Compartilhar no Instagram"
         >
           <Instagram className="w-4 h-4" aria-hidden="true" />
-          <span className="hidden sm:inline">Instagram</span>
+          <span>Instagram</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
