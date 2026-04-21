@@ -664,6 +664,12 @@ export default function ScannerPage() {
                 />
                 <Button type="submit" disabled={busy} variant="hero">Buscar</Button>
               </div>
+              {scanStats.count >= 3 && (
+                <p className="text-[11px] text-muted-foreground/80 pt-1">
+                  Tempo médio de leitura: <span className="font-mono text-foreground/80">{(scanStats.median / 1000).toFixed(1)}s</span>
+                  <span className="opacity-50"> · {scanStats.count} scans</span>
+                </p>
+              )}
             </form>
 
             {foundBook && (
