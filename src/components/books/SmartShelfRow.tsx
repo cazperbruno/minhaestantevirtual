@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { BookCover } from "./BookCover";
 import { CinematicShelf, ShelfItem } from "./CinematicShelf";
 import { QuickActionsMenu } from "./QuickActionsMenu";
