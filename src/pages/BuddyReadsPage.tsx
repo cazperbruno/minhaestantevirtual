@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Users, BookOpen, Trophy } from "lucide-react";
+import { Users, BookOpen, Trophy, Loader2 } from "lucide-react";
 
 export default function BuddyReadsPage() {
   const { data = [], isLoading } = useBuddyReads();
@@ -49,8 +49,12 @@ export default function BuddyReadsPage() {
                 <p className="font-medium truncate">{b.book_title}</p>
                 <p className="text-xs text-muted-foreground">de {b.partner_name ?? "alguém"}</p>
               </div>
-              <Button size="sm" variant="outline" onClick={() => decline.mutate(b.id)}>Recusar</Button>
-              <Button size="sm" onClick={() => accept.mutate(b.id)}>Aceitar</Button>
+              <Button size="sm" variant="outline" onClick={() => decline.mutate(b.id)} disabled={decline.isPending && decline.variables === b.id}>
+                {decline.isPending && decline.variables === b.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Recusar"}
+              </Button>
+              <Button size="sm" onClick={() => accept.mutate(b.id)} disabled={accept.isPending && accept.variables === b.id}>
+                {accept.isPending && accept.variables === b.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Aceitar"}
+              </Button>
             </Card>
           ))}
         </section>
