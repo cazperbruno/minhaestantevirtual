@@ -1,0 +1,16 @@
+{
+  "appId": "app.lovable.ae3477b4c3694d1aad54833e023cd464",
+  "appName": "Readify",
+  "webDir": "dist",
+  "server": {
+    "url": "https://ae3477b4-c369-4d1a-ad54-833e023cd464.lovableproject.com?forceHideBadge=true",
+    "cleartext": true
+  },
+  "ios": {
+    "contentInset": "always",
+    "backgroundColor": "#0b0b0d"
+  },
+  "android": {
+    "backgroundColor": "#0b0b0d"
+  }
+}
