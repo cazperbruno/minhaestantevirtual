@@ -101,6 +101,42 @@ export function EditBookDialog({ book, onUpdated, trigger }: Props) {
     }
   };
 
+  const refreshData = async () => {
+    setRefreshing(true);
+    try {
+      const result = await refreshBookData(book.id, form.cover_url || null);
+      if (!result.ok) {
+        toast.error("Não foi possível atualizar os dados");
+        return;
+      }
+      const patch: any = result.patch || {};
+      const filled = result.fields_filled || [];
+      if (filled.length === 0 && !result.cover_updated) {
+        toast.info("Os dados já estão completos e atualizados");
+        return;
+      }
+      setForm((p) => ({
+        ...p,
+        title: patch.title ?? p.title,
+        subtitle: patch.subtitle ?? p.subtitle,
+        authors: patch.authors ? (patch.authors as string[]).join(", ") : p.authors,
+        publisher: patch.publisher ?? p.publisher,
+        published_year: patch.published_year ?? p.published_year,
+        page_count: patch.page_count ?? p.page_count,
+        description: patch.description ?? p.description,
+        cover_url: patch.cover_url ?? p.cover_url,
+        categories: patch.categories ? (patch.categories as string[]).join(", ") : p.categories,
+      }));
+      toast.success(
+        filled.length > 0 ? `Atualizado: ${filled.join(", ")}` : "Capa atualizada",
+      );
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao atualizar dados");
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const save = async () => {
     if (!form.title.trim()) {
       toast.error("Título é obrigatório");
