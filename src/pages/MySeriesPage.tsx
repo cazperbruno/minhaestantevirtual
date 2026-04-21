@@ -34,7 +34,7 @@ export default function MySeriesPage() {
     const completed: MySeriesRow[] = [];
     const queued: MySeriesRow[] = [];
     for (const s of filtered) {
-      if (s.total_volumes && s.read_count >= s.total_volumes) completed.push(s);
+      if (s.total_volumes && s.owned_count >= s.total_volumes) completed.push(s);
       else if (s.reading_count > 0 || s.read_count > 0) inProgress.push(s);
       else queued.push(s);
     }
