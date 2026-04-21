@@ -523,6 +523,39 @@ export type Database = {
           },
         ]
       }
+      cover_audit_log: {
+        Row: {
+          checked: number
+          details: Json | null
+          failed: number
+          id: string
+          mode: string
+          ok: number
+          ran_at: string
+          replaced: number
+        }
+        Insert: {
+          checked?: number
+          details?: Json | null
+          failed?: number
+          id?: string
+          mode: string
+          ok?: number
+          ran_at?: string
+          replaced?: number
+        }
+        Update: {
+          checked?: number
+          details?: Json | null
+          failed?: number
+          id?: string
+          mode?: string
+          ok?: number
+          ran_at?: string
+          replaced?: number
+        }
+        Relationships: []
+      }
       follows: {
         Row: {
           created_at: string
@@ -1635,6 +1668,13 @@ export type Database = {
         Returns: number
       }
       assign_daily_challenges: { Args: { _user_id: string }; Returns: number }
+      books_for_cover_audit: {
+        Args: { _limit?: number }
+        Returns: {
+          book_id: string
+          priority: number
+        }[]
+      }
       books_read_by_following: {
         Args: { _limit?: number; _user_id: string }
         Returns: {

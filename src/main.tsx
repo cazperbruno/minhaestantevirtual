@@ -1,6 +1,10 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { setupOfflineSync } from "@/lib/offline-queue";
+
+// Initialize offline action sync (replays queued writes when network returns)
+setupOfflineSync();
 
 /**
  * Service Worker / PWA registration guard.
