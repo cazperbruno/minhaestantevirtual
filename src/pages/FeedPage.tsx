@@ -163,27 +163,29 @@ export default function FeedPage() {
   );
 }
 
-function EmptyFeed({ tab }: { tab: "all" | "following" }) {
+function EmptyFeed({ tab }: { tab: "all" | "following" | "you" }) {
+  const icon = tab === "following" ? <Users className="w-9 h-9 text-primary/60" />
+    : tab === "you" ? <UserIcon className="w-9 h-9 text-primary/60" />
+    : <Sparkles className="w-9 h-9 text-primary/60" />;
+  const title = tab === "following" ? "Você ainda não segue ninguém"
+    : tab === "you" ? "Você ainda não publicou nada"
+    : "O feed está silencioso";
+  const desc = tab === "following" ? "Encontre leitores e siga suas resenhas para ver tudo aqui."
+    : tab === "you" ? "Suas resenhas e atualizações aparecem aqui."
+    : "Seja a primeira pessoa a publicar uma resenha hoje.";
+  const ctaTo = tab === "following" ? "/ranking" : tab === "you" ? "/biblioteca" : "/buscar";
+  const ctaLabel = tab === "following" ? <><Users className="w-4 h-4" /> Descobrir leitores</>
+    : tab === "you" ? <><Sparkles className="w-4 h-4" /> Ir para biblioteca</>
+    : <><Search className="w-4 h-4" /> Buscar livros</>;
   return (
     <div className="text-center py-16 px-6 max-w-md mx-auto animate-fade-in">
       <div className="w-20 h-20 rounded-3xl bg-gradient-spine border border-border mx-auto mb-5 flex items-center justify-center shadow-book">
-        {tab === "following"
-          ? <Users className="w-9 h-9 text-primary/60" />
-          : <Sparkles className="w-9 h-9 text-primary/60" />}
+        {icon}
       </div>
-      <h2 className="font-display text-2xl font-semibold mb-2">
-        {tab === "following" ? "Você ainda não segue ninguém" : "O feed está silencioso"}
-      </h2>
-      <p className="text-muted-foreground text-sm mb-6">
-        {tab === "following"
-          ? "Encontre leitores e siga suas resenhas para ver tudo aqui."
-          : "Seja a primeira pessoa a publicar uma resenha hoje."}
-      </p>
-      <Link to={tab === "following" ? "/ranking" : "/buscar"}>
-        <Button variant="hero" className="gap-2">
-          {tab === "following" ? <><Users className="w-4 h-4" /> Descobrir leitores</>
-            : <><Search className="w-4 h-4" /> Buscar livros</>}
-        </Button>
+      <h2 className="font-display text-2xl font-semibold mb-2">{title}</h2>
+      <p className="text-muted-foreground text-sm mb-6">{desc}</p>
+      <Link to={ctaTo}>
+        <Button variant="hero" className="gap-2">{ctaLabel}</Button>
       </Link>
     </div>
   );
