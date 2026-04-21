@@ -26,6 +26,7 @@ export default function BookDetail() {
   }, [book?.id, user]);
   const { data: ub } = useUserBook(book?.id);
   const commit = useCommitUserBook(book);
+  const shelfNav = useShelfNavigation(book?.id);
 
   const ubKey = ["user-book", user?.id || "anon", book?.id || ""];
 
@@ -69,35 +70,43 @@ export default function BookDetail() {
 
   return (
     <AppShell>
-      <BookHero
-        book={book}
-        ub={ub ?? null}
-        saving={commit.isPending}
-        onStatusChange={(s) => commit.mutate({ status: s })}
-        onAddWishlist={() => commit.mutate({ status: "wishlist" })}
-        onShare={share}
-        onBookUpdated={updateBookCache}
-      />
-
-      <div className="px-5 md:px-10 pb-20 max-w-6xl mx-auto grid md:grid-cols-[1fr_340px] gap-10 md:gap-14 mt-4">
-        <BookSynopsis
-          bookId={book.id}
-          description={book.description}
-          onDescriptionUpdated={(d) => updateBookCache({ ...book, description: d })}
+      <ShelfNavigator
+        shelfTitle={shelfNav.shelfTitle}
+        index={shelfNav.index}
+        total={shelfNav.total}
+        prevId={shelfNav.prevId}
+        nextId={shelfNav.nextId}
+      >
+        <BookHero
+          book={book}
+          ub={ub ?? null}
+          saving={commit.isPending}
+          onStatusChange={(s) => commit.mutate({ status: s })}
+          onAddWishlist={() => commit.mutate({ status: "wishlist" })}
+          onShare={share}
+          onBookUpdated={updateBookCache}
         />
-        {ub && (
-          <BookSidePanel
-            book={book}
-            ub={ub}
-            onUpdate={(patch) => patchUbCache(patch)}
-            onCommit={(patch) => commit.mutate(patch)}
-          />
-        )}
-      </div>
 
-      <div className="px-5 md:px-10 pb-24 max-w-6xl mx-auto">
-        <ReviewSection bookId={book.id} />
-      </div>
+        <div className="px-5 md:px-10 pb-20 max-w-6xl mx-auto grid md:grid-cols-[1fr_340px] gap-10 md:gap-14 mt-4">
+          <BookSynopsis
+            bookId={book.id}
+            description={book.description}
+            onDescriptionUpdated={(d) => updateBookCache({ ...book, description: d })}
+          />
+          {ub && (
+            <BookSidePanel
+              book={book}
+              ub={ub}
+              onUpdate={(patch) => patchUbCache(patch)}
+              onCommit={(patch) => commit.mutate(patch)}
+            />
+          )}
+        </div>
+
+        <div className="px-5 md:px-10 pb-24 max-w-6xl mx-auto">
+          <ReviewSection bookId={book.id} />
+        </div>
+      </ShelfNavigator>
     </AppShell>
   );
 }
