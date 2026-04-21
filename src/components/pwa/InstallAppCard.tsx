@@ -23,7 +23,7 @@ export function InstallAppCard() {
         </div>
         <div className="flex-1">
           <p className="font-display font-semibold">App instalado</p>
-          <p className="text-xs text-muted-foreground">Você está usando Página em modo aplicativo. Curta a leitura.</p>
+          <p className="text-xs text-muted-foreground">Você está usando o Readify em modo aplicativo. Curta a leitura.</p>
         </div>
       </div>
     );

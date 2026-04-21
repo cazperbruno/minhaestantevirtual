@@ -81,7 +81,8 @@ export function useAddBook() {
 
 interface UpdateBookVars {
   id: string;
-  patch: Partial<Pick<UserBook, "status" | "rating" | "current_page" | "notes" | "is_public" | "available_for_loan" | "available_for_trade">>;
+  // `notes` foi removido de user_books (vive em user_book_notes por privacidade).
+  patch: Partial<Pick<UserBook, "status" | "rating" | "current_page" | "is_public" | "available_for_loan" | "available_for_trade">>;
 }
 
 /** Atualiza um item da biblioteca (status, nota, etc) com optimistic update. */

@@ -103,9 +103,17 @@ async function executeAction(a: OfflineAction): Promise<boolean> {
       case "book_progress":
         await supabase.from("user_books").update({ current_page: a.payload.current_page }).eq("id", a.payload.user_book_id);
         return true;
-      case "book_notes":
-        await supabase.from("user_books").update({ notes: a.payload.notes }).eq("id", a.payload.user_book_id);
+      case "book_notes": {
+        // Notas privadas vivem em `user_book_notes` (RLS owner-only),
+        // não em `user_books` (que é parcialmente pública).
+        const { data } = await supabase.auth.getUser();
+        if (!data.user) return false;
+        await supabase.from("user_book_notes").upsert(
+          { user_book_id: a.payload.user_book_id, user_id: data.user.id, notes: a.payload.notes },
+          { onConflict: "user_book_id" },
+        );
         return true;
+      }
       case "review_like": {
         const { data } = await supabase.auth.getUser();
         if (!data.user) return false;
