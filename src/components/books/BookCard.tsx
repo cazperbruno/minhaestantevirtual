@@ -49,11 +49,12 @@ function BookCardImpl({ book, size = "md", className, showMeta = true, quickSave
     }
   };
 
+  const external = isExternal(book);
   return (
     <a
-      href={`/livro/${book.id}`}
+      href={external ? "#" : `/livro/${book.id}`}
       onClick={handleClick}
-      onMouseEnter={() => !isExternal(book) && track("view", book.id, source ? { source } : undefined)}
+      onMouseEnter={() => !external && track("view", book.id, source ? { source } : undefined)}
       className={cn("group block animate-fade-in", className)}
       aria-busy={importing}
     >
