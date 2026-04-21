@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,9 @@ export default function FeedPage() {
     data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage,
   } = useFeed(tab);
   const toggleLike = useToggleReviewLike(tab);
+  // Ref estável para que o memo do ReviewFeedCard funcione (mutate é estável,
+  // mas a arrow inline criava nova ref a cada render do feed).
+  const handleToggleLike = useCallback((rev: FeedReview) => toggleLike.mutate(rev), [toggleLike]);
   const { data: recsData } = usePublicRecommendations();
   const recs = useMemo(() => {
     const seen = new Set<string>();
@@ -134,7 +137,7 @@ export default function FeedPage() {
             <ul className="space-y-5">
               {reviews.map((r) => (
                 <li key={r.id}>
-                  <ReviewFeedCard review={r} onToggleLike={(rev) => toggleLike.mutate(rev)} />
+                  <ReviewFeedCard review={r} onToggleLike={handleToggleLike} />
                 </li>
               ))}
             </ul>
