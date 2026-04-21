@@ -388,8 +388,11 @@ Deno.serve(async (req) => {
     const updates: any = {
       total_volumes: finalTotal,
       status: series.status || result.status,
-      description: series.description || result.description,
-      cover_url: series.cover_url || result.cover_url,
+      // ⬇️ fallback inteligente: usa a sinopse mais rica
+      description: pickBetterDescription(series.description, result.description),
+      // ⬇️ fallback inteligente: prefere capa grande do AniList sobre thumbnails
+      cover_url: pickBetterCover(series.cover_url, result.cover_url),
+      banner_url: result.banner_url || null,
       source: result.source,
       source_id: result.source_id,
       raw: result.raw,
