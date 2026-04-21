@@ -193,6 +193,42 @@ export type Database = {
         }
         Relationships: []
       }
+      book_audit_log: {
+        Row: {
+          action: string
+          after: Json | null
+          before: Json | null
+          book_id: string | null
+          created_at: string
+          details: Json | null
+          fields_changed: string[] | null
+          id: string
+          process: string
+        }
+        Insert: {
+          action: string
+          after?: Json | null
+          before?: Json | null
+          book_id?: string | null
+          created_at?: string
+          details?: Json | null
+          fields_changed?: string[] | null
+          id?: string
+          process: string
+        }
+        Update: {
+          action?: string
+          after?: Json | null
+          before?: Json | null
+          book_id?: string | null
+          created_at?: string
+          details?: Json | null
+          fields_changed?: string[] | null
+          id?: string
+          process?: string
+        }
+        Relationships: []
+      }
       book_clubs: {
         Row: {
           cover_url: string | null
@@ -356,6 +392,7 @@ export type Database = {
           page_count: number | null
           published_year: number | null
           publisher: string | null
+          quality_score: number
           raw: Json | null
           series_id: string | null
           source: string | null
@@ -380,6 +417,7 @@ export type Database = {
           page_count?: number | null
           published_year?: number | null
           publisher?: string | null
+          quality_score?: number
           raw?: Json | null
           series_id?: string | null
           source?: string | null
@@ -404,6 +442,7 @@ export type Database = {
           page_count?: number | null
           published_year?: number | null
           publisher?: string | null
+          quality_score?: number
           raw?: Json | null
           series_id?: string | null
           source?: string | null
@@ -2117,6 +2156,15 @@ export type Database = {
         }
         Relationships: []
       }
+      book_quality_trend: {
+        Row: {
+          avg_score: number | null
+          books_touched: number | null
+          day: string | null
+          poor_count: number | null
+        }
+        Relationships: []
+      }
       books_quality_report: {
         Row: {
           avg_quality_score: number | null
@@ -2287,6 +2335,23 @@ export type Database = {
           success: boolean
           xp_granted: number
         }[]
+      }
+      compute_book_quality_score: {
+        Args: {
+          _authors: string[]
+          _categories: string[]
+          _cover_url: string
+          _description: string
+          _isbn_10: string
+          _isbn_13: string
+          _language: string
+          _page_count: number
+          _published_year: number
+          _publisher: string
+          _series_id: string
+          _title: string
+        }
+        Returns: number
       }
       decline_buddy_read: {
         Args: { _buddy_id: string }
