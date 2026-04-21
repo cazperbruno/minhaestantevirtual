@@ -13,7 +13,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { useMySeries, type MySeriesRow } from "@/hooks/useMySeries";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { BookOpen, Layers, CheckCircle2, PlayCircle, Search } from "lucide-react";
+import { BookOpen, Layers, CheckCircle2, PlayCircle, Search, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ContentTypeFilter, useContentFilter } from "@/components/books/ContentTypeFilter";
 import { CONTENT_TYPE_ICON, CONTENT_TYPE_LABEL } from "@/types/book";
@@ -47,13 +47,20 @@ export default function MySeriesPage() {
   return (
     <AppShell>
       <div className="px-5 md:px-10 pt-8 md:pt-12 pb-20 max-w-5xl mx-auto">
-        <header className="mb-6 animate-fade-in">
-          <h1 className="font-display text-4xl md:text-5xl font-bold flex items-center gap-3">
-            <Layers className="w-8 h-8 text-primary" /> Minhas séries
-          </h1>
-          <p className="text-muted-foreground mt-1.5 text-sm md:text-base">
-            Acompanhe o progresso das suas coleções de mangás e quadrinhos
-          </p>
+        <header className="mb-6 animate-fade-in flex items-start justify-between gap-3">
+          <div>
+            <h1 className="font-display text-4xl md:text-5xl font-bold flex items-center gap-3">
+              <Layers className="w-8 h-8 text-primary" /> Minhas séries
+            </h1>
+            <p className="text-muted-foreground mt-1.5 text-sm md:text-base">
+              Acompanhe o progresso das suas coleções de mangás e quadrinhos
+            </p>
+          </div>
+          <Link to="/series/gerenciar" className="shrink-0">
+            <Button variant="outline" size="sm" className="gap-2">
+              <Settings className="w-4 h-4" /> <span className="hidden sm:inline">Gerenciar</span>
+            </Button>
+          </Link>
         </header>
 
         {seriesTypes.length > 1 && <ContentTypeFilter className="mb-6" />}
