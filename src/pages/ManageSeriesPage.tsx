@@ -46,7 +46,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, Layers, Pencil, Plus, Settings, Trash2, Link2, Unlink } from "lucide-react";
+import { AlertTriangle, BookOpen, Layers, Pencil, Plus, Settings, Trash2, Link2, Unlink } from "lucide-react";
+import { toast } from "sonner";
 import { CONTENT_TYPE_LABEL, type ContentType } from "@/types/book";
 import {
   useManageableSeries,
