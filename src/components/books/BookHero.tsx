@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import { Book, BookStatus, UserBook, STATUS_LABEL } from "@/types/book";
 import { BookCover } from "./BookCover";
 import { StatusBadge } from "./StatusBadge";
@@ -8,9 +9,12 @@ import {
 } from "@/components/ui/select";
 import { InstagramShareCard } from "./InstagramShareCard";
 import { EditBookDialog } from "./EditBookDialog";
-import { Heart, ShoppingBag, Share2, Plus, Loader2, Pencil } from "lucide-react";
+import { Heart, ShoppingBag, Share2, Plus, Loader2, Pencil, RefreshCw } from "lucide-react";
 import { openAmazon } from "@/lib/amazon";
 import { bookCoverTransitionName } from "@/lib/view-transitions";
+import { refreshBookData } from "@/lib/refresh-book";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Props {
   book: Book;
@@ -23,8 +27,37 @@ interface Props {
 }
 
 export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onShare, onBookUpdated }: Props) {
+  const [refreshing, setRefreshing] = useState(false);
   const progress = book.page_count && ub?.current_page
     ? Math.round((ub.current_page / book.page_count) * 100) : null;
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    const tid = toast.loading("Buscando dados atualizados…");
+    try {
+      const r = await refreshBookData(book.id, book.cover_url);
+      if (!r.ok) throw new Error("Falha ao reprocessar");
+      if (r.fields_filled.length === 0 && !r.cover_updated) {
+        toast.success("Já está completo — nada a melhorar", { id: tid });
+      } else {
+        const { data } = await supabase.from("books").select("*").eq("id", book.id).maybeSingle();
+        if (data) onBookUpdated?.(data as Book);
+        const labels: Record<string, string> = {
+          title: "título", subtitle: "subtítulo", authors: "autores",
+          publisher: "editora", published_year: "ano", description: "descrição",
+          categories: "categorias", page_count: "páginas", language: "idioma",
+          cover_url: "capa",
+        };
+        const updated = r.fields_filled.map((k) => labels[k] || k);
+        if (r.cover_updated && !updated.includes("capa")) updated.push("capa");
+        toast.success(`Atualizado: ${updated.join(", ")}`, { id: tid });
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao atualizar dados", { id: tid });
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   return (
     <div className="relative overflow-hidden bg-background">
@@ -162,6 +195,19 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
                     </Button>
                   }
                 />
+
+                <Button
+                  variant="outline"
+                  size="default"
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className="h-10 shrink-0 gap-2 hover:border-primary/60 hover:text-primary"
+                  aria-label="Atualizar informações do livro"
+                  title="Reprocessa título, autor, descrição, capa, editora, idioma e categorias usando múltiplas fontes"
+                >
+                  {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  <span>Atualizar dados</span>
+                </Button>
 
                 <Button
                   variant="outline"
