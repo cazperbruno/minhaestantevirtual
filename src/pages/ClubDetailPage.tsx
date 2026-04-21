@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { awardXp } from "@/lib/xp";
+import { TypingIndicator } from "@/components/social/TypingIndicator";
 
 export default function ClubDetailPage() {
   const { id } = useParams();
@@ -26,6 +27,7 @@ export default function ClubDetailPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const sendTypingRef = useRef<(() => void) | null>(null);
 
   const load = async () => {
     if (!id) return;
@@ -209,8 +211,24 @@ export default function ClubDetailPage() {
                 })
               )}
             </div>
+            <div className="mb-2 min-h-[28px]">
+              <TypingIndicator
+                channelKey={`club-${id}`}
+                displayName={user?.user_metadata?.display_name || user?.email?.split("@")[0]}
+                registerSendTyping={(fn) => { sendTypingRef.current = fn; }}
+              />
+            </div>
             <form onSubmit={send} className="flex gap-2">
-              <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Mensagem..." disabled={sending} maxLength={2000} />
+              <Input
+                value={input}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  sendTypingRef.current?.();
+                }}
+                placeholder="Mensagem..."
+                disabled={sending}
+                maxLength={2000}
+              />
               <Button type="submit" variant="hero" size="icon" disabled={sending || !input.trim()} aria-label="Enviar mensagem">
                 <Send className="w-4 h-4" aria-hidden="true" />
               </Button>
