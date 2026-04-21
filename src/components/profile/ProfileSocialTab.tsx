@@ -23,20 +23,22 @@ export function ProfileSocialTab({ userId }: { userId: string }) {
     let mounted = true;
     (async () => {
       const [{ data: f1 }, { data: f2 }] = await Promise.all([
-        supabase
-          .from("follows")
-          .select("follower_id, profile:profiles!follows_follower_id_fkey(id, display_name, username, avatar_url)")
-          .eq("following_id", userId)
-          .limit(12),
-        supabase
-          .from("follows")
-          .select("following_id, profile:profiles!follows_following_id_fkey(id, display_name, username, avatar_url)")
-          .eq("follower_id", userId)
-          .limit(12),
+        supabase.from("follows").select("follower_id").eq("following_id", userId).limit(24),
+        supabase.from("follows").select("following_id").eq("follower_id", userId).limit(24),
+      ]);
+      const followerIds = (f1 || []).map((r: any) => r.follower_id);
+      const followingIds = (f2 || []).map((r: any) => r.following_id);
+      const [{ data: p1 }, { data: p2 }] = await Promise.all([
+        followerIds.length
+          ? supabase.from("profiles").select("id, display_name, username, avatar_url").in("id", followerIds)
+          : Promise.resolve({ data: [] as Reader[] }),
+        followingIds.length
+          ? supabase.from("profiles").select("id, display_name, username, avatar_url").in("id", followingIds)
+          : Promise.resolve({ data: [] as Reader[] }),
       ]);
       if (!mounted) return;
-      setFollowers(((f1 || []).map((r: any) => r.profile).filter(Boolean)) as Reader[]);
-      setFollowing(((f2 || []).map((r: any) => r.profile).filter(Boolean)) as Reader[]);
+      setFollowers((p1 || []) as Reader[]);
+      setFollowing((p2 || []) as Reader[]);
       setLoading(false);
     })();
     return () => {
