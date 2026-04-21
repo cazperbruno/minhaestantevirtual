@@ -392,7 +392,7 @@ Deno.serve(async (req) => {
       description: pickBetterDescription(series.description, result.description),
       // ⬇️ fallback inteligente: prefere capa grande do AniList sobre thumbnails
       cover_url: pickBetterCover(series.cover_url, result.cover_url),
-      banner_url: result.banner_url || null,
+      // banner_url só vai pro cache global — não há coluna na tabela series
       source: result.source,
       source_id: result.source_id,
       raw: result.raw,
