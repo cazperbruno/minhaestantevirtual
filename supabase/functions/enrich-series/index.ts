@@ -224,6 +224,50 @@ async function fetchAi(
   }
 }
 
+// ============================================================
+// Helpers de qualidade — escolhem a MELHOR capa/sinopse entre as fontes
+// ============================================================
+
+/**
+ * Escolhe a melhor URL de capa entre a atual e a candidata.
+ * Prefere AniList extraLarge (geralmente >800px) e capas que não sejam
+ * "thumbnails" (heurística por substring no path). Se a atual já é boa,
+ * mantém — exceto quando a candidata é claramente uma versão maior.
+ */
+function pickBetterCover(current: string | null, candidate: string | null): string | null {
+  if (!candidate) return current;
+  if (!current) return candidate;
+  if (current === candidate) return current;
+
+  const score = (url: string): number => {
+    let s = 0;
+    if (/anilist\.co|anili\.st/i.test(url)) s += 5;          // AniList tem capas grandes
+    if (/extraLarge|large|original|2x/i.test(url)) s += 4;
+    if (/thumb|small|medium|sml/i.test(url)) s -= 3;
+    if (/openlibrary\.org\/b\/.*-S\.jpg/i.test(url)) s -= 4;  // tamanho S do OpenLibrary
+    if (/openlibrary\.org\/b\/.*-L\.jpg/i.test(url)) s += 2;
+    return s;
+  };
+
+  return score(candidate) > score(current) ? candidate : current;
+}
+
+/**
+ * Escolhe a melhor descrição. Critério: a maior, desde que tenha
+ * conteúdo razoável (>=80 chars). Se a atual já tem >400 chars, só
+ * substitui se a candidata for >50% maior.
+ */
+function pickBetterDescription(current: string | null, candidate: string | null): string | null {
+  const a = (current || "").trim();
+  const b = (candidate || "").trim();
+  if (!b) return a || null;
+  if (!a) return b.length >= 40 ? b : null;
+  if (b.length < 80) return a;
+  if (a.length < 80) return b;
+  if (a.length >= 400) return b.length > a.length * 1.5 ? b : a;
+  return b.length > a.length ? b : a;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -282,8 +326,11 @@ Deno.serve(async (req) => {
             ? series.total_volumes // mantém o maior se usuário já tem mais
             : cached.total_volumes,
           status: series.status || cached.status,
-          description: series.description || cached.description,
-          cover_url: series.cover_url || cached.cover_url,
+          // ⬇️ fallback inteligente: pega a sinopse mais rica
+          description: pickBetterDescription(series.description, cached.description),
+          // ⬇️ fallback inteligente: pega a capa de maior qualidade
+          cover_url: pickBetterCover(series.cover_url, cached.cover_url),
+          // banner_url não existe na tabela series — fica no cache
           source: cached.source,
           source_id: cached.source_id,
           raw: cached.raw,
@@ -299,24 +346,26 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 2) AniList
+    // 2) AniList — sempre tenta primeiro (capa grande + sinopse oficial + banner)
     let result = await fetchAnilist(series.title, series.content_type, series.authors || []);
 
-    // 3) Fallback IA (sempre que AniList não retornou volumes)
+    // 3) Fallback IA — sempre que AniList não retornou volumes
     if (!result || !result.total_volumes) {
       const aiResult = await fetchAi(series.title, series.authors || [], series.content_type);
       if (aiResult && (aiResult.total_volumes || !result)) {
-        // Se AniList trouxe algo (ex: status, capa) e IA trouxe volumes, mescla
         if (result) {
+          // Mescla: PRESERVA capa/banner/sinopse do AniList (são oficiais e ricas),
+          // só pega da IA o que faltou — principalmente total_volumes.
           result = {
             ...result,
-            total_volumes: aiResult.total_volumes ?? result.total_volumes,
+            total_volumes: result.total_volumes ?? aiResult.total_volumes,
+            total_chapters: result.total_chapters ?? aiResult.total_chapters,
             status: result.status ?? aiResult.status,
-            description: result.description ?? aiResult.description,
+            description: pickBetterDescription(result.description, aiResult.description),
             categories: result.categories.length ? result.categories : aiResult.categories,
             published_year: result.published_year ?? aiResult.published_year,
             confidence: Math.max(result.confidence, aiResult.confidence),
-            source: aiResult.total_volumes ? "ai" : result.source,
+            source: aiResult.total_volumes && !result.total_volumes ? "ai" : result.source,
             raw: { ...result.raw, ai: aiResult.raw },
           };
         } else {
@@ -339,8 +388,11 @@ Deno.serve(async (req) => {
     const updates: any = {
       total_volumes: finalTotal,
       status: series.status || result.status,
-      description: series.description || result.description,
-      cover_url: series.cover_url || result.cover_url,
+      // ⬇️ fallback inteligente: usa a sinopse mais rica
+      description: pickBetterDescription(series.description, result.description),
+      // ⬇️ fallback inteligente: prefere capa grande do AniList sobre thumbnails
+      cover_url: pickBetterCover(series.cover_url, result.cover_url),
+      // banner_url só vai pro cache global — não há coluna na tabela series
       source: result.source,
       source_id: result.source_id,
       raw: result.raw,
