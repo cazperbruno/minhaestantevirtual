@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import { Book, BookStatus, UserBook, STATUS_LABEL } from "@/types/book";
 import { BookCover } from "./BookCover";
 import { StatusBadge } from "./StatusBadge";
@@ -8,9 +9,12 @@ import {
 } from "@/components/ui/select";
 import { InstagramShareCard } from "./InstagramShareCard";
 import { EditBookDialog } from "./EditBookDialog";
-import { Heart, ShoppingBag, Share2, Plus, Loader2, Pencil } from "lucide-react";
+import { Heart, ShoppingBag, Share2, Plus, Loader2, Pencil, RefreshCw } from "lucide-react";
 import { openAmazon } from "@/lib/amazon";
 import { bookCoverTransitionName } from "@/lib/view-transitions";
+import { refreshBookData } from "@/lib/refresh-book";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Props {
   book: Book;
