@@ -104,6 +104,10 @@ export default function ManageSeriesPage() {
           </Link>
         </div>
 
+        <div className="mb-6">
+          <SeriesValidationPanel />
+        </div>
+
         {isLoading ? (
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
