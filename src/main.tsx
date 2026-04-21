@@ -2,9 +2,14 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { setupOfflineSync } from "@/lib/offline-queue";
+import { checkForceUpdate } from "@/lib/force-update";
 
 // Initialize offline action sync (replays queued writes when network returns)
 setupOfflineSync();
+
+// Kill switch: força atualização para todos quando minVersion remoto sobe.
+// Roda em background — não bloqueia o boot.
+void checkForceUpdate();
 
 /**
  * Service Worker / PWA registration guard.
