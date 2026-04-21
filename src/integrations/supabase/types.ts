@@ -269,6 +269,133 @@ export type Database = {
           },
         ]
       }
+      buddy_read_messages: {
+        Row: {
+          buddy_read_id: string
+          content: string
+          created_at: string
+          id: string
+          spoiler_page: number | null
+          user_id: string
+        }
+        Insert: {
+          buddy_read_id: string
+          content: string
+          created_at?: string
+          id?: string
+          spoiler_page?: number | null
+          user_id: string
+        }
+        Update: {
+          buddy_read_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          spoiler_page?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buddy_read_messages_buddy_read_id_fkey"
+            columns: ["buddy_read_id"]
+            isOneToOne: false
+            referencedRelation: "buddy_reads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      buddy_read_participants: {
+        Row: {
+          buddy_read_id: string
+          current_page: number
+          finished_at: string | null
+          percent: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          buddy_read_id: string
+          current_page?: number
+          finished_at?: string | null
+          percent?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          buddy_read_id?: string
+          current_page?: number
+          finished_at?: string | null
+          percent?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buddy_read_participants_buddy_read_id_fkey"
+            columns: ["buddy_read_id"]
+            isOneToOne: false
+            referencedRelation: "buddy_reads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      buddy_reads: {
+        Row: {
+          book_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          initiator_id: string
+          invitee_id: string
+          message: string | null
+          started_at: string | null
+          status: string
+          target_finish_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          book_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          initiator_id: string
+          invitee_id: string
+          message?: string | null
+          started_at?: string | null
+          status?: string
+          target_finish_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          book_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          initiator_id?: string
+          invitee_id?: string
+          message?: string | null
+          started_at?: string | null
+          status?: string
+          target_finish_date?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buddy_reads_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buddy_reads_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "trending_books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       challenge_templates: {
         Row: {
           category: string
@@ -1604,6 +1731,13 @@ export type Database = {
       }
     }
     Functions: {
+      accept_buddy_read: {
+        Args: { _buddy_id: string }
+        Returns: {
+          message: string
+          success: boolean
+        }[]
+      }
       accept_club_invitation: {
         Args: { _invitation_id: string }
         Returns: {
@@ -1705,6 +1839,13 @@ export type Database = {
           xp_granted: number
         }[]
       }
+      decline_buddy_read: {
+        Args: { _buddy_id: string }
+        Returns: {
+          message: string
+          success: boolean
+        }[]
+      }
       decline_club_invitation: {
         Args: { _invitation_id: string }
         Returns: {
@@ -1744,6 +1885,25 @@ export type Database = {
           username: string
         }[]
       }
+      get_my_buddy_reads: {
+        Args: never
+        Returns: {
+          book_cover: string
+          book_id: string
+          book_title: string
+          completed_at: string
+          created_at: string
+          id: string
+          is_initiator: boolean
+          my_percent: number
+          partner_avatar: string
+          partner_id: string
+          partner_name: string
+          partner_percent: number
+          started_at: string
+          status: string
+        }[]
+      }
       get_similar_users: {
         Args: { target_user_id: string }
         Returns: {
@@ -1768,6 +1928,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_buddy_participant: {
+        Args: { _buddy_id: string; _user: string }
         Returns: boolean
       }
       is_club_member: {
@@ -1861,6 +2025,14 @@ export type Database = {
       track_rec_click: { Args: { _book_id: string }; Returns: undefined }
       track_recs_shown: { Args: { _count: number }; Returns: undefined }
       track_search: { Args: { _query: string }; Returns: undefined }
+      update_buddy_progress: {
+        Args: { _buddy_id: string; _current_page: number; _percent: number }
+        Returns: {
+          both_finished: boolean
+          message: string
+          success: boolean
+        }[]
+      }
       update_streak: {
         Args: { _user_id: string }
         Returns: {
