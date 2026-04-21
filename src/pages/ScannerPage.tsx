@@ -181,8 +181,80 @@ export default function ScannerPage() {
     }
   };
 
-  // Cascade: ISBN → cache+search → cover IA
+  /**
+   * Reagenda um novo scan no modo contínuo OU lote — pequeno delay pro usuário
+   * conseguir ver o feedback visual antes da câmera reativar.
+   */
+  const rescheduleScan = (delay = 1200) => {
+    if (continuousTimerRef.current) clearTimeout(continuousTimerRef.current);
+    continuousTimerRef.current = window.setTimeout(() => {
+      setFoundBook(null);
+      setDetected(null);
+      if (mode === "barcode") startBarcode();
+    }, delay);
+  };
+
+  /**
+   * Adiciona um item ao batch (modo lote). Se o ISBN já existe na lista
+   * (ainda não salvo), apenas re-vibra como feedback — não duplica.
+   */
+  const pushBatchItem = async (isbn: string) => {
+    // Dedupe por ISBN dentro da sessão atual (ignora itens já salvos)
+    const exists = batch.some((b) => b.isbn === isbn && b.status !== "saved");
+    if (exists) {
+      vibrate(20);
+      toast.info("Já está no lote", { duration: 1200 });
+      rescheduleScan(800);
+      return;
+    }
+
+    const key = `${isbn}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setBatch((prev) => [
+      { key, isbn, status: "loading", pickedStatus: "not_read" },
+      ...prev,
+    ]);
+
+    // Reagenda câmera IMEDIATAMENTE — lookup roda em paralelo
+    rescheduleScan(900);
+
+    try {
+      const book = await lookupIsbn(isbn);
+      if (book?.id) {
+        vibrate([20, 30, 60]);
+        setBatch((prev) => prev.map((it) => it.key === key ? {
+          ...it,
+          status: "ready",
+          bookId: book.id,
+          title: book.title,
+          authors: (book as any).authors,
+          cover_url: (book as any).cover_url,
+        } : it));
+        if (user) {
+          void supabase.from("user_interactions").insert({
+            user_id: user.id, book_id: book.id, kind: "scan", weight: 1,
+          });
+        }
+      } else {
+        vibrate([100, 50, 100]);
+        setBatch((prev) => prev.map((it) => it.key === key ? {
+          ...it, status: "error", errorMessage: "ISBN não encontrado",
+        } : it));
+      }
+    } catch (e: any) {
+      setBatch((prev) => prev.map((it) => it.key === key ? {
+        ...it, status: "error", errorMessage: e?.message || "Erro",
+      } : it));
+    }
+  };
+
+  // Cascade: ISBN → cache+search. Roteia pelo modo selecionado.
   const resolveIsbn = async (isbn: string) => {
+    // ===== MODO LOTE: não bloqueia a UI, apenas empilha =====
+    if (scanMode === "batch") {
+      pushBatchItem(isbn);
+      return;
+    }
+
     setBusy(true);
     setBusyLabel(`Buscando ISBN ${isbn}…`);
     setNotFoundIsbn(null);
@@ -197,19 +269,19 @@ export default function ScannerPage() {
           authors: (book as any).authors,
           cover_url: (book as any).cover_url,
         });
-        // Registra a interação 'scan' (alimenta desafios) e concede XP
         if (user) {
           void supabase.from("user_interactions").insert({
             user_id: user.id, book_id: book.id, kind: "scan", weight: 1,
           });
           void awardXp(user.id, "scan_book", { silent: true });
 
-          // Modo contínuo: auto-adiciona à biblioteca como 'not_read' e reagenda scan
-          if (continuous) {
+          // Modo contínuo: auto-adiciona como 'not_read' e reagenda
+          if (scanMode === "continuous") {
             await supabase.from("user_books").upsert(
               { user_id: user.id, book_id: book.id, status: "not_read" },
               { onConflict: "user_id,book_id" },
             );
+            invalidate.library(user.id);
             setSessionLog((log) => [
               { id: book.id, title: book.title, cover_url: (book as any).cover_url },
               ...log,
@@ -218,13 +290,7 @@ export default function ScannerPage() {
               description: "Adicionado · escaneando próximo…",
               duration: 1800,
             });
-            // Reagenda novo scan automaticamente
-            if (continuousTimerRef.current) clearTimeout(continuousTimerRef.current);
-            continuousTimerRef.current = window.setTimeout(() => {
-              setFoundBook(null);
-              setDetected(null);
-              if (mode === "barcode") startBarcode();
-            }, 1500);
+            rescheduleScan(1500);
           } else {
             toast.success("Livro encontrado");
           }
