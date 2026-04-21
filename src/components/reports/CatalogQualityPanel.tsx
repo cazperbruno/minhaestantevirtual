@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Database, Sparkles, Loader2, RefreshCw, BookOpen, Image, FileText, Tag } from "lucide-react";
+import { Database, Sparkles, Loader2, RefreshCw, BookOpen, Image, FileText, Tag, Wand2, GitMerge } from "lucide-react";
 
 interface Quality {
   total_books: number;
@@ -26,42 +26,48 @@ interface QueueStat {
 
 export function CatalogQualityPanel() {
   const [quality, setQuality] = useState<Quality | null>(null);
-  const [queue, setQueue] = useState<QueueStat[]>([]);
+  const [enrichQueue, setEnrichQueue] = useState<QueueStat[]>([]);
+  const [normQueue, setNormQueue] = useState<QueueStat[]>([]);
+  const [mergeSuggestions, setMergeSuggestions] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [draining, setDraining] = useState(false);
+  const [draining, setDraining] = useState<null | "enrich" | "normalize">(null);
+
+  const aggregate = (rows: any[] | null): QueueStat[] => {
+    if (!rows) return [];
+    const map = new Map<string, number>();
+    rows.forEach((r: any) => map.set(r.status, (map.get(r.status) ?? 0) + 1));
+    return Array.from(map, ([status, count]) => ({ status, count }));
+  };
 
   const load = async () => {
     setLoading(true);
-    const [{ data: q }, { data: qq }] = await Promise.all([
+    const [{ data: q }, eq, nq, ms] = await Promise.all([
       (supabase.from("books_quality_report" as any).select("*").maybeSingle() as any),
-      supabase
-        .from("enrichment_queue")
-        .select("status")
-        .then((res) => {
-          if (!res.data) return { data: [] as QueueStat[] };
-          const map = new Map<string, number>();
-          res.data.forEach((r: any) => map.set(r.status, (map.get(r.status) ?? 0) + 1));
-          return { data: Array.from(map, ([status, count]) => ({ status, count })) };
-        }),
+      supabase.from("enrichment_queue").select("status"),
+      supabase.from("metadata_normalization_queue" as any).select("status") as any,
+      supabase.from("merge_suggestions" as any).select("id", { count: "exact", head: true }).eq("status", "pending") as any,
     ]);
     setQuality(q as Quality | null);
-    setQueue(qq);
+    setEnrichQueue(aggregate(eq.data));
+    setNormQueue(aggregate(nq.data));
+    setMergeSuggestions((ms as any)?.count ?? 0);
     setLoading(false);
   };
 
   useEffect(() => { void load(); }, []);
 
-  const drainQueue = async () => {
-    setDraining(true);
+  const drain = async (kind: "enrich" | "normalize") => {
+    setDraining(kind);
     try {
-      const { data, error } = await supabase.functions.invoke("process-enrichment-queue");
+      const fn = kind === "enrich" ? "process-enrichment-queue" : "process-normalization-queue";
+      const { data, error } = await supabase.functions.invoke(fn);
       if (error) throw error;
-      toast.success(`Processados ${data?.processed ?? 0} livros (${data?.success ?? 0} OK, ${data?.skipped ?? 0} pulados, ${data?.failed ?? 0} falhas)`);
+      toast.success(`Processados ${data?.processed ?? 0} (${data?.success ?? 0} OK, ${data?.skipped ?? 0} pulados, ${data?.failed ?? 0} falhas)`);
       await load();
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao processar fila");
     } finally {
-      setDraining(false);
+      setDraining(null);
     }
   };
 
