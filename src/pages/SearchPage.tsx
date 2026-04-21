@@ -41,6 +41,7 @@ function amazonSearchUrlForQuery(query: string): string {
 
 /** Registra clique Amazon vindo de busca sem resultados (sem book_id). */
 async function trackAmazonFallbackClick(query: string) {
+  trackEvent("amazon_fallback_clicked", { query });
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
