@@ -24,11 +24,36 @@ import { cn } from "@/lib/utils";
 import { awardXp } from "@/lib/xp";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { haptic } from "@/lib/haptics";
+import { markScanStart, markScanSuccess, markScanCancelled, getScanStats } from "@/lib/scan-metrics";
 
 type Mode = "barcode" | "cover" | "page";
 
-function vibrate(pattern: number | number[]) {
-  try { navigator.vibrate?.(pattern); } catch { /* noop */ }
+/** Erros normalizados pra mostrar fallback claro ao usuário. */
+type CameraError =
+  | { kind: "permission"; message: string }
+  | { kind: "no-device"; message: string }
+  | { kind: "in-use"; message: string }
+  | { kind: "insecure"; message: string }
+  | { kind: "unknown"; message: string };
+
+function classifyCameraError(err: unknown): CameraError {
+  const e = err as { name?: string; message?: string } | undefined;
+  const name = e?.name ?? "";
+  const msg = e?.message ?? "Erro desconhecido";
+  if (typeof window !== "undefined" && !window.isSecureContext) {
+    return { kind: "insecure", message: "A câmera só funciona em HTTPS" };
+  }
+  if (name === "NotAllowedError" || name === "SecurityError") {
+    return { kind: "permission", message: "Permissão de câmera negada" };
+  }
+  if (name === "NotFoundError" || name === "OverconstrainedError") {
+    return { kind: "no-device", message: "Nenhuma câmera traseira disponível" };
+  }
+  if (name === "NotReadableError" || name === "AbortError") {
+    return { kind: "in-use", message: "Câmera em uso por outro app" };
+  }
+  return { kind: "unknown", message: msg };
 }
 
 const MODE_LABEL: Record<Mode, string> = {
@@ -71,6 +96,8 @@ export default function ScannerPage() {
   const [detected, setDetected] = useState<string | null>(null);
   const [foundBook, setFoundBook] = useState<{ id: string; title: string; authors?: string[]; cover_url?: string | null } | null>(null);
   const [notFoundIsbn, setNotFoundIsbn] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useState<CameraError | null>(null);
+  const [scanStats, setScanStats] = useState(getScanStats());
 
   // Cover state
   const [coverResults, setCoverResults] = useState<Book[]>([]);
@@ -110,7 +137,9 @@ export default function ScannerPage() {
       setActive(true);
       setDetected(null);
       setNotFoundIsbn(null);
+      setCameraError(null);
       lockRef.current = false;
+      markScanStart();
 
       const hints = new Map();
       hints.set(DecodeHintType.POSSIBLE_FORMATS, [
@@ -140,12 +169,18 @@ export default function ScannerPage() {
           const code = raw.replace(/[^0-9Xx]/g, "");
           if (code.length !== 10 && code.length !== 13) return;
 
+          // Debounce: rejeita o MESMO código por 2.5s, e qualquer código por 350ms
+          // (evita dupla leitura quando o ZXing retorna 2 frames seguidos)
           const now = Date.now();
-          if (lastScanRef.current.code === code && now - lastScanRef.current.ts < 1500) return;
+          const sinceLast = now - lastScanRef.current.ts;
+          if (lastScanRef.current.code === code && sinceLast < 2500) return;
+          if (sinceLast < 350) return;
           lastScanRef.current = { code, ts: now };
 
           lockRef.current = true;
-          vibrate(40);
+          markScanSuccess(result.getBarcodeFormat?.().toString());
+          setScanStats(getScanStats());
+          haptic("success");
           setDetected(code);
           controls.stop();
           setActive(false);
@@ -163,8 +198,10 @@ export default function ScannerPage() {
         }
       });
     } catch (e) {
-      console.error(e);
-      toast.error("Não foi possível acessar a câmera");
+      console.error("[scanner] camera error", e);
+      markScanCancelled();
+      const err = classifyCameraError(e);
+      setCameraError(err);
       stop();
     }
   };
@@ -202,7 +239,7 @@ export default function ScannerPage() {
     // Dedupe por ISBN dentro da sessão atual (ignora itens já salvos)
     const exists = batch.some((b) => b.isbn === isbn && b.status !== "saved");
     if (exists) {
-      vibrate(20);
+      haptic("tap");
       toast.info("Já está no lote", { duration: 1200 });
       rescheduleScan(800);
       return;
@@ -220,7 +257,7 @@ export default function ScannerPage() {
     try {
       const book = await lookupIsbn(isbn);
       if (book?.id) {
-        vibrate([20, 30, 60]);
+        haptic("success");
         setBatch((prev) => prev.map((it) => it.key === key ? {
           ...it,
           status: "ready",
@@ -235,7 +272,7 @@ export default function ScannerPage() {
           });
         }
       } else {
-        vibrate([100, 50, 100]);
+        haptic("error");
         setBatch((prev) => prev.map((it) => it.key === key ? {
           ...it, status: "error", errorMessage: "ISBN não encontrado",
         } : it));
@@ -262,7 +299,7 @@ export default function ScannerPage() {
     try {
       const book = await lookupIsbn(isbn);
       if (book?.id) {
-        vibrate([20, 30, 60]);
+        haptic("success");
         setFoundBook({
           id: book.id,
           title: book.title,
@@ -298,7 +335,7 @@ export default function ScannerPage() {
           toast.success("Livro encontrado");
         }
       } else {
-        vibrate([100, 50, 100]);
+        haptic("error");
         setNotFoundIsbn(isbn);
       }
     } catch (e: any) {
@@ -356,7 +393,7 @@ export default function ScannerPage() {
       const books = await searchBooksGet(rec.query);
       setCoverResults(books.slice(0, 12));
       if (books.length === 0) toast.warning("Nenhum livro encontrado para esta capa");
-      else vibrate([20, 30, 60]);
+      else haptic("success");
     } catch (e: any) {
       toast.error(e.message || "Erro ao reconhecer capa");
     } finally {
@@ -377,7 +414,7 @@ export default function ScannerPage() {
       if (rec.candidates.length === 0) {
         toast.warning("Não consegui identificar o livro a partir desta página");
       } else {
-        vibrate([20, 30, 60]);
+        haptic("success");
         toast.success(`Encontramos ${rec.candidates.length} possível${rec.candidates.length === 1 ? "" : "is"}`);
       }
     } catch (e: any) {
@@ -554,12 +591,28 @@ export default function ScannerPage() {
               <div className="relative aspect-[4/3] bg-black">
                 <video ref={videoRef} className="w-full h-full object-cover" muted playsInline autoPlay />
 
-                {!active && !busy && !foundBook && !notFoundIsbn && (
+                {!active && !busy && !foundBook && !notFoundIsbn && !cameraError && (
                   <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-transparent to-black/40">
                     <Button variant="hero" size="lg" onClick={startBarcode} className="gap-2 shadow-glow">
                       <Camera className="w-4 h-4" /> Ativar câmera
                     </Button>
                   </div>
+                )}
+
+                {cameraError && !active && (
+                  <CameraErrorOverlay
+                    error={cameraError}
+                    onRetry={() => { setCameraError(null); startBarcode(); }}
+                    onManual={() => {
+                      setCameraError(null);
+                      stop();
+                      // foca no input manual
+                      setTimeout(() => {
+                        document.querySelector<HTMLInputElement>('input[inputmode="numeric"]')?.focus();
+                      }, 50);
+                    }}
+                    onCover={() => { setCameraError(null); setMode("cover"); scanNext(); }}
+                  />
                 )}
 
                 {active && (
@@ -611,6 +664,12 @@ export default function ScannerPage() {
                 />
                 <Button type="submit" disabled={busy} variant="hero">Buscar</Button>
               </div>
+              {scanStats.count >= 3 && (
+                <p className="text-[11px] text-muted-foreground/80 pt-1">
+                  Tempo médio de leitura: <span className="font-mono text-foreground/80">{(scanStats.median / 1000).toFixed(1)}s</span>
+                  <span className="opacity-50"> · {scanStats.count} scans</span>
+                </p>
+              )}
             </form>
 
             {foundBook && (
@@ -868,6 +927,59 @@ function PageCandidateCard({
         </p>
         <Button onClick={onAdd} disabled={disabled} size="sm" variant={primary ? "hero" : "outline"} className="mt-3 gap-1.5">
           <Plus className="w-3.5 h-3.5" /> Adicionar à biblioteca
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Overlay claro quando a câmera falha — explica a causa e oferece
+ * fallbacks acionáveis: tentar de novo, digitar ISBN ou ir pra capa.
+ */
+function CameraErrorOverlay({
+  error, onRetry, onManual, onCover,
+}: {
+  error: CameraError;
+  onRetry: () => void;
+  onManual: () => void;
+  onCover: () => void;
+}) {
+  const titleByKind: Record<CameraError["kind"], string> = {
+    permission: "Permissão de câmera negada",
+    "no-device": "Câmera traseira não encontrada",
+    "in-use": "Câmera em uso por outro app",
+    insecure: "Câmera só funciona em HTTPS",
+    unknown: "Não foi possível abrir a câmera",
+  };
+  const hintByKind: Record<CameraError["kind"], string> = {
+    permission: "Toque no cadeado da barra de endereço e libere a câmera. Depois tente de novo.",
+    "no-device": "Seu dispositivo não tem câmera traseira disponível ou está bloqueada.",
+    "in-use": "Feche outros apps que estão usando a câmera (Instagram, WhatsApp) e tente de novo.",
+    insecure: "Acesse pelo domínio publicado (HTTPS). Câmera bloqueada em conexões inseguras.",
+    unknown: error.message,
+  };
+
+  return (
+    <div className="absolute inset-0 bg-background/95 backdrop-blur-sm flex flex-col items-center justify-center gap-3 px-6 text-center animate-fade-in">
+      <div className="w-12 h-12 rounded-full bg-destructive/15 text-destructive flex items-center justify-center">
+        <Camera className="w-6 h-6" />
+      </div>
+      <div>
+        <p className="font-display font-semibold">{titleByKind[error.kind]}</p>
+        <p className="text-xs text-muted-foreground mt-1 max-w-xs">{hintByKind[error.kind]}</p>
+      </div>
+      <div className="flex flex-wrap gap-2 justify-center mt-1">
+        {error.kind !== "insecure" && (
+          <Button size="sm" variant="hero" onClick={onRetry} className="gap-1.5">
+            <Camera className="w-3.5 h-3.5" /> Tentar de novo
+          </Button>
+        )}
+        <Button size="sm" variant="outline" onClick={onManual} className="gap-1.5">
+          <FileText className="w-3.5 h-3.5" /> Digitar ISBN
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onCover} className="gap-1.5">
+          <ImageIcon className="w-3.5 h-3.5" /> Foto da capa
         </Button>
       </div>
     </div>
