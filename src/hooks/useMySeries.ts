@@ -8,7 +8,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { CACHE } from "@/lib/query-client";
+import { CACHE, qk } from "@/lib/query-client";
 import type { ContentType } from "@/types/book";
 
 export interface MySeriesRow {
@@ -38,7 +38,7 @@ export interface MySeriesRow {
 export function useMySeries() {
   const { user } = useAuth();
   return useQuery<MySeriesRow[]>({
-    queryKey: ["my-series", user?.id || "anon"],
+    queryKey: qk.mySeries(user?.id),
     enabled: !!user,
     ...CACHE.PERSONAL,
     queryFn: async () => {
@@ -126,7 +126,7 @@ export interface CollectionRankRow {
 /** Ranking global de séries mais completas (modo colecionador). */
 export function useCollectionRanking() {
   return useQuery<CollectionRankRow[]>({
-    queryKey: ["series-ranking"],
+    queryKey: qk.seriesRanking(),
     ...CACHE.CATALOG,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("series_collection_ranking", { _limit: 30 });
