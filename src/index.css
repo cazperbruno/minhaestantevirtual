@@ -114,6 +114,12 @@
   }
 }
 
+/* Global: previne overflow horizontal em qualquer tela (mobile-first safety) */
+html, body, #root {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 @layer components {
   .book-cover {
     @apply relative overflow-hidden rounded-md;
