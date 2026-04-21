@@ -102,6 +102,33 @@ export type Database = {
           },
         ]
       }
+      app_events: {
+        Row: {
+          created_at: string
+          event: string
+          id: string
+          props: Json | null
+          session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event: string
+          id?: string
+          props?: Json | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event?: string
+          id?: string
+          props?: Json | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       book_clubs: {
         Row: {
           cover_url: string | null
