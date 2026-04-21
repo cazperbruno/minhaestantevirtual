@@ -26,6 +26,19 @@ jobs:
         with:
           bun-version: latest
 
+      # Cache do diretório global de pacotes do Bun + node_modules.
+      # Chave principal = hash do bun.lock → invalida quando deps mudam.
+      # restore-keys garante reuso parcial entre branches/PRs.
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
