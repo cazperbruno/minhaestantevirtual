@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Database, Sparkles, Loader2, RefreshCw, BookOpen, Image, FileText, Tag, Wand2, GitMerge } from "lucide-react";
+import { Database, Sparkles, Loader2, RefreshCw, BookOpen, Image, FileText, Tag, Wand2, GitMerge, Brush, Zap } from "lucide-react";
 
 interface Quality {
   total_books: number;
@@ -30,7 +30,7 @@ export function CatalogQualityPanel() {
   const [normQueue, setNormQueue] = useState<QueueStat[]>([]);
   const [mergeSuggestions, setMergeSuggestions] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [draining, setDraining] = useState<null | "enrich" | "normalize">(null);
+  const [draining, setDraining] = useState<null | "enrich" | "normalize" | "clean" | "clean-aggressive">(null);
 
   const aggregate = (rows: any[] | null): QueueStat[] => {
     if (!rows) return [];
@@ -66,6 +66,27 @@ export function CatalogQualityPanel() {
       await load();
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao processar fila");
+    } finally {
+      setDraining(null);
+    }
+  };
+
+  const runClean = async (mode: "auto" | "aggressive") => {
+    setDraining(mode === "aggressive" ? "clean-aggressive" : "clean");
+    try {
+      const { data, error } = await supabase.functions.invoke("clean-book-database", {
+        body: { mode, limit: mode === "aggressive" ? 500 : 200 },
+      });
+      if (error) throw error;
+      const d: any = data ?? {};
+      toast.success(
+        `Limpos ${d.picked ?? 0} livros · padronizou ${d.standardized ?? 0} · ` +
+        `+${d.enqueued_normalization ?? 0} norm · +${d.enqueued_enrichment ?? 0} enrich · ` +
+        `${d.duplicate_suggestions_created ?? 0} duplicatas (score ${d.avg_score_before}→${d.avg_score_after})`,
+      );
+      await load();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao limpar catálogo");
     } finally {
       setDraining(null);
     }
