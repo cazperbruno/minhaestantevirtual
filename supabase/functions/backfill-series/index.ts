@@ -159,7 +159,7 @@ Deno.serve(async (req) => {
     const bookIds = queueRows.map((r) => r.book_id);
     const { data: books, error: bErr } = await supabase
       .from("books")
-      .select("id,title,authors,content_type,series_id,volume_number")
+      .select("id,title,authors,content_type,series_id,volume_number,created_at")
       .in("id", bookIds);
 
     if (bErr || !books) {
@@ -248,12 +248,31 @@ Deno.serve(async (req) => {
         }
 
         if (targetSeriesId) {
-          // linka direto
+          // Calcula volume sequencial p/ "séries não-numeradas":
+          // se não detectamos volume no título e não há volume prévio,
+          // pega o próximo número livre na série (max+1).
+          let volToSet: number | null = norm.volume ?? b.volume_number ?? null;
+          if (volToSet == null) {
+            const { data: usedRows } = await supabase
+              .from("books")
+              .select("volume_number")
+              .eq("series_id", targetSeriesId)
+              .not("volume_number", "is", null);
+            const used = new Set(
+              (usedRows ?? [])
+                .map((r) => r.volume_number)
+                .filter((v): v is number => Number.isFinite(v as number)),
+            );
+            // primeiro inteiro >=1 não usado
+            let candidate = 1;
+            while (used.has(candidate)) candidate++;
+            volToSet = candidate;
+          }
           const { error: uErr } = await supabase
             .from("books")
             .update({
               series_id: targetSeriesId,
-              volume_number: norm.volume ?? b.volume_number ?? null,
+              volume_number: volToSet,
             })
             .eq("id", b.id);
           if (uErr) throw uErr;
@@ -274,7 +293,7 @@ Deno.serve(async (req) => {
         // (busca livros do MESMO content_type cujo título normalizado bata)
         const { data: peers } = await supabase
           .from("books")
-          .select("id,title,authors,content_type,series_id,volume_number")
+          .select("id,title,authors,content_type,series_id,volume_number,created_at")
           .eq("content_type", ct)
           .ilike("title", `%${norm.base.split(" ")[0] || norm.base}%`)
           .limit(50);
@@ -293,11 +312,27 @@ Deno.serve(async (req) => {
         // Se peer já tem série → linka nessa
         const peerWithSeries = matchingPeers.find((p) => p.series_id);
         if (peerWithSeries) {
+          let volToSet: number | null = norm.volume ?? b.volume_number ?? null;
+          if (volToSet == null) {
+            const { data: usedRows } = await supabase
+              .from("books")
+              .select("volume_number")
+              .eq("series_id", peerWithSeries.series_id)
+              .not("volume_number", "is", null);
+            const used = new Set(
+              (usedRows ?? [])
+                .map((r) => r.volume_number)
+                .filter((v): v is number => Number.isFinite(v as number)),
+            );
+            let candidate = 1;
+            while (used.has(candidate)) candidate++;
+            volToSet = candidate;
+          }
           await supabase
             .from("books")
             .update({
               series_id: peerWithSeries.series_id,
-              volume_number: norm.volume ?? b.volume_number ?? null,
+              volume_number: volToSet,
             })
             .eq("id", b.id);
 
@@ -327,7 +362,17 @@ Deno.serve(async (req) => {
           const hasMultipleDistinctVols = distinctVols.size >= 2;
           const allTitlesDistinct =
             distinctTitles.size >= 2 && distinctTitles.size === groupAll.length;
-          if (!hasMultipleDistinctVols && !allTitlesDistinct) {
+          // Heurística "série não-numerada":
+          // ≥3 cópias com MESMO título + MESMO primeiro autor + MESMO content_type
+          // são quase sempre volumes diferentes do mesmo mangá/HQ que o catálogo
+          // devolveu sem distinguir (caso Chainsaw Man). Trata como série e numera
+          // sequencialmente por created_at (ordem de inserção do usuário).
+          const isLikelyUnnumberedSeries =
+            !hasMultipleDistinctVols &&
+            !allTitlesDistinct &&
+            groupAll.length >= 3 &&
+            !noAuthor;
+          if (!hasMultipleDistinctVols && !allTitlesDistinct && !isLikelyUnnumberedSeries) {
             // são duplicatas do mesmo livro → NÃO é série, marca skipped permanente
             await supabase
               .from("series_backfill_queue")
@@ -363,14 +408,25 @@ Deno.serve(async (req) => {
           if (cErr || !created) throw cErr ?? new Error("create series failed");
 
           const allIds = [b.id, ...matchingPeers.map((p) => p.id)];
+          // Ordena por created_at p/ numerar volumes sequencialmente
+          // (necessário no caso "série não-numerada" — Chainsaw Man etc.)
+          const orderedAll = [b, ...matchingPeers].slice().sort((p1, p2) => {
+            const t1 = p1.created_at ? new Date(p1.created_at).getTime() : 0;
+            const t2 = p2.created_at ? new Date(p2.created_at).getTime() : 0;
+            return t1 - t2;
+          });
           // Atualiza cada um (volume_number distinto por livro)
-          for (const peer of [b, ...matchingPeers]) {
+          for (let i = 0; i < orderedAll.length; i++) {
+            const peer = orderedAll[i];
             const peerNorm = normalizeSeriesTitle(peer.title);
+            const detected = peerNorm.volume ?? peer.volume_number ?? null;
+            // Se for série não-numerada, força volume sequencial 1..N
+            const finalVol = isLikelyUnnumberedSeries ? i + 1 : detected;
             await supabase
               .from("books")
               .update({
                 series_id: created.id,
-                volume_number: peerNorm.volume ?? peer.volume_number ?? null,
+                volume_number: finalVol,
               })
               .eq("id", peer.id);
           }
