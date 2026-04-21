@@ -26,6 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { haptic } from "@/lib/haptics";
 import { markScanStart, markScanSuccess, markScanCancelled, getScanStats } from "@/lib/scan-metrics";
+import { trackEvent } from "@/lib/track";
 
 type Mode = "barcode" | "cover" | "page";
 
@@ -296,10 +297,14 @@ export default function ScannerPage() {
     setBusyLabel(`Buscando ISBN ${isbn}…`);
     setNotFoundIsbn(null);
     setFoundBook(null);
+    const t0 = performance.now();
     try {
       const book = await lookupIsbn(isbn);
       if (book?.id) {
         haptic("success");
+        trackEvent("scanner_isbn_found", {
+          isbn, book_id: book.id, mode: scanMode, latency_ms: Math.round(performance.now() - t0),
+        });
         setFoundBook({
           id: book.id,
           title: book.title,
@@ -336,9 +341,11 @@ export default function ScannerPage() {
         }
       } else {
         haptic("error");
+        trackEvent("scanner_isbn_not_found", { isbn, mode: scanMode });
         setNotFoundIsbn(isbn);
       }
     } catch (e: any) {
+      trackEvent("scanner_isbn_error", { isbn, message: e?.message ?? "unknown" });
       toast.error(e.message || "Erro");
     } finally {
       setBusy(false);
