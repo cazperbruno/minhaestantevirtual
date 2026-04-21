@@ -34,6 +34,7 @@ export default function TradesPage() {
   const [tab, setTab] = useState<"incoming" | "outgoing" | "history">("incoming");
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingId, setPendingId] = useState<string | null>(null);
 
   const load = async () => {
     if (!user) return;
@@ -73,8 +74,10 @@ export default function TradesPage() {
 
   const update = async (id: string, status: Trade["status"]) => {
     const prev = trades;
+    setPendingId(id);
     setTrades((arr) => arr.map((t) => (t.id === id ? { ...t, status } : t)));
     const { error } = await supabase.from("trades").update({ status }).eq("id", id);
+    setPendingId(null);
     if (error) {
       setTrades(prev);
       toast.error("Erro ao atualizar proposta");
@@ -203,20 +206,22 @@ export default function TradesPage() {
                   <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-border/40">
                     {t.status === "pending" && iAmReceiver && (
                       <>
-                        <Button size="sm" variant="ghost" onClick={() => update(t.id, "declined")} className="gap-1.5">
-                          <X className="w-3.5 h-3.5" /> Recusar
+                        <Button size="sm" variant="ghost" onClick={() => update(t.id, "declined")} disabled={pendingId === t.id} className="gap-1.5">
+                          {pendingId === t.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />} Recusar
                         </Button>
-                        <Button size="sm" variant="hero" onClick={() => update(t.id, "accepted")} className="gap-1.5">
-                          <Check className="w-3.5 h-3.5" /> Aceitar
+                        <Button size="sm" variant="hero" onClick={() => update(t.id, "accepted")} disabled={pendingId === t.id} className="gap-1.5">
+                          {pendingId === t.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Aceitar
                         </Button>
                       </>
                     )}
                     {t.status === "pending" && !iAmReceiver && (
-                      <Button size="sm" variant="outline" onClick={() => update(t.id, "cancelled")}>Cancelar</Button>
+                      <Button size="sm" variant="outline" onClick={() => update(t.id, "cancelled")} disabled={pendingId === t.id}>
+                        {pendingId === t.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Cancelar"}
+                      </Button>
                     )}
                     {t.status === "accepted" && (
-                      <Button size="sm" variant="hero" onClick={() => update(t.id, "completed")} className="gap-1.5">
-                        <Check className="w-3.5 h-3.5" /> Marcar como concluída
+                      <Button size="sm" variant="hero" onClick={() => update(t.id, "completed")} disabled={pendingId === t.id} className="gap-1.5">
+                        {pendingId === t.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Marcar como concluída
                       </Button>
                     )}
                   </div>
