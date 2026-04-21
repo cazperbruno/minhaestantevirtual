@@ -1460,7 +1460,9 @@ export type Database = {
           cover_url: string | null
           created_at: string
           description: string | null
+          enriched_by: string | null
           id: string
+          last_enriched_at: string | null
           raw: Json | null
           source: string | null
           source_id: string | null
@@ -1475,7 +1477,9 @@ export type Database = {
           cover_url?: string | null
           created_at?: string
           description?: string | null
+          enriched_by?: string | null
           id?: string
+          last_enriched_at?: string | null
           raw?: Json | null
           source?: string | null
           source_id?: string | null
@@ -1490,7 +1494,9 @@ export type Database = {
           cover_url?: string | null
           created_at?: string
           description?: string | null
+          enriched_by?: string | null
           id?: string
+          last_enriched_at?: string | null
           raw?: Json | null
           source?: string | null
           source_id?: string | null
@@ -1534,6 +1540,72 @@ export type Database = {
           next_attempt_at?: string
           processed_at?: string | null
           status?: string
+        }
+        Relationships: []
+      }
+      series_enrichment_cache: {
+        Row: {
+          authors: string[]
+          banner_url: string | null
+          cache_key: string
+          categories: string[] | null
+          confidence: number
+          content_type: Database["public"]["Enums"]["content_type"]
+          cover_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          published_year: number | null
+          raw: Json | null
+          source: string
+          source_id: string | null
+          status: string | null
+          title: string
+          total_chapters: number | null
+          total_volumes: number | null
+          updated_at: string
+        }
+        Insert: {
+          authors?: string[]
+          banner_url?: string | null
+          cache_key: string
+          categories?: string[] | null
+          confidence?: number
+          content_type: Database["public"]["Enums"]["content_type"]
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          published_year?: number | null
+          raw?: Json | null
+          source: string
+          source_id?: string | null
+          status?: string | null
+          title: string
+          total_chapters?: number | null
+          total_volumes?: number | null
+          updated_at?: string
+        }
+        Update: {
+          authors?: string[]
+          banner_url?: string | null
+          cache_key?: string
+          categories?: string[] | null
+          confidence?: number
+          content_type?: Database["public"]["Enums"]["content_type"]
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          published_year?: number | null
+          raw?: Json | null
+          source?: string
+          source_id?: string | null
+          status?: string | null
+          title?: string
+          total_chapters?: number | null
+          total_volumes?: number | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -2231,6 +2303,44 @@ export type Database = {
         }[]
       }
       division_from_xp: { Args: { _xp: number }; Returns: string }
+      enrich_series_apply: {
+        Args: {
+          _categories: string[]
+          _cover_url: string
+          _description: string
+          _published_year: number
+          _raw: Json
+          _series_id: string
+          _source: string
+          _source_id: string
+          _status: string
+          _total_chapters: number
+          _total_volumes: number
+        }
+        Returns: {
+          authors: string[]
+          content_type: Database["public"]["Enums"]["content_type"]
+          cover_url: string | null
+          created_at: string
+          description: string | null
+          enriched_by: string | null
+          id: string
+          last_enriched_at: string | null
+          raw: Json | null
+          source: string | null
+          source_id: string | null
+          status: string | null
+          title: string
+          total_volumes: number | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "series"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       ensure_invite: { Args: { _user_id: string }; Returns: string }
       extract_volume_number: { Args: { title: string }; Returns: number }
       find_duplicate_book: {
