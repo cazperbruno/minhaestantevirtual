@@ -443,28 +443,38 @@ Deno.serve(async (req) => {
     const finalTotal = series.total_volumes && result.total_volumes && series.total_volumes > result.total_volumes
       ? series.total_volumes
       : result.total_volumes;
-    const updates: any = {
+    const candidate = {
       total_volumes: finalTotal,
       status: series.status || result.status,
-      // ⬇️ fallback inteligente: usa a sinopse mais rica
       description: pickBetterDescription(series.description, result.description),
-      // ⬇️ fallback inteligente: prefere capa grande do AniList sobre thumbnails
       cover_url: pickBetterCover(series.cover_url, result.cover_url),
-      // banner_url só vai pro cache global — não há coluna na tabela series
       source: result.source,
       source_id: result.source_id,
-      raw: result.raw,
-      last_enriched_at: new Date().toISOString(),
-      enriched_by: result.source,
     };
-    const { data: updated, error: upErr } = await supabase
-      .from("series").update(updates).eq("id", seriesId).select().single();
-    if (upErr) {
-      console.error("update series failed", upErr);
-      return new Response(JSON.stringify({ error: upErr.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const patch = diffPatch(series as any, candidate);
+
+    let updated: any = series;
+    let changedFields: string[] = [];
+    // Idempotência: só faz UPDATE se algo material mudou.
+    // raw/last_enriched_at/enriched_by só são gravados quando há mudança real.
+    if (hasMaterialChange(patch)) {
+      const updates: any = {
+        ...patch,
+        raw: result.raw,
+        last_enriched_at: new Date().toISOString(),
+        enriched_by: result.source,
+      };
+      const { data: upd, error: upErr } = await supabase
+        .from("series").update(updates).eq("id", seriesId).select().single();
+      if (upErr) {
+        console.error("update series failed", upErr);
+        return new Response(JSON.stringify({ error: upErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      updated = upd;
+      changedFields = Object.keys(patch);
     }
 
     // Salva no cache global (upsert) — apenas se confiança razoável
