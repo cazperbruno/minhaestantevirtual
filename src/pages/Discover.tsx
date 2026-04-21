@@ -240,6 +240,28 @@ export default function Discover() {
           <ContinueReadingRow items={visibleReading.slice(1)} />
         )}
 
+        {/* Home inteligente: amigos lendo */}
+        {!loading && <FollowingReadsShelfRow />}
+
+        {/* Home inteligente: porque você leu X */}
+        {!loading && becauseYouRead && becauseYouRead.books.length > 0 && (
+          <CinematicShelf
+            title={`Porque você leu “${becauseYouRead.seed.title}”`}
+            subtitle="Livros parecidos com sua última leitura concluída"
+          >
+            {dedupeByIsbn(
+              becauseYouRead.books.filter((b) =>
+                activeTypes.includes(b.content_type || "book"),
+              ),
+              (b) => b,
+            ).map((b) => (
+              <ShelfItem key={`byr-${b.id}`}>
+                <BookCard book={b} size="md" source="shelf:because-you-read" />
+              </ShelfItem>
+            ))}
+          </CinematicShelf>
+        )}
+
         {/* Prateleiras dinâmicas (IA) — skeletons */}
         {loading && (
           <>
