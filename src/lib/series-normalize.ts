@@ -15,7 +15,7 @@
  */
 
 const VOL_KEYWORDS =
-  "vol(?:ume|\\.)?|tome|tomo|book|livro|capitulo|chapter|cap\\.?|n[º°o]?\\.?|#";
+  "vol(?:ume|\\.+)?|tome|tomo|book|livro|capitulo|chapter|cap\\.*|n[º°o]?\\.*|#";
 
 /** Remove acentos e lowercase. */
 export function strFold(s: string): string {
@@ -51,7 +51,11 @@ export function normalizeSeriesTitle(rawTitle: string): NormalizedTitle {
   // Remove parênteses/colchetes inteiros (geralmente edição/ano/extras)
   t = t.replace(/\([^)]*\)/g, " ").replace(/\[[^\]]*\]/g, " ");
 
-  // Captura volume com keywords explícitos: "vol 3", "volume 12", "tomo 4"
+  // Normaliza pontuação repetida ("Vol..", "Vol...", ":::") em um único separador,
+  // e colapsa espaços para a regex de volume funcionar de forma estável.
+  t = t.replace(/\.{2,}/g, ".").replace(/:{2,}/g, ":").replace(/\s+/g, " ").trim();
+
+  // Captura volume com keywords explícitos: "vol 3", "volume 12", "tomo 4", "#6"
   let detectedVol: number | null = null;
   const volKwRe = new RegExp(
     `(?:^|[\\s\\-:,.])(?:${VOL_KEYWORDS})\\s*(\\d{1,3})(?!\\d)`,
@@ -70,7 +74,15 @@ export function normalizeSeriesTitle(rawTitle: string): NormalizedTitle {
     }
   }
 
-  // Remove separadores residuais no fim ("- ", ": ", ", ")
+  // Segunda passada: remove qualquer keyword de volume residual sem número
+  // (ex.: "boa noite punpun vol" depois que o número saiu por outro caminho).
+  const trailingKwRe = new RegExp(
+    `[\\s\\-:,.]+(?:${VOL_KEYWORDS})\\s*$`,
+    "i",
+  );
+  t = t.replace(trailingKwRe, " ");
+
+  // Remove separadores e pontuação residuais no fim ("- ", ": ", ", ", "..")
   t = t.replace(/[\s\-:,.\u2013\u2014]+$/g, "").trim();
   // Colapsa espaços
   t = t.replace(/\s+/g, " ").trim();

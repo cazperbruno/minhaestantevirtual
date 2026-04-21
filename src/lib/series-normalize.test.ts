@@ -10,6 +10,14 @@ describe("normalizeSeriesTitle", () => {
     ["Dom Casmurro", "dom casmurro", null],
     ["1984", "1984", null],
     ["Harry Potter e a Pedra Filosofal (2000)", "harry potter e a pedra filosofal", null],
+    // Casos do bug real:
+    ["BOA NOITE PUNPUN - VOL.. 3", "boa noite punpun", 3],
+    ["BOA NOITE PUNPUN - VOL... 3", "boa noite punpun", 3],
+    ["BOA NOITE PUNPUN:VOL.1", "boa noite punpun", 1],
+    ["Boa noite Punpun: vol.7", "boa noite punpun", 7],
+    ["Jojo's Steel Ball Run #6", "jojo's steel ball run", 6],
+    ["SOUL EATER PERFECT EDITION - VOL.1", "soul eater perfect edition", 1],
+    ["Loba de França, A - Vol. 5", "loba de franca, a", 5],
   ])("%s → base=%s vol=%s", (input, base, volume) => {
     const r = normalizeSeriesTitle(input);
     expect(r.base).toBe(base);
