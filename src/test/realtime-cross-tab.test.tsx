@@ -88,7 +88,7 @@ function setupTabB() {
   seed(qk.feed());
   seed(qk.followingReads(TEST_USER_ID));
   seed(qk.nextAchievements(TEST_USER_ID));
-  seed(["series", "series-xyz", TEST_USER_ID]);
+  seed(["series", "series-xyz"]);
   seed(qk.reviews("book-123"));
 
   renderHook(() => useRealtimeInvalidation(), { wrapper });
@@ -145,7 +145,7 @@ describe("Realtime cross-tab sync", () => {
 
     expect(isInvalidated(qc, qk.mySeries(TEST_USER_ID))).toBe(true);
     expect(isInvalidated(qc, qk.seriesRanking())).toBe(true);
-    expect(isInvalidated(qc, ["series", "series-xyz", TEST_USER_ID])).toBe(true);
+    expect(isInvalidated(qc, ["series", "series-xyz"])).toBe(true);
   });
 
   it("Aba A cria review → Aba B atualiza reviews do livro e feed", () => {
