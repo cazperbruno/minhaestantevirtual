@@ -48,10 +48,12 @@ export type Database = {
         Row: {
           book_id: string | null
           club_id: string | null
+          comments_count: number
           created_at: string
           id: string
           is_public: boolean
           kind: string
+          likes_count: number
           meta: Json | null
           target_user_id: string | null
           user_id: string
@@ -59,10 +61,12 @@ export type Database = {
         Insert: {
           book_id?: string | null
           club_id?: string | null
+          comments_count?: number
           created_at?: string
           id?: string
           is_public?: boolean
           kind: string
+          likes_count?: number
           meta?: Json | null
           target_user_id?: string | null
           user_id: string
@@ -70,10 +74,12 @@ export type Database = {
         Update: {
           book_id?: string | null
           club_id?: string | null
+          comments_count?: number
           created_at?: string
           id?: string
           is_public?: boolean
           kind?: string
+          likes_count?: number
           meta?: Json | null
           target_user_id?: string | null
           user_id?: string
@@ -98,6 +104,64 @@ export type Database = {
             columns: ["club_id"]
             isOneToOne: false
             referencedRelation: "book_clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      activity_comments: {
+        Row: {
+          activity_id: string
+          content: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          content: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_comments_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      activity_likes: {
+        Row: {
+          activity_id: string
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_likes_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
             referencedColumns: ["id"]
           },
         ]
@@ -2031,6 +2095,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      activity_is_public: {
+        Args: { _book_is_public: boolean; _user_id: string }
+        Returns: boolean
       }
       activity_relevance: {
         Args: {
