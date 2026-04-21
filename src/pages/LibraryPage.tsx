@@ -127,6 +127,8 @@ export default function LibraryPage() {
                       items={readShelf}
                     />
                   )}
+                  {/* Descoberta: livros que você ainda não tem, recomendados pela IA */}
+                  <DiscoveryShelfRow />
                 </div>
               )
             ) : (
