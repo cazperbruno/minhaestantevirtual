@@ -9,14 +9,11 @@ import {
   ScanBarcode,
   MessageSquare,
   Trophy,
-  Target,
-  BarChart3,
   Heart,
   ArrowRightLeft,
   Repeat,
   Search,
   User as UserIcon,
-  FileText,
   LogOut,
   Settings,
   Sparkles,
@@ -28,8 +25,7 @@ import { NotificationsBell } from "@/components/social/NotificationsBell";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
-import readifyLogo from "@/assets/readify-logo-v8.png";
+import readifyMark from "@/assets/readify-mark-v8.webp";
 
 type Item = { to: string; label: string; icon: typeof Book; group: string };
 
@@ -51,10 +47,8 @@ const items: Item[] = [
   { to: "/ranking", label: "Ranking", icon: Trophy, group: "Comunidade" },
 
   { to: "/progresso", label: "Progresso", icon: Sparkles, group: "Você" },
-  { to: "/metas", label: "Metas", icon: Target, group: "Você" },
-  { to: "/estatisticas", label: "Estatísticas", icon: BarChart3, group: "Você" },
-  { to: "/relatorios", label: "Relatórios", icon: FileText, group: "Você" },
   { to: "/perfil", label: "Perfil", icon: UserIcon, group: "Você" },
+  { to: "/configuracoes", label: "Configurações", icon: Settings, group: "Você" },
 ];
 
 const groups = ["Descobrir", "Meus livros", "Comunidade", "Você"] as const;
@@ -62,11 +56,9 @@ const groups = ["Descobrir", "Meus livros", "Comunidade", "Você"] as const;
 export function MobileHeader() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { isAdmin } = useIsAdmin();
   const [open, setOpen] = useState(false);
 
-  // "Relatórios" só aparece para admins (contém painel de cliques de afiliados)
-  const visibleItems = isAdmin ? items : items.filter((i) => i.to !== "/relatorios");
+  const visibleItems = items;
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -92,7 +84,7 @@ export function MobileHeader() {
           <SheetContent side="left" className="p-0 w-[85vw] max-w-[340px] flex flex-col">
             <SheetHeader className="px-5 pt-6 pb-4 border-b border-border text-left">
               <SheetTitle className="sr-only">Readify</SheetTitle>
-               <img src={readifyLogo} alt="Readify" className="h-9 max-w-[200px] w-auto select-none object-contain" draggable={false} />
+               <img src={readifyMark} alt="Readify" className="h-9 max-w-[200px] w-auto select-none object-contain" draggable={false} />
               <p className="text-xs text-muted-foreground mt-1">Sua biblioteca pessoal</p>
             </SheetHeader>
 
@@ -130,7 +122,7 @@ export function MobileHeader() {
 
             <div className="border-t border-border p-3 space-y-1">
               <NavLink
-                to="/perfil"
+                to="/configuracoes"
                 onClick={() => setOpen(false)}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:bg-accent/30 hover:text-foreground"
               >
@@ -148,7 +140,7 @@ export function MobileHeader() {
         </Sheet>
 
         <NavLink to="/" className="flex min-w-0 flex-1 items-center justify-center px-2" aria-label="Readify">
-          <img src={readifyLogo} alt="Readify" className="h-8 max-w-[140px] xs:max-w-[170px] w-auto select-none object-contain" draggable={false} />
+          <img src={readifyMark} alt="Readify" className="h-8 max-w-[140px] xs:max-w-[170px] w-auto select-none object-contain" draggable={false} />
         </NavLink>
 
         <div className="shrink-0">

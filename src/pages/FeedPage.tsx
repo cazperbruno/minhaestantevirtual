@@ -4,7 +4,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageSquare, Users, Sparkles, Search, Loader2 } from "lucide-react";
+import { MessageSquare, Users, Sparkles, Search, Loader2, User as UserIcon } from "lucide-react";
 import { useFeed, useToggleReviewLike, FeedReview } from "@/hooks/useFeed";
 import { usePublicRecommendations } from "@/hooks/useRecommendations";
 import { RecommendationCard } from "@/components/books/RecommendationCard";
@@ -13,7 +13,7 @@ import { ReviewFeedCard } from "@/components/social/ReviewFeedCard";
 import { FeedStoriesBar } from "@/components/social/FeedStoriesBar";
 
 export default function FeedPage() {
-  const [tab, setTab] = useState<"all" | "following">("all");
+  const [tab, setTab] = useState<"all" | "following" | "you">("all");
   const {
     data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage,
   } = useFeed(tab);
@@ -84,9 +84,10 @@ export default function FeedPage() {
         </header>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="mb-4 sticky top-0 z-10 -mx-5 px-5 md:mx-0 md:px-0 py-2 bg-background/85 backdrop-blur-xl border-b border-border/30">
-          <TabsList className="grid grid-cols-2 max-w-xs">
-            <TabsTrigger value="all" className="gap-2"><MessageSquare className="w-3.5 h-3.5" /> Todos</TabsTrigger>
-            <TabsTrigger value="following" className="gap-2"><Users className="w-3.5 h-3.5" /> Seguindo</TabsTrigger>
+          <TabsList className="grid grid-cols-3 max-w-md">
+            <TabsTrigger value="you" className="gap-1.5"><UserIcon className="w-3.5 h-3.5" /> Você</TabsTrigger>
+            <TabsTrigger value="following" className="gap-1.5"><Users className="w-3.5 h-3.5" /> Seguindo</TabsTrigger>
+            <TabsTrigger value="all" className="gap-1.5"><MessageSquare className="w-3.5 h-3.5" /> Todos</TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -162,27 +163,29 @@ export default function FeedPage() {
   );
 }
 
-function EmptyFeed({ tab }: { tab: "all" | "following" }) {
+function EmptyFeed({ tab }: { tab: "all" | "following" | "you" }) {
+  const icon = tab === "following" ? <Users className="w-9 h-9 text-primary/60" />
+    : tab === "you" ? <UserIcon className="w-9 h-9 text-primary/60" />
+    : <Sparkles className="w-9 h-9 text-primary/60" />;
+  const title = tab === "following" ? "Você ainda não segue ninguém"
+    : tab === "you" ? "Você ainda não publicou nada"
+    : "O feed está silencioso";
+  const desc = tab === "following" ? "Encontre leitores e siga suas resenhas para ver tudo aqui."
+    : tab === "you" ? "Suas resenhas e atualizações aparecem aqui."
+    : "Seja a primeira pessoa a publicar uma resenha hoje.";
+  const ctaTo = tab === "following" ? "/ranking" : tab === "you" ? "/biblioteca" : "/buscar";
+  const ctaLabel = tab === "following" ? <><Users className="w-4 h-4" /> Descobrir leitores</>
+    : tab === "you" ? <><Sparkles className="w-4 h-4" /> Ir para biblioteca</>
+    : <><Search className="w-4 h-4" /> Buscar livros</>;
   return (
     <div className="text-center py-16 px-6 max-w-md mx-auto animate-fade-in">
       <div className="w-20 h-20 rounded-3xl bg-gradient-spine border border-border mx-auto mb-5 flex items-center justify-center shadow-book">
-        {tab === "following"
-          ? <Users className="w-9 h-9 text-primary/60" />
-          : <Sparkles className="w-9 h-9 text-primary/60" />}
+        {icon}
       </div>
-      <h2 className="font-display text-2xl font-semibold mb-2">
-        {tab === "following" ? "Você ainda não segue ninguém" : "O feed está silencioso"}
-      </h2>
-      <p className="text-muted-foreground text-sm mb-6">
-        {tab === "following"
-          ? "Encontre leitores e siga suas resenhas para ver tudo aqui."
-          : "Seja a primeira pessoa a publicar uma resenha hoje."}
-      </p>
-      <Link to={tab === "following" ? "/ranking" : "/buscar"}>
-        <Button variant="hero" className="gap-2">
-          {tab === "following" ? <><Users className="w-4 h-4" /> Descobrir leitores</>
-            : <><Search className="w-4 h-4" /> Buscar livros</>}
-        </Button>
+      <h2 className="font-display text-2xl font-semibold mb-2">{title}</h2>
+      <p className="text-muted-foreground text-sm mb-6">{desc}</p>
+      <Link to={ctaTo}>
+        <Button variant="hero" className="gap-2">{ctaLabel}</Button>
       </Link>
     </div>
   );

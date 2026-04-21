@@ -77,7 +77,7 @@ function scoreReview(
   return recency * (1 + affinity * 0.05) * (1 + authorBoost + ratingBoost);
 }
 
-export function useFeed(tab: "all" | "following") {
+export function useFeed(tab: "all" | "following" | "you") {
   const { user } = useAuth();
   return useInfiniteQuery<FeedPage>({
     queryKey: [...qk.feed(), tab, user?.id || "anon"],
@@ -86,22 +86,29 @@ export function useFeed(tab: "all" | "following") {
     queryFn: async ({ pageParam }) => {
       const isFirstPage = !pageParam;
       let followingIds: string[] = [];
-      if (user) {
+      if (user && tab === "following") {
         const { data: f } = await supabase
           .from("follows").select("following_id").eq("follower_id", user.id);
         followingIds = (f || []).map((x: any) => x.following_id);
       }
 
-      // Primeira página: busca 2x mais para re-rank por relevância
-      const fetchSize = isFirstPage && user ? FEED_PAGE_SIZE * 2 : FEED_PAGE_SIZE;
+      // Primeira página: busca 2x mais para re-rank por relevância (apenas para "all")
+      const fetchSize = isFirstPage && user && tab === "all" ? FEED_PAGE_SIZE * 2 : FEED_PAGE_SIZE;
 
       let q = supabase
         .from("reviews")
         .select("*, book:books(*)")
-        .eq("is_public", true)
         .order("created_at", { ascending: false })
         .order("id", { ascending: false })
         .limit(fetchSize);
+
+      // "Você" inclui também resenhas privadas (próprias); demais abas só públicas
+      if (tab === "you") {
+        if (!user) return { items: [], nextCursor: null };
+        q = q.eq("user_id", user.id);
+      } else {
+        q = q.eq("is_public", true);
+      }
 
       if (pageParam) {
         const [cursorTs, cursorId] = (pageParam as string).split("|");
@@ -140,8 +147,8 @@ export function useFeed(tab: "all" | "following") {
         liked_by_me: likedSet.has(r.id),
       }));
 
-      // AI: re-rank na primeira página (apenas se temos sinal de gosto)
-      if (isFirstPage && user && (taste as Map<string, number>).size > 0) {
+      // AI: re-rank na primeira página (apenas se temos sinal de gosto e tab "all")
+      if (isFirstPage && user && tab === "all" && (taste as Map<string, number>).size > 0) {
         // Carrega autores amados (rating>=4) do cache se disponível
         const { data: loved } = await supabase
           .from("user_books")
@@ -183,7 +190,7 @@ export function useFeed(tab: "all" | "following") {
 }
 
 /** Toggle like com optimistic update — atualiza a página correta em cache. */
-export function useToggleReviewLike(tab: "all" | "following") {
+export function useToggleReviewLike(tab: "all" | "following" | "you") {
   const { user } = useAuth();
   const key = [...qk.feed(), tab, user?.id || "anon"];
 
