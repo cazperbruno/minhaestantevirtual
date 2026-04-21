@@ -245,6 +245,30 @@ export function EditBookDialog({ book, onUpdated, trigger }: Props) {
 
           {/* Fields */}
           <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-muted/40 border border-border/40">
+              <div className="min-w-0">
+                <p className="text-xs font-medium">Buscar dados atualizados</p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  {form.isbn_13 || form.isbn_10
+                    ? "Reprocessa pelo ISBN em fontes públicas"
+                    : "Tentaremos pelo título e autor"}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={refreshData}
+                disabled={refreshing}
+                className="gap-2 shrink-0"
+              >
+                {refreshing ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-3.5 h-3.5" />
+                )}
+                Atualizar
+              </Button>
+            </div>
             <Field label="Título *" value={form.title} onChange={(v) => set("title", v)} />
             <Field label="Subtítulo" value={form.subtitle} onChange={(v) => set("subtitle", v)} />
             <Field label="Autores (separe por vírgula)" value={form.authors} onChange={(v) => set("authors", v)} />
