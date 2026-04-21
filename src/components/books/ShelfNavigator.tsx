@@ -111,7 +111,7 @@ export function ShelfNavigator({ shelfTitle, index, total, prevId, nextId, child
       {/* Pílula de contexto (topo) */}
       {shelfTitle && (
         <div className="sticky top-2 z-30 flex justify-center pointer-events-none px-4">
-          <div className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-background/85 backdrop-blur-md border border-border/60 px-3 py-1.5 text-xs shadow-elevated animate-slide-down">
+          <div className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-background/85 backdrop-blur-md border border-border/60 px-3 py-1.5 text-xs shadow-elevated animate-fade-in">
             <span className="text-muted-foreground">De</span>
             <span className="font-semibold text-foreground truncate max-w-[55vw]">{shelfTitle}</span>
             <span className="text-muted-foreground tabular-nums">· {index + 1}/{total}</span>
