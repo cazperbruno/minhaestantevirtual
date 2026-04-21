@@ -49,25 +49,23 @@ export function useRealtimeInvalidation() {
         "postgres_changes",
         { event: "*", schema: "public", table: "follows", filter: `following_id=eq.${userId}` },
         (payload: any) => {
-          queryClient.invalidateQueries({ queryKey: qk.followers(userId) });
+          hot(qk.followers(userId));
           const followerId = payload.new?.follower_id || payload.old?.follower_id;
-          if (followerId) {
-            queryClient.invalidateQueries({ queryKey: qk.followState(followerId, userId) });
-          }
+          if (followerId) hot(qk.followState(followerId, userId));
         },
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "follows", filter: `follower_id=eq.${userId}` },
         (payload: any) => {
-          queryClient.invalidateQueries({ queryKey: qk.following(userId) });
-          queryClient.invalidateQueries({ queryKey: qk.suggestedReaders(userId) });
-          queryClient.invalidateQueries({ queryKey: qk.followingReads(userId) });
-          queryClient.invalidateQueries({ queryKey: qk.feed() });
+          // HOT: feed/listas que o usuário pode estar vendo após (un)follow
+          hot(qk.following(userId));
+          hot(qk.followingReads(userId));
+          hot(qk.feed());
+          // COLD: sugestões raramente estão na tela ativa
+          cold(qk.suggestedReaders(userId));
           const targetId = payload.new?.following_id || payload.old?.following_id;
-          if (targetId) {
-            queryClient.invalidateQueries({ queryKey: qk.followState(userId, targetId) });
-          }
+          if (targetId) hot(qk.followState(userId, targetId));
         },
       )
       // NOTE: notifications NÃO está no publication supabase_realtime (segurança).
@@ -77,25 +75,25 @@ export function useRealtimeInvalidation() {
         "postgres_changes",
         { event: "*", schema: "public", table: "reviews" },
         (payload: any) => {
-          queryClient.invalidateQueries({ queryKey: qk.feed() });
+          hot(qk.feed());
           const bookId = payload.new?.book_id || payload.old?.book_id;
-          if (bookId) queryClient.invalidateQueries({ queryKey: qk.reviews(bookId) });
+          if (bookId) hot(qk.reviews(bookId));
         },
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "review_likes" },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["reviews"] });
-          queryClient.invalidateQueries({ queryKey: qk.feed() });
+          hot(["reviews"]);
+          hot(qk.feed());
         },
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "review_comments" },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["reviews"] });
-          queryClient.invalidateQueries({ queryKey: qk.feed() });
+          hot(["reviews"]);
+          hot(qk.feed());
         },
       )
       // -------- USER_BOOKS (status, rating, current_page) --------
@@ -106,19 +104,22 @@ export function useRealtimeInvalidation() {
           const ownerId = payload.new?.user_id || payload.old?.user_id;
           const bookId = payload.new?.book_id || payload.old?.book_id;
           if (ownerId === userId) {
-            queryClient.invalidateQueries({ queryKey: qk.library(userId) });
-            queryClient.invalidateQueries({ queryKey: qk.wishlist(userId) });
-            queryClient.invalidateQueries({ queryKey: qk.mySeries(userId) });
-            queryClient.invalidateQueries({ queryKey: qk.stats(userId) });
-            queryClient.invalidateQueries({ queryKey: qk.nextAchievements(userId) });
-            queryClient.invalidateQueries({ queryKey: qk.followingReads(userId) });
-            // estado individual do livro (BookDetail)
-            if (bookId) queryClient.invalidateQueries({ queryKey: qk.userBook(userId, bookId) });
+            // HOT: telas que provavelmente estão visíveis após mexer na coleção
+            hot(qk.library(userId));
+            hot(qk.wishlist(userId));
+            hot(qk.mySeries(userId));
+            hot(qk.followingReads(userId));
+            // estado individual do livro (BookDetail aberto)
+            if (bookId) hot(qk.userBook(userId, bookId));
+            // COLD: agregados/gamificação podem esperar background
+            cold(qk.stats(userId));
+            cold(qk.nextAchievements(userId));
           }
-          // Ranking colecionador / global e feed refletem ações de qualquer usuário
-          queryClient.invalidateQueries({ queryKey: qk.seriesRanking() });
-          queryClient.invalidateQueries({ queryKey: qk.ranking() });
-          queryClient.invalidateQueries({ queryKey: qk.feed() });
+          // Feed é sempre HOT (visível em qualquer momento)
+          hot(qk.feed());
+          // Rankings globais → background (raramente abertos)
+          cold(qk.seriesRanking());
+          cold(qk.ranking());
         },
       )
       // -------- BOOKS --------
@@ -128,11 +129,12 @@ export function useRealtimeInvalidation() {
         (payload: any) => {
           const bookId = payload.new?.id || payload.old?.id;
           const seriesId = payload.new?.series_id || payload.old?.series_id;
-          if (bookId) queryClient.invalidateQueries({ queryKey: qk.book(bookId) });
+          // Página de detalhe do livro pode estar aberta → HOT
+          if (bookId) hot(qk.book(bookId));
           if (seriesId) {
-            queryClient.invalidateQueries({ queryKey: qk.mySeries(userId) });
-            queryClient.invalidateQueries({ queryKey: qk.seriesRanking() });
-            queryClient.invalidateQueries({ queryKey: ["series", seriesId] });
+            hot(qk.mySeries(userId));
+            hot(["series", seriesId]);
+            cold(qk.seriesRanking());
           }
         },
       )
@@ -141,10 +143,10 @@ export function useRealtimeInvalidation() {
         "postgres_changes",
         { event: "*", schema: "public", table: "series" },
         (payload: any) => {
-          queryClient.invalidateQueries({ queryKey: qk.mySeries(userId) });
-          queryClient.invalidateQueries({ queryKey: qk.seriesRanking() });
+          hot(qk.mySeries(userId));
           const seriesId = payload.new?.id || payload.old?.id;
-          if (seriesId) queryClient.invalidateQueries({ queryKey: ["series", seriesId] });
+          if (seriesId) hot(["series", seriesId]);
+          cold(qk.seriesRanking());
         },
       )
       // -------- LOANS --------
@@ -152,8 +154,8 @@ export function useRealtimeInvalidation() {
         "postgres_changes",
         { event: "*", schema: "public", table: "loans", filter: `user_id=eq.${userId}` },
         () => {
-          queryClient.invalidateQueries({ queryKey: qk.loans(userId) });
-          queryClient.invalidateQueries({ queryKey: qk.library(userId) });
+          hot(qk.loans(userId));
+          hot(qk.library(userId));
         },
       )
       // -------- READING GOALS --------
@@ -161,8 +163,8 @@ export function useRealtimeInvalidation() {
         "postgres_changes",
         { event: "*", schema: "public", table: "reading_goals", filter: `user_id=eq.${userId}` },
         () => {
-          queryClient.invalidateQueries({ queryKey: qk.goals(userId) });
-          queryClient.invalidateQueries({ queryKey: qk.stats(userId) });
+          hot(qk.goals(userId));
+          cold(qk.stats(userId));
         },
       )
       // -------- PROFILES (próprio + de quem o usuário vê) --------
@@ -171,12 +173,12 @@ export function useRealtimeInvalidation() {
         { event: "*", schema: "public", table: "profiles" },
         (payload: any) => {
           const profileId = payload.new?.id || payload.old?.id;
-          // Sempre invalida queries de profile (chave parcial cobre por id e username)
-          queryClient.invalidateQueries({ queryKey: ["profile"] });
+          // HOT: header do perfil reage na hora (chave parcial cobre id e username)
+          hot(["profile"]);
           if (profileId === userId) {
-            queryClient.invalidateQueries({ queryKey: qk.stats(userId) });
-            queryClient.invalidateQueries({ queryKey: qk.streak(userId) });
-            queryClient.invalidateQueries({ queryKey: qk.achievements(userId) });
+            cold(qk.stats(userId));
+            cold(qk.streak(userId));
+            cold(qk.achievements(userId));
           }
         },
       )
@@ -185,46 +187,46 @@ export function useRealtimeInvalidation() {
         "postgres_changes",
         { event: "*", schema: "public", table: "activities" },
         () => {
-          queryClient.invalidateQueries({ queryKey: qk.feed() });
-          queryClient.invalidateQueries({ queryKey: qk.followingReads(userId) });
+          hot(qk.feed());
+          hot(qk.followingReads(userId));
         },
       )
-      // -------- BUDDY READS --------
+      // -------- BUDDY READS (chat ativo → HOT) --------
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "buddy_read_messages" },
-        () => queryClient.invalidateQueries({ queryKey: ["buddy"] }),
+        () => hot(["buddy"]),
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "buddy_read_participants" },
-        () => queryClient.invalidateQueries({ queryKey: ["buddy"] }),
+        () => hot(["buddy"]),
       )
-      // -------- CLUB MESSAGES --------
+      // -------- CLUB MESSAGES (chat ativo → HOT) --------
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "club_messages" },
-        () => queryClient.invalidateQueries({ queryKey: ["club"] }),
+        () => hot(["club"]),
       )
-      // -------- STORIES --------
+      // -------- STORIES (barra de stories visível no feed → HOT) --------
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "stories" },
-        () => queryClient.invalidateQueries({ queryKey: qk.stories() }),
+        () => hot(qk.stories()),
       )
       // -------- RECOMMENDATIONS --------
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "book_recommendations" },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["recommendations"] });
-          queryClient.invalidateQueries({ queryKey: qk.feed() });
+          hot(qk.feed());
+          cold(["recommendations"]);
         },
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "recommendation_likes" },
-        () => queryClient.invalidateQueries({ queryKey: ["recommendations"] }),
+        () => cold(["recommendations"]),
       )
       .on(
         "postgres_changes",
