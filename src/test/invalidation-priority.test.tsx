@@ -40,27 +40,29 @@ function setup() {
     React.createElement(QueryClientProvider, { client: queryClient }, children);
 
   // Cria queries observáveis (com queryFn) para distinguir HOT (refetch agora)
-  // de COLD (só marca stale). Active-only refetch precisa de observer.
+  // de COLD (só marca stale). Active-only refetch precisa de observer real.
   const seedActive = (key: readonly unknown[]) => {
-    const obs = queryClient.getQueryCache().build(queryClient, {
+    queryClient.setQueryData(key as any, { __seed: true });
+    const obs = new QueryObserver(queryClient, {
       queryKey: key as any,
       queryFn: async () => ({ __fresh: true } as any),
+      staleTime: Infinity, // não refetch automático ao mount, só via invalidate
     });
-    obs.setData({ __seed: true } as any);
-    obs.addObserver({} as any);
-    return obs;
+    const unsub = obs.subscribe(() => {});
+    const query = queryClient.getQueryCache().find({ queryKey: key as any })!;
+    return { query, unsub };
   };
 
-  const libQ = seedActive(qk.library(TEST_USER_ID));
-  const feedQ = seedActive(qk.feed());
-  const seriesQ = seedActive(qk.mySeries(TEST_USER_ID));
-  const rankingQ = seedActive(qk.ranking());
-  const seriesRankQ = seedActive(qk.seriesRanking());
-  const statsQ = seedActive(qk.stats(TEST_USER_ID));
+  const lib = seedActive(qk.library(TEST_USER_ID));
+  const feed = seedActive(qk.feed());
+  const series = seedActive(qk.mySeries(TEST_USER_ID));
+  const ranking = seedActive(qk.ranking());
+  const seriesRank = seedActive(qk.seriesRanking());
+  const stats = seedActive(qk.stats(TEST_USER_ID));
 
   renderHook(() => useRealtimeInvalidation(), { wrapper });
 
-  return { libQ, feedQ, seriesQ, rankingQ, seriesRankQ, statsQ };
+  return { lib, feed, series, ranking, seriesRank, stats };
 }
 
 function fire(table: string, payload: any) {
@@ -74,7 +76,7 @@ beforeEach(() => {
 
 describe("Prioridade de invalidação (HOT vs COLD)", () => {
   it("user_books INSERT → HOT (library/feed/séries fetching) e COLD (ranking apenas stale)", () => {
-    const { libQ, feedQ, seriesQ, rankingQ, seriesRankQ, statsQ } = setup();
+    const { lib, feed, series, ranking, seriesRank, stats } = setup();
 
     fire("user_books", {
       eventType: "INSERT",
@@ -85,16 +87,19 @@ describe("Prioridade de invalidação (HOT vs COLD)", () => {
     });
 
     // HOT — refetch disparado imediatamente (fetchStatus = "fetching")
-    expect(libQ.state.fetchStatus).toBe("fetching");
-    expect(feedQ.state.fetchStatus).toBe("fetching");
-    expect(seriesQ.state.fetchStatus).toBe("fetching");
+    expect(lib.query.state.fetchStatus).toBe("fetching");
+    expect(feed.query.state.fetchStatus).toBe("fetching");
+    expect(series.query.state.fetchStatus).toBe("fetching");
 
     // COLD — apenas marcado como stale, sem refetch imediato
-    expect(rankingQ.state.fetchStatus).toBe("idle");
-    expect(rankingQ.state.isInvalidated).toBe(true);
-    expect(seriesRankQ.state.fetchStatus).toBe("idle");
-    expect(seriesRankQ.state.isInvalidated).toBe(true);
-    expect(statsQ.state.fetchStatus).toBe("idle");
-    expect(statsQ.state.isInvalidated).toBe(true);
+    expect(ranking.query.state.fetchStatus).toBe("idle");
+    expect(ranking.query.state.isInvalidated).toBe(true);
+    expect(seriesRank.query.state.fetchStatus).toBe("idle");
+    expect(seriesRank.query.state.isInvalidated).toBe(true);
+    expect(stats.query.state.fetchStatus).toBe("idle");
+    expect(stats.query.state.isInvalidated).toBe(true);
+
+    // cleanup
+    [lib, feed, series, ranking, seriesRank, stats].forEach((q) => q.unsub());
   });
 });
