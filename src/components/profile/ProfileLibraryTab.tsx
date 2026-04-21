@@ -84,9 +84,16 @@ export function ProfileLibraryTab() {
                 <li key={item.id} className="shrink-0 w-28">
                   <Link to={`/livro/${item.book_id}`} className="block tap-scale">
                     <BookCover
-                      title={item.book?.title}
-                      src={item.book?.cover_url}
-                      className="w-28 h-44"
+                      book={{
+                        title: item.book?.title || "Sem título",
+                        authors: item.book?.authors || [],
+                        cover_url: item.book?.cover_url,
+                        isbn_10: item.book?.isbn_10,
+                        isbn_13: item.book?.isbn_13,
+                        id: item.book_id,
+                      }}
+                      size="md"
+                      interactive={false}
                     />
                     <p className="text-xs font-medium mt-1.5 line-clamp-2 leading-tight">
                       {item.book?.title || "Sem título"}
