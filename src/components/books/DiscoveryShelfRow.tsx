@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Plus, Sparkles, Loader2, Check } from "lucide-react";
 import { BookCover } from "./BookCover";
 import { CinematicShelf, ShelfItem } from "./CinematicShelf";
@@ -8,6 +8,7 @@ import { useAddBook } from "@/hooks/useLibrary";
 import { useState } from "react";
 import { haptic } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
+import { viewTransition, bookCoverTransitionName } from "@/lib/view-transitions";
 
 /**
  * Prateleira "Você pode gostar" — descobertas baseadas em IA + comportamento.
