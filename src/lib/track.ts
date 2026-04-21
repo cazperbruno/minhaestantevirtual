@@ -26,3 +26,48 @@ export function track(kind: Kind, bookId: string | undefined | null, meta?: Reco
     });
   })().catch(() => { /* silent */ });
 }
+
+// ---------------------------------------------------------------------------
+// Telemetria de fluxos (sem book_id) — alimenta análises de produto.
+// Eventos críticos: search_*, scanner_*, import_*, amazon_fallback_*, error_*.
+// ---------------------------------------------------------------------------
+
+const SESSION_KEY = "rfy_session_id";
+function getSessionId(): string {
+  try {
+    let s = sessionStorage.getItem(SESSION_KEY);
+    if (!s) {
+      s = `s_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+      sessionStorage.setItem(SESSION_KEY, s);
+    }
+    return s;
+  } catch {
+    return "s_unknown";
+  }
+}
+
+/**
+ * Registra um evento de produto (busca, scanner, importação, falhas...).
+ * Aceita usuário anônimo (user_id=null). Fire-and-forget.
+ *
+ * @example
+ *   trackEvent("search_executed", { query: "1984", results: 12, latency_ms: 340 });
+ *   trackEvent("scanner_isbn_not_found", { isbn: "9788535909555" });
+ *   trackEvent("amazon_fallback_clicked", { query: "livro raro" });
+ */
+export function trackEvent(event: string, props?: Record<string, any>) {
+  if (!event) return;
+  (async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.from("app_events").insert({
+        user_id: user?.id ?? null,
+        event,
+        props: props ?? null,
+        session_id: getSessionId(),
+      });
+    } catch {
+      /* silent — telemetria nunca quebra UX */
+    }
+  })();
+}
