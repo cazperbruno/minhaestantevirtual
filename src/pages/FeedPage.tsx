@@ -4,16 +4,11 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageSquare, Users, Sparkles, Search, Loader2 } from "lucide-react";
+import { MessageSquare, Users, Sparkles, Search, Loader2, User as UserIcon } from "lucide-react";
 import { useFeed, useToggleReviewLike, FeedReview } from "@/hooks/useFeed";
-import { usePublicRecommendations } from "@/hooks/useRecommendations";
-import { RecommendationCard } from "@/components/books/RecommendationCard";
-import { ContentTypeFilter, useContentFilter } from "@/components/books/ContentTypeFilter";
-import { ReviewFeedCard } from "@/components/social/ReviewFeedCard";
-import { FeedStoriesBar } from "@/components/social/FeedStoriesBar";
 
 export default function FeedPage() {
-  const [tab, setTab] = useState<"all" | "following">("all");
+  const [tab, setTab] = useState<"all" | "following" | "you">("all");
   const {
     data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage,
   } = useFeed(tab);
