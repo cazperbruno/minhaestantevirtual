@@ -8,9 +8,31 @@
 import { AppShell } from "@/components/layout/AppShell";
 import { InstallAppCard } from "@/components/pwa/InstallAppCard";
 import { usePwaInstall } from "@/hooks/usePwaInstall";
-import { Smartphone, Zap, WifiOff, Bell, Share, Plus, Check, Chrome, Apple } from "lucide-react";
+import { Smartphone, Zap, WifiOff, Bell, Share, Plus, Check, Chrome, Apple, RefreshCw } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import readifyLogo from "@/assets/readify-logo-v8.png";
+
+/** Limpa todos os caches do SW e força reload — last resort para usuários presos em versão antiga. */
+async function forceFullUpdate() {
+  try {
+    if ("serviceWorker" in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    }
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+  } catch (e) {
+    console.warn("[forceUpdate]", e);
+  } finally {
+    const url = new URL(window.location.href);
+    url.searchParams.set("_v", Date.now().toString());
+    window.location.replace(url.toString());
+  }
+}
 
 export default function InstallAppPage() {
   const { platform, installed } = usePwaInstall();
@@ -91,6 +113,34 @@ export default function InstallAppPage() {
           />
         </section>
 
+        {/* Forçar atualização — para usuários presos em versão antiga */}
+        <section className="mt-10">
+          <Card className="p-5 border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
+            <div className="flex items-start gap-4">
+              <div className="w-11 h-11 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                <RefreshCw className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-display font-semibold mb-1">App não atualiza?</p>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Se você está vendo uma versão antiga mesmo após recarregar, limpe o cache do app e recarregue tudo do zero.
+                </p>
+                <Button
+                  variant="hero"
+                  size="sm"
+                  onClick={() => {
+                    toast.info("Limpando cache e recarregando…");
+                    void forceFullUpdate();
+                  }}
+                  className="gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" /> Forçar atualização agora
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </section>
+
         {/* FAQ */}
         <section className="mt-10 space-y-3">
           <h2 className="font-display text-2xl font-bold mb-2">Perguntas frequentes</h2>
@@ -98,6 +148,7 @@ export default function InstallAppPage() {
           <Faq q="Vai ocupar espaço no meu celular?" a="Quase nada. PWAs são leves e usam apenas alguns megabytes." />
           <Faq q="Posso desinstalar depois?" a="Sim, do mesmo jeito que qualquer app: pressione e segure o ícone e escolha desinstalar." />
           <Faq q="Funciona sem internet?" a="As páginas que você já visitou ficam disponíveis offline. Sincroniza ao reconectar." />
+          <Faq q="O app não atualiza, o que faço?" a="Use o botão 'Forçar atualização agora' acima. Ele limpa todo o cache e recarrega a versão mais recente." />
         </section>
       </div>
     </AppShell>
