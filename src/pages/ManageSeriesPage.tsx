@@ -441,39 +441,22 @@ function LinkBooksDialog({
           ) : (
             <ul className="space-y-1.5">
               {linkedVolumes.map((v) => (
-                <li
+                <LinkedVolumeRow
                   key={v.id}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/40"
-                >
-                  <div className="w-7 h-10 shrink-0 rounded bg-muted overflow-hidden">
-                    {v.cover_url && (
-                      <img src={v.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" />
-                    )}
-                  </div>
-                  <span className="flex-1 text-sm line-clamp-1">{v.title}</span>
-                  <Input
-                    type="number"
-                    min="1"
-                    defaultValue={v.volume_number ?? ""}
-                    onBlur={(e) => {
-                      const val = e.target.value ? parseInt(e.target.value, 10) : null;
-                      if (val !== v.volume_number) {
-                        updateVol.mutate({ bookId: v.id, volumeNumber: val });
-                      }
-                    }}
-                    className="w-16 h-8 text-xs"
-                    placeholder="vol"
-                  />
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => unlink.mutate(v.id)}
-                    className="h-8 w-8 p-0 text-destructive"
-                    title="Remover da série"
-                  >
-                    <Unlink className="w-3.5 h-3.5" />
-                  </Button>
-                </li>
+                  bookId={v.id}
+                  title={v.title}
+                  coverUrl={v.cover_url ?? null}
+                  currentVolume={v.volume_number ?? null}
+                  usedNumbers={
+                    new Map(
+                      linkedVolumes
+                        .filter((x) => typeof x.volume_number === "number")
+                        .map((x) => [x.volume_number as number, x.id]),
+                    )
+                  }
+                  onSave={(val) => updateVol.mutate({ bookId: v.id, volumeNumber: val })}
+                  onUnlink={() => unlink.mutate(v.id)}
+                />
               ))}
             </ul>
           )}
