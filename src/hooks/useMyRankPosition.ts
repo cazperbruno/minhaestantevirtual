@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { CACHE } from "@/lib/query-client";
+import { CACHE, qk } from "@/lib/query-client";
 
 export interface RankPosition {
   global: { position: number; xp: number; level: number; xpToNext: number | null } | null;
@@ -10,7 +10,7 @@ export interface RankPosition {
 /** Posição do usuário nos rankings global + semanal, com XP até o próximo. */
 export function useMyRankPosition(userId: string | undefined) {
   return useQuery<RankPosition>({
-    queryKey: ["my-rank", userId],
+    queryKey: qk.myRank(userId),
     enabled: !!userId,
     queryFn: async () => {
       if (!userId) return { global: null, weekly: null };

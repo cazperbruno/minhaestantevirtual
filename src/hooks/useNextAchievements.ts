@@ -12,7 +12,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { CACHE } from "@/lib/query-client";
+import { CACHE, qk } from "@/lib/query-client";
 import type { ContentType } from "@/types/book";
 
 export interface NextAchievement {
@@ -99,7 +99,7 @@ async function fetchNext(userId: string, limit: number): Promise<NextAchievement
 export function useNextAchievements(limit = 2) {
   const { user } = useAuth();
   return useQuery<NextAchievement[]>({
-    queryKey: ["nextAchievements", user?.id || "anon", limit],
+    queryKey: [...qk.nextAchievements(user?.id), limit],
     queryFn: () => fetchNext(user!.id, limit),
     enabled: !!user,
     ...CACHE.PERSONAL,

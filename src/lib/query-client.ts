@@ -45,6 +45,12 @@ export const qk = {
   profile: (idOrUsername: string) => ["profile", idOrUsername] as const,
   mySeries: (userId?: string) => ["my-series", userId || "anon"] as const,
   seriesRanking: () => ["series-ranking"] as const,
+  series: (id: string, userId?: string) => ["series", id, userId || "anon"] as const,
+  userBook: (userId: string | undefined, bookId: string) =>
+    ["user-book", userId || "anon", bookId] as const,
+  loans: (userId?: string) => ["loans", userId] as const,
+  goals: (userId?: string) => ["goals", userId] as const,
+  stats: (userId?: string) => ["stats", userId] as const,
 
   // social
   reviews: (bookId: string) => ["reviews", bookId] as const,
@@ -55,6 +61,8 @@ export const qk = {
   followState: (viewerId: string, targetId: string) =>
     ["follow-state", viewerId, targetId] as const,
   suggestedReaders: (userId: string) => ["suggested-readers", userId] as const,
+  followingReads: (userId?: string) => ["following-reads", userId] as const,
+  stories: () => ["stories"] as const,
 
   // live
   notifications: (userId: string) => ["notifications", userId] as const,
@@ -62,10 +70,13 @@ export const qk = {
   // gamificação
   challenges: (userId: string) => ["challenges", userId] as const,
   streak: (userId: string) => ["streak", userId] as const,
+  achievements: (userId?: string) => ["achievements", userId] as const,
+  nextAchievements: (userId?: string) => ["nextAchievements", userId || "anon"] as const,
   invite: (userId: string) => ["invite", userId] as const,
   ambassadors: () => ["ambassadors"] as const,
   weeklyRanking: () => ["weekly-ranking"] as const,
   xpHistory: (userId: string) => ["xp-history", userId] as const,
+  myRank: (userId?: string) => ["my-rank", userId] as const,
 } as const;
 
 /**
@@ -80,16 +91,27 @@ export const invalidate = {
     queryClient.invalidateQueries({ queryKey: qk.seriesRanking() });
     queryClient.invalidateQueries({ queryKey: qk.ranking() });
     queryClient.invalidateQueries({ queryKey: qk.feed() });
+    queryClient.invalidateQueries({ queryKey: qk.stats(userId) });
+    queryClient.invalidateQueries({ queryKey: qk.followingReads(userId) });
+    queryClient.invalidateQueries({ queryKey: ["user-book", userId] });
+    if (userId) queryClient.invalidateQueries({ queryKey: qk.nextAchievements(userId) });
   },
   follow: (viewerId: string, targetId: string) => {
     queryClient.invalidateQueries({ queryKey: qk.followState(viewerId, targetId) });
     queryClient.invalidateQueries({ queryKey: qk.followers(targetId) });
     queryClient.invalidateQueries({ queryKey: qk.following(viewerId) });
     queryClient.invalidateQueries({ queryKey: qk.suggestedReaders(viewerId) });
+    queryClient.invalidateQueries({ queryKey: qk.feed() });
+    queryClient.invalidateQueries({ queryKey: qk.followingReads(viewerId) });
   },
   reviews: (bookId: string) => {
     queryClient.invalidateQueries({ queryKey: qk.reviews(bookId) });
     queryClient.invalidateQueries({ queryKey: qk.feed() });
+  },
+  profile: (userId: string) => {
+    queryClient.invalidateQueries({ queryKey: ["profile"] });
+    queryClient.invalidateQueries({ queryKey: qk.stats(userId) });
+    queryClient.invalidateQueries({ queryKey: qk.achievements(userId) });
   },
   all: () => queryClient.invalidateQueries(),
 };
