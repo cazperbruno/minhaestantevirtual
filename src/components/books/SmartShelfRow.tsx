@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { BookCover } from "./BookCover";
 import { CinematicShelf, ShelfItem } from "./CinematicShelf";
 import { QuickActionsMenu } from "./QuickActionsMenu";
@@ -7,6 +7,7 @@ import { Star } from "lucide-react";
 import type { UserBook } from "@/types/book";
 import { cn } from "@/lib/utils";
 import { haptic } from "@/lib/haptics";
+import { viewTransition, bookCoverTransitionName } from "@/lib/view-transitions";
 
 interface Props {
   id: string;
@@ -47,6 +48,7 @@ function SmartShelfCard({
   shelfTitle: string;
   ub: UserBook;
 }) {
+  const navigate = useNavigate();
   const [actionsOpen, setActionsOpen] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
@@ -78,10 +80,15 @@ function SmartShelfCard({
       return;
     }
     haptic("tap");
+    // View Transition (shared element) — capa cresce do card pro hero.
+    if (!ub.book) return;
+    e.preventDefault();
+    void viewTransition(() =>
+      navigate(`/livro/${ub.book!.id}`, { state: { shelfId, shelfTitle } }),
+    );
   };
   const handleTouchEnd = () => {
     cancelLongPress();
-    // Programmatic navigation acontece via Link click — só impedimos via handleClick
   };
 
   // Quando o menu abre via long-press, ainda precisamos suprimir o link uma vez.
@@ -110,6 +117,7 @@ function SmartShelfCard({
             book={ub.book}
             size="lg"
             interactive={false}
+            transitionName={bookCoverTransitionName(ub.book.id)}
             className="w-full h-auto aspect-[2/3] group-hover/sc:shadow-elevated transition-all duration-300 group-hover/sc:scale-[1.03]"
           />
           {/* Overlay no hover (desktop) */}
