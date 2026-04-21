@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Users, Plus, Loader2, Lock, Globe2, Mail, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { BookCover } from "@/components/books/BookCover";
@@ -168,10 +169,16 @@ export default function ClubsPage() {
         {loading ? (
           <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
         ) : clubs.length === 0 ? (
-          <div className="glass rounded-2xl p-10 text-center">
-            <Users className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground">Nenhum clube ainda. Crie o primeiro!</p>
-          </div>
+          <EmptyState
+            icon={<Users />}
+            title="Nenhum clube ainda"
+            description="Crie o primeiro clube e convide pessoas para ler junto."
+            action={
+              <Button variant="hero" size="lg" className="gap-2" onClick={() => setOpen(true)}>
+                <Plus className="w-4 h-4" /> Criar clube
+              </Button>
+            }
+          />
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {clubs.map((c) => (
