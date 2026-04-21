@@ -27,8 +27,37 @@ interface Props {
 }
 
 export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onShare, onBookUpdated }: Props) {
+  const [refreshing, setRefreshing] = useState(false);
   const progress = book.page_count && ub?.current_page
     ? Math.round((ub.current_page / book.page_count) * 100) : null;
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    const tid = toast.loading("Buscando dados atualizados…");
+    try {
+      const r = await refreshBookData(book.id, book.cover_url);
+      if (!r.ok) throw new Error("Falha ao reprocessar");
+      if (r.fields_filled.length === 0 && !r.cover_updated) {
+        toast.success("Já está completo — nada a melhorar", { id: tid });
+      } else {
+        const { data } = await supabase.from("books").select("*").eq("id", book.id).maybeSingle();
+        if (data) onBookUpdated?.(data as Book);
+        const labels: Record<string, string> = {
+          title: "título", subtitle: "subtítulo", authors: "autores",
+          publisher: "editora", published_year: "ano", description: "descrição",
+          categories: "categorias", page_count: "páginas", language: "idioma",
+          cover_url: "capa",
+        };
+        const updated = r.fields_filled.map((k) => labels[k] || k);
+        if (r.cover_updated && !updated.includes("capa")) updated.push("capa");
+        toast.success(`Atualizado: ${updated.join(", ")}`, { id: tid });
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao atualizar dados", { id: tid });
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   return (
     <div className="relative overflow-hidden bg-background">
