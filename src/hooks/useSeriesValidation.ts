@@ -69,8 +69,8 @@ export function useRepairSeries() {
       );
       qc.invalidateQueries({ queryKey: ["series-validation"] });
       qc.invalidateQueries({ queryKey: ["series", seriesId] });
-      qc.invalidateQueries({ queryKey: qk.mySeries });
-      qc.invalidateQueries({ queryKey: qk.library });
+      qc.invalidateQueries({ queryKey: ["my-series"] });
+      qc.invalidateQueries({ queryKey: ["library"] });
     },
     onError: (e) => {
       toast.error(e instanceof Error ? e.message : "Falha ao reparar série");
