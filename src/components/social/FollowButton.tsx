@@ -34,7 +34,8 @@ export function FollowButton({ targetUserId, size = "sm", onChange }: Props) {
       variant={following ? "outline" : "hero"}
       onClick={handleClick}
       disabled={toggle.isPending}
-      className={cn("gap-1.5 tap-scale", size === "sm" && "h-8 text-xs")}
+      aria-label={following ? "Deixar de seguir" : "Seguir"}
+      className={cn("gap-1.5 tap-scale shrink-0", size === "sm" && "h-8 text-xs px-2.5")}
     >
       {showSpinner ? (
         <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -43,7 +44,7 @@ export function FollowButton({ targetUserId, size = "sm", onChange }: Props) {
       ) : (
         <UserPlus className="w-3.5 h-3.5" />
       )}
-      {following ? "Seguindo" : "Seguir"}
+      <span>{following ? "Seguindo" : "Seguir"}</span>
     </Button>
   );
 }
