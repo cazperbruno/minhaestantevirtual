@@ -33,7 +33,7 @@ export default function BuddyReadsPage() {
 
       {!isLoading && data.length === 0 && (
         <EmptyState
-          icon={Users}
+          icon={<Users />}
           title="Nenhuma leitura compartilhada ainda"
           description="Abra qualquer livro e use 'Convidar pra ler junto' para começar."
         />
