@@ -14,6 +14,7 @@ import { Download, Filter, FileText, BookOpen, Star, Layers, Calendar } from "lu
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AffiliateClicksPanel } from "@/components/reports/AffiliateClicksPanel";
+import { EventsAnalyticsPanel } from "@/components/reports/EventsAnalyticsPanel";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 type Row = {
