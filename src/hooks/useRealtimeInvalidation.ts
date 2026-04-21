@@ -1,7 +1,9 @@
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { qk, queryClient } from "@/lib/query-client";
+import { qk, queryClient, invalidate } from "@/lib/query-client";
+
+const { hot, cold } = invalidate;
 
 /** Helper: dispara refetch ativo de queries marcadas como stale. */
 function refetchActive() {
