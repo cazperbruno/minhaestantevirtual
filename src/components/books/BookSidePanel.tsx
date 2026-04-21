@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Book, UserBook } from "@/types/book";
 import { Rating } from "./Rating";
 import { Slider } from "@/components/ui/slider";
@@ -9,6 +9,7 @@ import { RecommendBookDialog } from "./RecommendBookDialog";
 import { InviteBuddyDialog } from "@/components/social/InviteBuddyDialog";
 import { Button } from "@/components/ui/button";
 import { openAmazon } from "@/lib/amazon";
+import { useBookNotes, useSaveBookNotes } from "@/hooks/useBookNotes";
 
 interface Props {
   book: Book;
@@ -20,6 +21,10 @@ interface Props {
 export function BookSidePanel({ book, ub, onUpdate, onCommit }: Props) {
   const showProgress = book.page_count && (ub.status === "reading" || ub.status === "read");
   const [buddyOpen, setBuddyOpen] = useState(false);
+  const { data: savedNotes = "" } = useBookNotes(ub.id);
+  const saveNotes = useSaveBookNotes(ub.id);
+  const [notesDraft, setNotesDraft] = useState(savedNotes);
+  useEffect(() => { setNotesDraft(savedNotes); }, [savedNotes]);
 
   return (
     <aside className="glass rounded-2xl p-6 h-fit md:sticky md:top-6 space-y-6">
@@ -50,11 +55,13 @@ export function BookSidePanel({ book, ub, onUpdate, onCommit }: Props) {
       )}
 
       <div>
-        <label className="text-sm text-muted-foreground mb-2 block font-medium">Notas pessoais</label>
+        <label className="text-sm text-muted-foreground mb-2 block font-medium">
+          Notas pessoais <span className="text-xs text-muted-foreground/70">(privadas)</span>
+        </label>
         <Textarea
-          value={ub.notes ?? ""}
-          onChange={(e) => onUpdate({ notes: e.target.value })}
-          onBlur={() => onCommit({ notes: ub.notes })}
+          value={notesDraft}
+          onChange={(e) => setNotesDraft(e.target.value)}
+          onBlur={() => { if (notesDraft !== savedNotes) saveNotes.mutate(notesDraft); }}
           placeholder="Suas impressões, frases marcantes, reflexões…"
           rows={5}
           className="resize-none bg-card/40"
