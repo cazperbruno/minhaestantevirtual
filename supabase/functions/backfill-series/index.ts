@@ -159,7 +159,7 @@ Deno.serve(async (req) => {
     const bookIds = queueRows.map((r) => r.book_id);
     const { data: books, error: bErr } = await supabase
       .from("books")
-      .select("id,title,authors,content_type,series_id,volume_number")
+      .select("id,title,authors,content_type,series_id,volume_number,created_at")
       .in("id", bookIds);
 
     if (bErr || !books) {
