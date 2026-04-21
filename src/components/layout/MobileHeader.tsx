@@ -84,7 +84,7 @@ export function MobileHeader() {
           <SheetContent side="left" className="p-0 w-[85vw] max-w-[340px] flex flex-col">
             <SheetHeader className="px-5 pt-6 pb-4 border-b border-border text-left">
               <SheetTitle className="sr-only">Readify</SheetTitle>
-               <img src={readifyLogo} alt="Readify" className="h-9 max-w-[200px] w-auto select-none object-contain" draggable={false} />
+               <img src={readifyMark} alt="Readify" className="h-9 max-w-[200px] w-auto select-none object-contain" draggable={false} />
               <p className="text-xs text-muted-foreground mt-1">Sua biblioteca pessoal</p>
             </SheetHeader>
 
@@ -140,7 +140,7 @@ export function MobileHeader() {
         </Sheet>
 
         <NavLink to="/" className="flex min-w-0 flex-1 items-center justify-center px-2" aria-label="Readify">
-          <img src={readifyLogo} alt="Readify" className="h-8 max-w-[140px] xs:max-w-[170px] w-auto select-none object-contain" draggable={false} />
+          <img src={readifyMark} alt="Readify" className="h-8 max-w-[140px] xs:max-w-[170px] w-auto select-none object-contain" draggable={false} />
         </NavLink>
 
         <div className="shrink-0">
