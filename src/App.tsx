@@ -39,6 +39,7 @@ const MySeriesPage = lazy(() => import("./pages/MySeriesPage"));
 const BuddyReadsPage = lazy(() => import("./pages/BuddyReadsPage"));
 const BuddyReadDetailPage = lazy(() => import("./pages/BuddyReadDetailPage"));
 const InstallAppPage = lazy(() => import("./pages/InstallAppPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const RouteFallback = () => (
@@ -81,6 +82,7 @@ const App = () => (
             <Route path="/progresso" element={<ProtectedRoute><ProgressPage /></ProtectedRoute>} />
             <Route path="/progresso/historico" element={<ProtectedRoute><XpHistoryPage /></ProtectedRoute>} />
             <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+            <Route path="/configuracoes" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/livro/:id" element={<ProtectedRoute><BookDetail /></ProtectedRoute>} />
             <Route path="/serie/:id" element={<ProtectedRoute><SeriesDetailPage /></ProtectedRoute>} />
             <Route path="/series" element={<ProtectedRoute><MySeriesPage /></ProtectedRoute>} />
