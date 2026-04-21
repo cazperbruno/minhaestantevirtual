@@ -176,8 +176,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 3) só grupos com ≥ 2 livros viram série (limiar conservador)
-    const eligible = [...groups.values()].filter((g) => g.books.length >= 2);
+    // 3) só grupos com ≥ 2 livros viram série E precisam ter volumes distintos
+    //    (evita falso-positivo: 2 cópias do mesmo livro NÃO é série).
+    //    Critério: pelo menos 2 livros do grupo devem ter volume_number detectado distinto,
+    //    OU os títulos originais (após fold) devem ser todos diferentes.
+    const eligible = [...groups.values()].filter((g) => {
+      if (g.books.length < 2) return false;
+      const distinctVols = new Set(
+        g.books.map((b) => b.volume).filter((v): v is number => Number.isFinite(v as number)),
+      );
+      if (distinctVols.size >= 2) return true;
+      const distinctTitles = new Set(g.books.map((b) => strFold(b.title)));
+      // se todos os títulos são iguais → são duplicatas, não série
+      return distinctTitles.size >= 2 && distinctTitles.size === g.books.length;
+    });
 
     const results = {
       groups_total: groups.size,
