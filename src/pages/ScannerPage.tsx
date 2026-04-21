@@ -137,7 +137,9 @@ export default function ScannerPage() {
       setActive(true);
       setDetected(null);
       setNotFoundIsbn(null);
+      setCameraError(null);
       lockRef.current = false;
+      markScanStart();
 
       const hints = new Map();
       hints.set(DecodeHintType.POSSIBLE_FORMATS, [
@@ -167,12 +169,18 @@ export default function ScannerPage() {
           const code = raw.replace(/[^0-9Xx]/g, "");
           if (code.length !== 10 && code.length !== 13) return;
 
+          // Debounce: rejeita o MESMO código por 2.5s, e qualquer código por 350ms
+          // (evita dupla leitura quando o ZXing retorna 2 frames seguidos)
           const now = Date.now();
-          if (lastScanRef.current.code === code && now - lastScanRef.current.ts < 1500) return;
+          const sinceLast = now - lastScanRef.current.ts;
+          if (lastScanRef.current.code === code && sinceLast < 2500) return;
+          if (sinceLast < 350) return;
           lastScanRef.current = { code, ts: now };
 
           lockRef.current = true;
-          vibrate(40);
+          markScanSuccess(result.getBarcodeFormat?.().toString());
+          setScanStats(getScanStats());
+          haptic("success");
           setDetected(code);
           controls.stop();
           setActive(false);
@@ -190,8 +198,10 @@ export default function ScannerPage() {
         }
       });
     } catch (e) {
-      console.error(e);
-      toast.error("Não foi possível acessar a câmera");
+      console.error("[scanner] camera error", e);
+      markScanCancelled();
+      const err = classifyCameraError(e);
+      setCameraError(err);
       stop();
     }
   };
