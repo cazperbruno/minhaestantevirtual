@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { memo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BookCover } from "@/components/books/BookCover";
@@ -29,7 +29,7 @@ interface Props {
  * - Botão de salvar inline (wishlist) + compartilhar nativo.
  * - Layout otimizado: capa esquerda + texto direita, ações em barra inferior.
  */
-export function ReviewFeedCard({ review: r, onToggleLike }: Props) {
+function ReviewFeedCardImpl({ review: r, onToggleLike }: Props) {
   const burstRef = useRef<HTMLDivElement>(null);
   const lastTap = useRef(0);
 
@@ -193,3 +193,17 @@ export function ReviewFeedCard({ review: r, onToggleLike }: Props) {
     </ReviewActionsMenu>
   );
 }
+
+/**
+ * Memoizado: cards aparecem em listas longas no feed. Comparador raso pelas
+ * propriedades visuais — likes/comments/conteúdo. Curtir um item não rerenderiza os outros.
+ */
+export const ReviewFeedCard = memo(ReviewFeedCardImpl, (a, b) =>
+  a.review.id === b.review.id &&
+  a.review.likes_count === b.review.likes_count &&
+  a.review.comments_count === b.review.comments_count &&
+  a.review.liked_by_me === b.review.liked_by_me &&
+  a.review.content === b.review.content &&
+  a.review.rating === b.review.rating &&
+  a.onToggleLike === b.onToggleLike,
+);
