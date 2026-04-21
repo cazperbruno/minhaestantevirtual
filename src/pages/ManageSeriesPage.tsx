@@ -728,3 +728,49 @@ function CandidateRow({
     </li>
   );
 }
+
+// ---------------- Botão de enriquecimento em massa ----------------
+/**
+ * Dispara enrich-series para todas as séries que ainda não têm total_volumes.
+ * Roda sequencialmente com pequeno delay para não sobrecarregar AniList/IA.
+ */
+function BulkEnrichButton({ series }: { series: ManageableSeries[] }) {
+  const enrich = useEnrichSeries();
+  const pending = series.filter((s) => s.total_volumes == null);
+  const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  if (pending.length === 0) return null;
+
+  const handleRun = async () => {
+    setRunning(true);
+    setProgress(0);
+    let ok = 0;
+    for (let i = 0; i < pending.length; i++) {
+      try {
+        await enrich.mutateAsync({ seriesId: pending[i].id, force: false, silent: true });
+        ok++;
+      } catch (_) { /* segue */ }
+      setProgress(i + 1);
+      await new Promise((r) => setTimeout(r, 350));
+    }
+    setRunning(false);
+    toast.success(`Enriquecimento concluído: ${ok}/${pending.length} séries atualizadas.`);
+  };
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={handleRun}
+      disabled={running}
+      className="gap-1.5 border-primary/40 text-primary hover:bg-primary/10"
+    >
+      {running ? (
+        <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {progress}/{pending.length}</>
+      ) : (
+        <><Sparkles className="w-3.5 h-3.5" /> Enriquecer {pending.length}</>
+      )}
+    </Button>
+  );
+}
