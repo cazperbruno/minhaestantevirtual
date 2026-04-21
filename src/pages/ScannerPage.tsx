@@ -96,6 +96,8 @@ export default function ScannerPage() {
   const [detected, setDetected] = useState<string | null>(null);
   const [foundBook, setFoundBook] = useState<{ id: string; title: string; authors?: string[]; cover_url?: string | null } | null>(null);
   const [notFoundIsbn, setNotFoundIsbn] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useState<CameraError | null>(null);
+  const [scanStats, setScanStats] = useState(getScanStats());
 
   // Cover state
   const [coverResults, setCoverResults] = useState<Book[]>([]);
