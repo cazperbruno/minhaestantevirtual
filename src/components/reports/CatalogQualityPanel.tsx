@@ -129,12 +129,34 @@ export function CatalogQualityPanel() {
           <p className="text-sm text-muted-foreground mt-1">
             {quality.total_books} livros · nota média{" "}
             <span className="font-semibold text-foreground">{quality.avg_quality_score}</span>/100
-            <span className="ml-2 text-xs">· cron a cada 5/10 min</span>
+            <span className="ml-2 text-xs">· limpeza diária 03:15 UTC · filas a cada 5/10 min</span>
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Button variant="ghost" size="sm" onClick={load} aria-label="Atualizar">
             <RefreshCw className="w-4 h-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => runClean("auto")}
+            disabled={draining !== null}
+            className="gap-2"
+            title="Padroniza, detecta duplicatas, enfileira IA e corrige capas dos 200 piores"
+          >
+            {draining === "clean" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brush className="w-4 h-4" />}
+            Limpar agora
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => runClean("aggressive")}
+            disabled={draining !== null}
+            className="gap-2"
+            title="Limpeza agressiva: 500 piores, IA + capas com fallback"
+          >
+            {draining === "clean-aggressive" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+            Agressivo
           </Button>
           <Button
             size="sm"
