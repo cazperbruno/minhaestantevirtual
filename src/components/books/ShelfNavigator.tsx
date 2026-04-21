@@ -26,20 +26,20 @@ export function ShelfNavigator({ shelfTitle, index, total, prevId, nextId, child
   const navigate = useNavigate();
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  const goTo = (id?: string) => {
-    if (!id) return;
-    const state: ShelfNavState = { shelfId: undefined, shelfTitle };
-    // Mantém o contexto da prateleira ao navegar
-    navigate(`/livro/${id}`, { state: { ...state, shelfId: shelfIdFromHistory() } });
-  };
-
-  // Lê o shelfId atual do history.state (sobrevive entre transições)
-  const shelfIdFromHistory = () => {
+  // Lê o shelfId atual do history.state — sobrevive ao remount entre transições.
+  const shelfIdFromHistory = (): string | undefined => {
     try {
       return (window.history.state?.usr?.shelfId as string | undefined) ?? undefined;
     } catch {
       return undefined;
     }
+  };
+
+  const goTo = (id?: string) => {
+    if (!id) return;
+    const shelfId = shelfIdFromHistory();
+    const state: ShelfNavState = { shelfId, shelfTitle };
+    navigate(`/livro/${id}`, { state });
   };
 
   // Atalhos de teclado (desktop)
