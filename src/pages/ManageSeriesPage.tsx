@@ -12,6 +12,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
+import { SeriesValidationPanel } from "@/components/series/SeriesValidationPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -102,6 +103,10 @@ export default function ManageSeriesPage() {
           >
             ← Voltar para minhas séries
           </Link>
+        </div>
+
+        <div className="mb-6">
+          <SeriesValidationPanel />
         </div>
 
         {isLoading ? (

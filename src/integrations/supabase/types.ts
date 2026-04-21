@@ -2401,6 +2401,14 @@ export type Database = {
           success: boolean
         }[]
       }
+      repair_series_numbering: {
+        Args: { _series_id: string }
+        Returns: {
+          book_id: string
+          new_volume: number
+          old_volume: number
+        }[]
+      }
       search_books_internal: {
         Args: { lim?: number; q: string }
         Returns: {
@@ -2496,6 +2504,27 @@ export type Database = {
         Returns: {
           category: string
           weight: number
+        }[]
+      }
+      validate_series_integrity: {
+        Args: never
+        Returns: {
+          books_count: number
+          content_type: Database["public"]["Enums"]["content_type"]
+          duplicate_volumes: number[]
+          has_duplicates: boolean
+          has_gaps: boolean
+          has_unnumbered: boolean
+          is_complete: boolean
+          max_volume: number
+          min_volume: number
+          missing_volumes: number[]
+          numbered_count: number
+          series_id: string
+          series_title: string
+          severity: string
+          total_volumes: number
+          unnumbered_count: number
         }[]
       }
       weekly_league_for_user: {
