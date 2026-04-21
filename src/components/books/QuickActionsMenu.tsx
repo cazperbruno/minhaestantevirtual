@@ -68,7 +68,7 @@ export function QuickActionsMenu({ ub, open, onOpenChange, className }: Props) {
   };
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu open={value} onOpenChange={setValue}>
       <DropdownMenuTrigger asChild>
         <Button
           size="icon"
