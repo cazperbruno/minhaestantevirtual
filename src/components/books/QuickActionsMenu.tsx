@@ -18,7 +18,9 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   ub: UserBook;
-  /** Visibilidade no hover (desktop). Mobile usa long-press para abrir. */
+  /** Permite controlar abertura externamente (ex: long-press do card pai). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   className?: string;
 }
 
@@ -33,8 +35,14 @@ const STATUS_ACTIONS: { value: BookStatus; label: string; icon: typeof BookOpen 
  * - Desktop: aparece no hover do card.
  * - Mobile: o componente pai dispara `open` via long-press (controlled).
  */
-export function QuickActionsMenu({ ub, className }: Props) {
-  const [open, setOpen] = useState(false);
+export function QuickActionsMenu({ ub, open, onOpenChange, className }: Props) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = open !== undefined;
+  const value = isControlled ? open : internalOpen;
+  const setValue = (v: boolean) => {
+    if (!isControlled) setInternalOpen(v);
+    onOpenChange?.(v);
+  };
   const update = useUpdateUserBook();
 
   const setStatus = (status: BookStatus) => {
