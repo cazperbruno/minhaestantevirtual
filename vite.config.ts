@@ -92,13 +92,25 @@ export default defineConfig(({ mode }) => ({
               expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
             },
           },
-          // 4) Capas de livros / imagens → CacheFirst com expiração
+          // 4) Capas de livros (todas as fontes) → CacheFirst com expiração longa
+          //    Cobre: openlibrary, googleusercontent (Google Books), itunes, archive.org,
+          //    wikimedia, anilist (s4.anilist.co), e qualquer URL terminando em img.
           {
-            urlPattern: /\/(books|covers|images)\/.*\.(png|jpg|jpeg|webp|svg)$/i,
+            urlPattern: ({ url, request }) =>
+              request.destination === "image" && (
+                /covers\.openlibrary\.org/.test(url.hostname) ||
+                /books\.google\.com|googleusercontent\.com/.test(url.hostname) ||
+                /mzstatic\.com|itunes\.apple\.com/.test(url.hostname) ||
+                /archive\.org/.test(url.hostname) ||
+                /wikimedia\.org|wikipedia\.org/.test(url.hostname) ||
+                /anilist\.co/.test(url.hostname) ||
+                /\.(png|jpg|jpeg|webp|svg|gif)(\?.*)?$/i.test(url.pathname)
+              ),
             handler: "CacheFirst",
             options: {
               cacheName: "book-covers",
-              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
             },
           },
           // 5) APIs Supabase → NetworkFirst com fallback rápido (nunca cacheia "forever")
