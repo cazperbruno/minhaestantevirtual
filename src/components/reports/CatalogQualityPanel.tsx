@@ -159,6 +159,17 @@ export function CatalogQualityPanel() {
           <Button
             size="sm"
             variant="outline"
+            onClick={runSeed}
+            disabled={draining !== null}
+            className="gap-2"
+            title="Importa 200 livros públicos novos do OpenLibrary (idempotente)"
+          >
+            {draining === "seed" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            Importar lote
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
             onClick={() => runClean("auto")}
             disabled={draining !== null}
             className="gap-2"
