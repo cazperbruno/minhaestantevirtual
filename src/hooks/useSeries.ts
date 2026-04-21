@@ -72,7 +72,8 @@ async function fetchSeriesDetail(id: string, userId: string | null): Promise<Ser
   const read_count = volumes.filter((v) => v.user_book?.status === "read").length;
   const owned_count = volumes.filter((v) => v.user_book != null).length;
   const total = (series as any).total_volumes ?? volumes.length;
-  const completion_pct = total > 0 ? Math.min(100, Math.round((read_count / total) * 100)) : 0;
+  // Modo colecionador: % é baseado em volumes possuídos, não lidos.
+  const completion_pct = total > 0 ? Math.min(100, Math.round((owned_count / total) * 100)) : 0;
 
   // Calcular volumes faltantes
   const ownedNums = new Set(
