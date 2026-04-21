@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, Sparkles, Loader2, Check } from "lucide-react";
+import { Plus, Sparkles, Loader2, Check, Compass } from "lucide-react";
 import { BookCover } from "./BookCover";
 import { CinematicShelf, ShelfItem } from "./CinematicShelf";
 import { Button } from "@/components/ui/button";
