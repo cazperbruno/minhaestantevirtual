@@ -26,6 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { haptic } from "@/lib/haptics";
 import { markScanStart, markScanSuccess, markScanCancelled, getScanStats } from "@/lib/scan-metrics";
+import { trackEvent } from "@/lib/track";
 
 type Mode = "barcode" | "cover" | "page";
 
