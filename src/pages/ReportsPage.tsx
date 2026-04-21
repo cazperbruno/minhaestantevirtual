@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AffiliateClicksPanel } from "@/components/reports/AffiliateClicksPanel";
 import { EventsAnalyticsPanel } from "@/components/reports/EventsAnalyticsPanel";
+import { CatalogQualityPanel } from "@/components/reports/CatalogQualityPanel";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 type Row = {
@@ -499,6 +500,7 @@ export default function ReportsPage() {
         {/* Paineis admin */}
         {isAdmin && (
           <>
+            <CatalogQualityPanel />
             <EventsAnalyticsPanel />
             <AffiliateClicksPanel />
           </>

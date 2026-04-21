@@ -219,6 +219,7 @@ export type Database = {
       books: {
         Row: {
           authors: string[]
+          authors_text: string | null
           categories: string[] | null
           content_type: Database["public"]["Enums"]["content_type"]
           cover_url: string | null
@@ -242,6 +243,7 @@ export type Database = {
         }
         Insert: {
           authors?: string[]
+          authors_text?: string | null
           categories?: string[] | null
           content_type?: Database["public"]["Enums"]["content_type"]
           cover_url?: string | null
@@ -265,6 +267,7 @@ export type Database = {
         }
         Update: {
           authors?: string[]
+          authors_text?: string | null
           categories?: string[] | null
           content_type?: Database["public"]["Enums"]["content_type"]
           cover_url?: string | null
@@ -709,6 +712,57 @@ export type Database = {
           replaced?: number
         }
         Relationships: []
+      }
+      enrichment_queue: {
+        Row: {
+          attempts: number
+          book_id: string
+          enqueued_at: string
+          fields_filled: string[] | null
+          id: string
+          last_error: string | null
+          next_attempt_at: string
+          processed_at: string | null
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          book_id: string
+          enqueued_at?: string
+          fields_filled?: string[] | null
+          id?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          processed_at?: string | null
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          book_id?: string
+          enqueued_at?: string
+          fields_filled?: string[] | null
+          id?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          processed_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrichment_queue_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrichment_queue_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "trending_books"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       follows: {
         Row: {
@@ -1765,6 +1819,20 @@ export type Database = {
         }
         Relationships: []
       }
+      books_quality_report: {
+        Row: {
+          avg_quality_score: number | null
+          poor_quality_count: number | null
+          total_books: number | null
+          with_categories: number | null
+          with_cover: number | null
+          with_isbn13: number | null
+          with_pages: number | null
+          with_rich_desc: number | null
+          with_series: number | null
+        }
+        Relationships: []
+      }
       ranking_view: {
         Row: {
           avatar_url: string | null
@@ -1873,6 +1941,10 @@ export type Database = {
         Returns: number
       }
       assign_daily_challenges: { Args: { _user_id: string }; Returns: number }
+      book_quality_score: {
+        Args: { b: Database["public"]["Tables"]["books"]["Row"] }
+        Returns: number
+      }
       books_for_cover_audit: {
         Args: { _limit?: number }
         Returns: {
@@ -2079,6 +2151,21 @@ export type Database = {
           success: boolean
         }[]
       }
+      search_books_internal: {
+        Args: { lim?: number; q: string }
+        Returns: {
+          authors: string[]
+          content_type: Database["public"]["Enums"]["content_type"]
+          cover_url: string
+          id: string
+          isbn_10: string
+          isbn_13: string
+          published_year: number
+          rank: number
+          subtitle: string
+          title: string
+        }[]
+      }
       series_collection_ranking: {
         Args: { _limit?: number }
         Returns: {
@@ -2091,6 +2178,8 @@ export type Database = {
           total_volumes: number
         }[]
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       similar_books: {
         Args: { _book_id: string; _limit?: number }
         Returns: {
