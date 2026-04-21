@@ -26,7 +26,7 @@ const corsHeaders = {
 };
 
 // ---------- Normalização (espelha src/lib/series-normalize.ts) ----------
-const VOL_KEYWORDS = "vol(?:ume|\\.)?|tome|tomo|book|livro|capitulo|chapter|cap\\.?|n[º°o]?\\.?|#";
+const VOL_KEYWORDS = "vol(?:ume|\\.+)?|tome|tomo|book|livro|capitulo|chapter|cap\\.*|n[º°o]?\\.*|#";
 
 function strFold(s: string): string {
   return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -42,6 +42,7 @@ function normalizeSeriesTitle(rawTitle: string): NormalizedTitle {
   if (!rawTitle) return { base: "", volume: null, key: "" };
   let t = strFold(rawTitle);
   t = t.replace(/\([^)]*\)/g, " ").replace(/\[[^\]]*\]/g, " ");
+  t = t.replace(/\.{2,}/g, ".").replace(/:{2,}/g, ":").replace(/\s+/g, " ").trim();
   let detectedVol: number | null = null;
   const volKwRe = new RegExp(`(?:^|[\\s\\-:,.])(?:${VOL_KEYWORDS})\\s*(\\d{1,3})(?!\\d)`, "i");
   const mKw = t.match(volKwRe);
@@ -55,6 +56,8 @@ function normalizeSeriesTitle(rawTitle: string): NormalizedTitle {
       t = mTail[1];
     }
   }
+  const trailingKwRe = new RegExp(`[\\s\\-:,.]+(?:${VOL_KEYWORDS})\\s*$`, "i");
+  t = t.replace(trailingKwRe, " ");
   t = t.replace(/[\s\-:,.\u2013\u2014]+$/g, "").trim().replace(/\s+/g, " ");
   const key = t.replace(/[^a-z0-9]+/g, "");
   return { base: t, volume: detectedVol, key };
@@ -154,16 +157,18 @@ Deno.serve(async (req) => {
 
     for (const b of books ?? []) {
       const author = (b.authors?.[0] || "").trim().toLowerCase();
-      if (!author || !b.title) continue;
+      if (!b.title) continue;
       const norm = normalizeSeriesTitle(b.title);
       if (!norm.key || norm.key.length < 3) continue;
 
-      // chave inclui autor + content_type para evitar colisão entre formatos
-      const groupKey = `${author}::${b.content_type}::${norm.key}`;
+      // chave inclui autor (ou "_" se ausente) + content_type para evitar colisão entre formatos.
+      // IMPORTANTE: livros sem autor TAMBÉM são agrupados — não devem ficar órfãos.
+      const authorKey = author || "_noauthor_";
+      const groupKey = `${authorKey}::${b.content_type}::${norm.key}`;
       if (!groups.has(groupKey)) {
         groups.set(groupKey, {
           key: groupKey,
-          author,
+          author: authorKey,
           base: norm.base,
           content_type: b.content_type,
           books: [],
