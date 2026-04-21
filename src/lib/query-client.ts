@@ -82,36 +82,73 @@ export const qk = {
 /**
  * Invalida grupos relacionados de uma só vez.
  * Use após mutações que afetam múltiplas telas.
+ *
+ * Estratégia de prioridade (Instagram/Netflix style):
+ *   - HOT  → o que o usuário VÊ agora (feed, biblioteca, prateleiras, séries,
+ *            perfil, livro aberto). Refetch IMEDIATO via `refetchType: "active"`.
+ *   - COLD → dados de telas que o usuário não está olhando (rankings globais,
+ *            achievements agregados, sugestões). Apenas marca como stale e
+ *            refetch fica adiado para `requestIdleCallback` ou para quando
+ *            o usuário navegar para essa tela.
  */
+function idle(cb: () => void) {
+  const ric = (globalThis as any).requestIdleCallback as
+    | ((cb: () => void, opts?: { timeout: number }) => number)
+    | undefined;
+  if (ric) ric(cb, { timeout: 1500 });
+  else setTimeout(cb, 250);
+}
+
+/** HOT: refetch imediato para queries ativas (visíveis na tela). */
+function hot(queryKey: readonly unknown[]) {
+  queryClient.invalidateQueries({ queryKey: queryKey as any, refetchType: "active" });
+}
+
+/** COLD: marca stale agora, refetch quando ocioso (ou no próximo mount). */
+function cold(queryKey: readonly unknown[]) {
+  queryClient.invalidateQueries({ queryKey: queryKey as any, refetchType: "none" });
+  idle(() => {
+    queryClient.invalidateQueries({ queryKey: queryKey as any, refetchType: "active" });
+  });
+}
+
 export const invalidate = {
   library: (userId?: string) => {
-    queryClient.invalidateQueries({ queryKey: qk.library(userId) });
-    queryClient.invalidateQueries({ queryKey: qk.wishlist(userId) });
-    queryClient.invalidateQueries({ queryKey: qk.mySeries(userId) });
-    queryClient.invalidateQueries({ queryKey: qk.seriesRanking() });
-    queryClient.invalidateQueries({ queryKey: qk.ranking() });
-    queryClient.invalidateQueries({ queryKey: qk.feed() });
-    queryClient.invalidateQueries({ queryKey: qk.stats(userId) });
-    queryClient.invalidateQueries({ queryKey: qk.followingReads(userId) });
-    queryClient.invalidateQueries({ queryKey: ["user-book", userId] });
-    if (userId) queryClient.invalidateQueries({ queryKey: qk.nextAchievements(userId) });
+    // HOT — telas que o usuário provavelmente está vendo após mexer na coleção
+    hot(qk.library(userId));
+    hot(qk.wishlist(userId));
+    hot(qk.mySeries(userId));
+    hot(qk.feed());
+    hot(qk.followingReads(userId));
+    hot(["user-book", userId]);
+    // COLD — agregados / rankings que podem esperar background
+    cold(qk.stats(userId));
+    cold(qk.seriesRanking());
+    cold(qk.ranking());
+    if (userId) cold(qk.nextAchievements(userId));
   },
   follow: (viewerId: string, targetId: string) => {
-    queryClient.invalidateQueries({ queryKey: qk.followState(viewerId, targetId) });
-    queryClient.invalidateQueries({ queryKey: qk.followers(targetId) });
-    queryClient.invalidateQueries({ queryKey: qk.following(viewerId) });
-    queryClient.invalidateQueries({ queryKey: qk.suggestedReaders(viewerId) });
-    queryClient.invalidateQueries({ queryKey: qk.feed() });
-    queryClient.invalidateQueries({ queryKey: qk.followingReads(viewerId) });
+    // HOT — botão de follow + listas visíveis
+    hot(qk.followState(viewerId, targetId));
+    hot(qk.followers(targetId));
+    hot(qk.following(viewerId));
+    hot(qk.feed());
+    hot(qk.followingReads(viewerId));
+    // COLD — sugestões de leitores raramente estão na tela ativa
+    cold(qk.suggestedReaders(viewerId));
   },
   reviews: (bookId: string) => {
-    queryClient.invalidateQueries({ queryKey: qk.reviews(bookId) });
-    queryClient.invalidateQueries({ queryKey: qk.feed() });
+    hot(qk.reviews(bookId));
+    hot(qk.feed());
   },
   profile: (userId: string) => {
-    queryClient.invalidateQueries({ queryKey: ["profile"] });
-    queryClient.invalidateQueries({ queryKey: qk.stats(userId) });
-    queryClient.invalidateQueries({ queryKey: qk.achievements(userId) });
+    // HOT — header do perfil reage na hora
+    hot(["profile"]);
+    cold(qk.stats(userId));
+    cold(qk.achievements(userId));
   },
   all: () => queryClient.invalidateQueries(),
+  // Helpers expostos para uso direto pelo realtime hook
+  hot,
+  cold,
 };
