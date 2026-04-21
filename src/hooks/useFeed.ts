@@ -190,16 +190,28 @@ export function useToggleReviewLike(tab: "all" | "following") {
   return useMutation({
     mutationFn: async (rev: FeedReview) => {
       if (!user) throw new Error("not_authenticated");
+      // Wrapper offline: se sem rede, enfileira; se online, executa direto
+      const { mutateOrQueue } = await import("@/lib/offline-queue");
       if (rev.liked_by_me) {
-        const { error } = await supabase
-          .from("review_likes").delete()
-          .eq("review_id", rev.id).eq("user_id", user.id);
-        if (error) throw error;
+        await mutateOrQueue(
+          { kind: "review_unlike", payload: { review_id: rev.id } },
+          async () => {
+            const { error } = await supabase
+              .from("review_likes").delete()
+              .eq("review_id", rev.id).eq("user_id", user.id);
+            if (error) throw error;
+          },
+        );
       } else {
-        const { error } = await supabase
-          .from("review_likes").insert({ review_id: rev.id, user_id: user.id });
-        if (error) throw error;
-        void awardXp(user.id, "like_review", { silent: true });
+        await mutateOrQueue(
+          { kind: "review_like", payload: { review_id: rev.id } },
+          async () => {
+            const { error } = await supabase
+              .from("review_likes").insert({ review_id: rev.id, user_id: user.id });
+            if (error) throw error;
+            void awardXp(user.id, "like_review", { silent: true });
+          },
+        );
       }
     },
     onMutate: async (rev) => {
