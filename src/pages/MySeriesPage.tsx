@@ -134,8 +134,8 @@ function Section({
 
 function SeriesCard({ s }: { s: MySeriesRow }) {
   const total = s.total_volumes ?? Math.max(s.owned_count, s.read_count);
-  const pct = s.completion_pct;
-  const complete = total > 0 && s.read_count >= total;
+  const pct = s.completion_pct; // agora baseado em owned_count
+  const complete = total > 0 && s.owned_count >= total;
 
   return (
     <Link
@@ -179,7 +179,10 @@ function SeriesCard({ s }: { s: MySeriesRow }) {
         <div className="mt-auto pt-3 space-y-1">
           <div className="flex items-center justify-between text-[11px] tabular-nums">
             <span className="text-muted-foreground">
-              {s.read_count} / {total || "?"} {complete ? "✓" : ""}
+              {s.owned_count} / {total || "?"} {complete ? "✓" : ""}
+              {s.read_count > 0 && (
+                <span className="opacity-60"> · {s.read_count} lidos</span>
+              )}
             </span>
             {!complete && s.next_volume != null && (
               <span className="text-primary font-medium">próximo: vol. {s.next_volume}</span>
