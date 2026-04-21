@@ -106,7 +106,7 @@ export function BookChat({ bookId, bookTitle }: { bookId: string; bookTitle: str
 
   if (!open) {
     return (
-      <Button variant="outline" size="lg" onClick={() => setOpen(true)} className="gap-2">
+      <Button variant="outline" size="lg" onClick={() => setOpen(true)} className="w-full sm:w-auto">
         <Sparkles className="w-4 h-4 text-primary" /> Conversar com IA
       </Button>
     );
