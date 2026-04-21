@@ -371,18 +371,26 @@ Deno.serve(async (req) => {
         .eq("content_type", series.content_type)
         .maybeSingle();
       if (cached && cached.total_volumes) {
-        const updates = {
+        const candidate = {
           total_volumes: series.total_volumes && series.total_volumes > cached.total_volumes
             ? series.total_volumes // mantém o maior se usuário já tem mais
             : cached.total_volumes,
           status: series.status || cached.status,
-          // ⬇️ fallback inteligente: pega a sinopse mais rica
           description: pickBetterDescription(series.description, cached.description),
-          // ⬇️ fallback inteligente: pega a capa de maior qualidade
           cover_url: pickBetterCover(series.cover_url, cached.cover_url),
-          // banner_url não existe na tabela series — fica no cache
           source: cached.source,
           source_id: cached.source_id,
+        };
+        const patch = diffPatch(series as any, candidate);
+        // Idempotência: se nada material mudou, não escreve nem bumpa timestamp
+        if (!hasMaterialChange(patch)) {
+          return new Response(
+            JSON.stringify({ ok: true, from: "cache", skipped_update: true, reason: "no_changes", series, cached }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        const updates = {
+          ...patch,
           raw: cached.raw,
           last_enriched_at: new Date().toISOString(),
           enriched_by: `cache:${cached.source}`,
@@ -390,7 +398,7 @@ Deno.serve(async (req) => {
         const { data: updated } = await supabase
           .from("series").update(updates).eq("id", seriesId).select().single();
         return new Response(
-          JSON.stringify({ ok: true, from: "cache", series: updated, cached }),
+          JSON.stringify({ ok: true, from: "cache", changed_fields: Object.keys(patch), series: updated, cached }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
