@@ -330,7 +330,7 @@ Deno.serve(async (req) => {
           description: pickBetterDescription(series.description, cached.description),
           // ⬇️ fallback inteligente: pega a capa de maior qualidade
           cover_url: pickBetterCover(series.cover_url, cached.cover_url),
-          banner_url: cached.banner_url || null,
+          // banner_url não existe na tabela series — fica no cache
           source: cached.source,
           source_id: cached.source_id,
           raw: cached.raw,
