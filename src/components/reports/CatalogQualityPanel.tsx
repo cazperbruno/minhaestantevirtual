@@ -92,7 +92,26 @@ export function CatalogQualityPanel() {
     }
   };
 
-  if (loading) {
+  const runSeed = async () => {
+    setDraining("seed");
+    try {
+      const { data, error } = await supabase.functions.invoke("seed-book-database", {
+        body: { mode: "mixed", limit: 200 },
+      });
+      if (error) throw error;
+      const d: any = data ?? {};
+      toast.success(
+        `Importou ${d.inserted ?? 0} livros novos · ${d.already_existed ?? 0} já existiam · ` +
+        `${d.enqueued_for_enrichment ?? 0} na fila de enriquecimento`,
+      );
+      await load();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao importar");
+    } finally {
+      setDraining(null);
+    }
+  };
+
     return (
       <Card className="p-6 space-y-4">
         <Skeleton className="h-6 w-48" />
