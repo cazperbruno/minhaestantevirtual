@@ -932,3 +932,56 @@ function PageCandidateCard({
     </div>
   );
 }
+
+/**
+ * Overlay claro quando a câmera falha — explica a causa e oferece
+ * fallbacks acionáveis: tentar de novo, digitar ISBN ou ir pra capa.
+ */
+function CameraErrorOverlay({
+  error, onRetry, onManual, onCover,
+}: {
+  error: CameraError;
+  onRetry: () => void;
+  onManual: () => void;
+  onCover: () => void;
+}) {
+  const titleByKind: Record<CameraError["kind"], string> = {
+    permission: "Permissão de câmera negada",
+    "no-device": "Câmera traseira não encontrada",
+    "in-use": "Câmera em uso por outro app",
+    insecure: "Câmera só funciona em HTTPS",
+    unknown: "Não foi possível abrir a câmera",
+  };
+  const hintByKind: Record<CameraError["kind"], string> = {
+    permission: "Toque no cadeado da barra de endereço e libere a câmera. Depois tente de novo.",
+    "no-device": "Seu dispositivo não tem câmera traseira disponível ou está bloqueada.",
+    "in-use": "Feche outros apps que estão usando a câmera (Instagram, WhatsApp) e tente de novo.",
+    insecure: "Acesse pelo domínio publicado (HTTPS). Câmera bloqueada em conexões inseguras.",
+    unknown: error.message,
+  };
+
+  return (
+    <div className="absolute inset-0 bg-background/95 backdrop-blur-sm flex flex-col items-center justify-center gap-3 px-6 text-center animate-fade-in">
+      <div className="w-12 h-12 rounded-full bg-destructive/15 text-destructive flex items-center justify-center">
+        <Camera className="w-6 h-6" />
+      </div>
+      <div>
+        <p className="font-display font-semibold">{titleByKind[error.kind]}</p>
+        <p className="text-xs text-muted-foreground mt-1 max-w-xs">{hintByKind[error.kind]}</p>
+      </div>
+      <div className="flex flex-wrap gap-2 justify-center mt-1">
+        {error.kind !== "insecure" && (
+          <Button size="sm" variant="hero" onClick={onRetry} className="gap-1.5">
+            <Camera className="w-3.5 h-3.5" /> Tentar de novo
+          </Button>
+        )}
+        <Button size="sm" variant="outline" onClick={onManual} className="gap-1.5">
+          <FileText className="w-3.5 h-3.5" /> Digitar ISBN
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onCover} className="gap-1.5">
+          <ImageIcon className="w-3.5 h-3.5" /> Foto da capa
+        </Button>
+      </div>
+    </div>
+  );
+}
