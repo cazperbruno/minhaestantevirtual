@@ -1650,7 +1650,6 @@ export type Database = {
           finished_at: string | null
           id: string
           is_public: boolean
-          notes: string | null
           rating: number | null
           started_at: string | null
           status: Database["public"]["Enums"]["book_status"]
@@ -1666,7 +1665,6 @@ export type Database = {
           finished_at?: string | null
           id?: string
           is_public?: boolean
-          notes?: string | null
           rating?: number | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["book_status"]
@@ -1682,7 +1680,6 @@ export type Database = {
           finished_at?: string | null
           id?: string
           is_public?: boolean
-          notes?: string | null
           rating?: number | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["book_status"]

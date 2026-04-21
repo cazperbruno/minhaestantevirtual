@@ -1,0 +1,1 @@
+ALTER TABLE public.user_books DROP COLUMN IF EXISTS notes;
