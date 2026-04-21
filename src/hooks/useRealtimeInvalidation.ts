@@ -3,6 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { qk, queryClient } from "@/lib/query-client";
 
+/** Helper: dispara refetch ativo de queries marcadas como stale. */
+function refetchActive() {
+  queryClient.invalidateQueries({ refetchType: "active" });
+}
+
 /**
  * Stale-while-revalidate via Supabase Realtime.
  *
@@ -113,10 +118,55 @@ export function useRealtimeInvalidation() {
           queryClient.invalidateQueries({ queryKey: qk.feed() });
         },
       )
+      // -------- BUDDY READS (mensagens, progresso) --------
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "buddy_read_messages" },
+        () => queryClient.invalidateQueries({ queryKey: ["buddy"] }),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "buddy_read_participants" },
+        () => queryClient.invalidateQueries({ queryKey: ["buddy"] }),
+      )
+      // -------- CLUB MESSAGES --------
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "club_messages" },
+        () => queryClient.invalidateQueries({ queryKey: ["club"] }),
+      )
+      // -------- STORIES --------
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "stories" },
+        () => queryClient.invalidateQueries({ queryKey: ["stories"] }),
+      )
+      // -------- RECOMMENDATIONS --------
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "book_recommendations" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["recommendations"] });
+          queryClient.invalidateQueries({ queryKey: qk.feed() });
+        },
+      )
       .subscribe();
+
+    // Visibility/pageshow: PWA mobile às vezes não dispara `focus` ao retornar
+    // do background. Force refetch ativo para garantir UI fresca.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refetchActive();
+    };
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) refetchActive();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pageshow", onPageShow);
 
     return () => {
       supabase.removeChannel(channel);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", onPageShow);
     };
   }, [user]);
 }
