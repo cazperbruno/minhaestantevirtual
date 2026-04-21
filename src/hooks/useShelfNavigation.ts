@@ -37,9 +37,9 @@ export function useShelfNavigation(currentBookId?: string): ShelfNav {
   const { user } = useAuth();
   const qc = useQueryClient();
 
-  // Só carrega a biblioteca se viemos de uma prateleira — evita custo extra.
+  // Reusa o cache da biblioteca já carregada — custo zero quando vem de /biblioteca.
   const enabled = !!state.shelfId && !!currentBookId;
-  const { data: items = [] } = useLibrary({ enabled } as any);
+  const { data: items = [] } = useLibrary();
   const shelves = useSmartShelves(items);
 
   const nav = useMemo<ShelfNav>(() => {
