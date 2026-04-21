@@ -9,14 +9,11 @@ import {
   ScanBarcode,
   MessageSquare,
   Trophy,
-  Target,
-  BarChart3,
   Heart,
   ArrowRightLeft,
   Repeat,
   Search,
   User as UserIcon,
-  FileText,
   LogOut,
   Settings,
   Sparkles,
@@ -28,8 +25,7 @@ import { NotificationsBell } from "@/components/social/NotificationsBell";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
-import readifyLogo from "@/assets/readify-logo-v8.png";
+import readifyMark from "@/assets/readify-mark-v8.webp";
 
 type Item = { to: string; label: string; icon: typeof Book; group: string };
 
