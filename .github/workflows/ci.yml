@@ -50,6 +50,20 @@ jobs:
       - name: Run tests
         run: bun run test
 
+      # Cache do build do Vite — acelera transforms/optimizeDeps em runs subsequentes.
+      # Chave inclui configs e package.json: muda config → cache invalidado.
+      # restore-keys garante reuso parcial mesmo quando o source muda.
+      - name: Cache Vite build
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules/.vite
+            node_modules/.cache
+          key: ${{ runner.os }}-vite-${{ hashFiles('vite.config.ts', 'tsconfig*.json', 'tailwind.config.ts', 'postcss.config.js', 'package.json') }}-${{ hashFiles('src/**/*.{ts,tsx,css}', 'index.html') }}
+          restore-keys: |
+            ${{ runner.os }}-vite-${{ hashFiles('vite.config.ts', 'tsconfig*.json', 'tailwind.config.ts', 'postcss.config.js', 'package.json') }}-
+            ${{ runner.os }}-vite-
+
       - name: Build (smoke check)
         run: bun run build
         env:
