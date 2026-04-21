@@ -1,0 +1,24 @@
+{
+  "name": "Readify — Sua biblioteca pessoal",
+  "short_name": "Readify",
+  "description": "Descubra, organize e celebre seus livros. Sua biblioteca, em qualquer lugar.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0b0d",
+  "theme_color": "#e11d29",
+  "lang": "pt-BR",
+  "categories": ["books", "lifestyle", "social"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Biblioteca", "url": "/biblioteca", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Scanner", "url": "/scanner", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Feed", "url": "/feed", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
