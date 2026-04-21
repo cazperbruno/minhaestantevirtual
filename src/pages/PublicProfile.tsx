@@ -8,7 +8,8 @@ import { AchievementsPanel } from "@/components/profile/AchievementsPanel";
 import { FollowButton } from "@/components/social/FollowButton";
 import { ProposeTradeDialog } from "@/components/social/ProposeTradeDialog";
 import { useAuth } from "@/hooks/useAuth";
-import { Trophy, BookOpen, Star, Loader2, Users, Calendar, Lock, Instagram, Twitter, Globe, Music2 } from "lucide-react";
+import { Trophy, BookOpen, Star, Loader2, Users, Calendar, Lock, Instagram, Twitter, Globe, Music2, BookX } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Rating } from "@/components/books/Rating";
 import { formatDistanceToNow } from "date-fns";
@@ -285,11 +286,11 @@ export default function PublicProfile() {
 
             <TabsContent value="library" className="mt-8 space-y-12">
               {library.length === 0 ? (
-                <p className="text-muted-foreground italic text-sm py-10 text-center">
-                  {profile.library_visibility === "followers" && !isOwn
-                    ? "Biblioteca disponível só para seguidores."
-                    : "Nenhum livro público."}
-                </p>
+                profile.library_visibility === "followers" && !isOwn ? (
+                  <EmptyState icon={<Lock />} title="Biblioteca privada" description="Esta biblioteca só fica visível para seguidores." />
+                ) : (
+                  <EmptyState icon={<BookOpen />} title="Nenhum livro público" description="Quando este leitor adicionar livros públicos, eles aparecem aqui." />
+                )
               ) : (
                 <>
                   {reading.length > 0 && <LibraryShelf title="Lendo agora" items={reading} />}
@@ -301,7 +302,7 @@ export default function PublicProfile() {
 
             <TabsContent value="reviews" className="mt-8 space-y-4">
               {reviews.length === 0 ? (
-                <p className="text-muted-foreground italic text-sm py-10 text-center">Nenhuma resenha pública.</p>
+                <EmptyState icon={<Star />} title="Nenhuma resenha pública" description="As resenhas que este leitor publicar aparecem nesta aba." />
               ) : (
                 reviews.map((r) => (
                   <Link key={r.id} to={`/livro/${r.book_id}`} className="block glass rounded-2xl p-5 hover:border-primary/40 transition-all group animate-fade-in">
