@@ -82,7 +82,6 @@ export const qk = {
 /**
  * Invalida grupos relacionados de uma só vez.
  * Use após mutações que afetam múltiplas telas.
- */
  *
  * Estratégia de prioridade (Instagram/Netflix style):
  *   - HOT  → o que o usuário VÊ agora (feed, biblioteca, prateleiras, séries,
