@@ -248,12 +248,31 @@ Deno.serve(async (req) => {
         }
 
         if (targetSeriesId) {
-          // linka direto
+          // Calcula volume sequencial p/ "séries não-numeradas":
+          // se não detectamos volume no título e não há volume prévio,
+          // pega o próximo número livre na série (max+1).
+          let volToSet: number | null = norm.volume ?? b.volume_number ?? null;
+          if (volToSet == null) {
+            const { data: usedRows } = await supabase
+              .from("books")
+              .select("volume_number")
+              .eq("series_id", targetSeriesId)
+              .not("volume_number", "is", null);
+            const used = new Set(
+              (usedRows ?? [])
+                .map((r) => r.volume_number)
+                .filter((v): v is number => Number.isFinite(v as number)),
+            );
+            // primeiro inteiro >=1 não usado
+            let candidate = 1;
+            while (used.has(candidate)) candidate++;
+            volToSet = candidate;
+          }
           const { error: uErr } = await supabase
             .from("books")
             .update({
               series_id: targetSeriesId,
-              volume_number: norm.volume ?? b.volume_number ?? null,
+              volume_number: volToSet,
             })
             .eq("id", b.id);
           if (uErr) throw uErr;
