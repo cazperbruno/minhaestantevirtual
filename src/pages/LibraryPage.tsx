@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { SmartShelfRow } from "@/components/books/SmartShelfRow";
+import { DiscoveryShelfRow } from "@/components/books/DiscoveryShelfRow";
 import { useSmartShelves } from "@/hooks/useSmartShelves";
 import { BookCard } from "@/components/books/BookCard";
 import { ShelfSkeleton, BookGridSkeleton } from "@/components/ui/skeletons";
@@ -126,6 +127,8 @@ export default function LibraryPage() {
                       items={readShelf}
                     />
                   )}
+                  {/* Descoberta: livros que você ainda não tem, recomendados pela IA */}
+                  <DiscoveryShelfRow />
                 </div>
               )
             ) : (
