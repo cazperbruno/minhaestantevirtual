@@ -53,10 +53,14 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
             <BookCover book={book} size="xl" transitionName={bookCoverTransitionName(book.id)} />
           </div>
 
-          <div className="animate-fade-in space-y-5">
-            {ub && <StatusBadge status={ub.status} />}
+          <div className="space-y-5">
+            {ub && (
+              <div className="hero-stagger" style={{ animationDelay: "60ms" }}>
+                <StatusBadge status={ub.status} />
+              </div>
+            )}
 
-            <div className="space-y-2">
+            <div className="space-y-2 hero-stagger" style={{ animationDelay: "120ms" }}>
               <h1 className="font-display text-4xl md:text-6xl font-bold leading-[1.05] text-balance text-foreground">
                 {book.title}
               </h1>
@@ -67,7 +71,7 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
               )}
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1 hero-stagger" style={{ animationDelay: "220ms" }}>
               <p className="text-lg md:text-xl text-foreground/95">
                 {book.authors.length > 0 ? book.authors.join(", ") : "Autor desconhecido"}
               </p>
@@ -86,7 +90,7 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
             </div>
 
             {book.categories && book.categories.length > 0 && (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 hero-stagger" style={{ animationDelay: "320ms" }}>
                 {book.categories.slice(0, 6).map((c) => (
                   <Link
                     key={c}
@@ -100,7 +104,7 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
             )}
 
             {progress !== null && ub && (ub.status === "reading" || ub.status === "read") && (
-              <div className="max-w-md">
+              <div className="max-w-md hero-stagger" style={{ animationDelay: "400ms" }}>
                 <div className="flex items-center justify-between text-xs mb-1.5 text-muted-foreground">
                   <span>{ub.current_page} / {book.page_count} páginas</span>
                   <span className="font-semibold text-primary">{progress}%</span>
@@ -114,7 +118,7 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
               </div>
             )}
 
-            <div className="flex flex-wrap gap-2 pt-2">
+            <div className="flex flex-wrap gap-2 pt-2 hero-stagger" style={{ animationDelay: "480ms" }}>
               {!ub ? (
                 <Button
                   variant="hero"
