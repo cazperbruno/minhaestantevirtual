@@ -60,8 +60,11 @@ export function trackEvent(event: string, props?: Record<string, any>) {
   (async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      // Telemetria exige usuário autenticado (RLS endurecido).
+      // Eventos de visitantes anônimos são descartados silenciosamente.
+      if (!user) return;
       await supabase.from("app_events").insert({
-        user_id: user?.id ?? null,
+        user_id: user.id,
         event,
         props: props ?? null,
         session_id: getSessionId(),
