@@ -164,34 +164,56 @@ function Section({
         <p className="text-sm text-muted-foreground italic py-6">{empty || "Nada por aqui ainda."}</p>
       ) : (
         <ul className="grid sm:grid-cols-2 gap-3 animate-stagger">
-          {list.map((r) => (
-            <li key={r.id} className="glass rounded-2xl p-4 flex items-center gap-3 hover:border-primary/30 transition-colors">
-              <Link to={profilePath(r)} className="shrink-0">
-                <Avatar className="w-12 h-12 ring-2 ring-transparent hover:ring-primary/40 transition-all">
-                  <AvatarImage src={r.avatar_url || undefined} />
-                  <AvatarFallback className="bg-gradient-gold text-primary-foreground font-display">
-                    {(r.display_name || "?").charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </Link>
-              <div className="flex-1 min-w-0">
-                <Link to={profilePath(r)} className="font-semibold text-sm truncate hover:text-primary transition-colors block">
-                  {r.display_name || "Leitor"}
+          {list.map((r) => {
+            const affinity = showAffinity
+              ? Math.min(99, (r.shared_books || 0) * 12 + (r.shared_genres || 0) * 6)
+              : 0;
+            return (
+              <li
+                key={r.id}
+                className="glass rounded-2xl p-3 sm:p-4 flex items-center gap-3 hover:border-primary/30 transition-colors min-w-0 overflow-hidden"
+              >
+                <Link to={profilePath(r)} className="shrink-0">
+                  <Avatar className="w-12 h-12 ring-2 ring-transparent hover:ring-primary/40 transition-all">
+                    <AvatarImage src={r.avatar_url || undefined} />
+                    <AvatarFallback className="bg-gradient-gold text-primary-foreground font-display">
+                      {(r.display_name || "?").charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
                 </Link>
-                {r.username && <p className="text-xs text-muted-foreground truncate">@{r.username}</p>}
-                <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
-                  <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded font-semibold">N{r.level ?? 1}</span>
-                  {showAffinity && (r.shared_books || 0) > 0 && (
-                    <span>{r.shared_books} livros em comum</span>
+                <div className="flex-1 min-w-0">
+                  <Link
+                    to={profilePath(r)}
+                    className="font-semibold text-sm truncate hover:text-primary transition-colors block"
+                  >
+                    {r.display_name || "Leitor"}
+                  </Link>
+                  {r.username && (
+                    <p className="text-xs text-muted-foreground truncate">@{r.username}</p>
                   )}
-                  {showAffinity && (r.shared_genres || 0) > 0 && (
-                    <span>· {r.shared_genres} gêneros</span>
-                  )}
+                  <div className="flex items-center gap-1.5 mt-1 text-[10px] text-muted-foreground flex-wrap">
+                    <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded font-semibold shrink-0">
+                      N{r.level ?? 1}
+                    </span>
+                    {showAffinity && affinity > 0 && (
+                      <span className="bg-status-read/15 text-status-read px-1.5 py-0.5 rounded font-semibold shrink-0">
+                        {affinity}% afinidade
+                      </span>
+                    )}
+                    {showAffinity && (r.shared_books || 0) > 0 && (
+                      <span className="truncate">{r.shared_books} livros</span>
+                    )}
+                    {showAffinity && (r.shared_genres || 0) > 0 && (
+                      <span className="truncate">· {r.shared_genres} gêneros</span>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <FollowButton targetUserId={r.id} />
-            </li>
-          ))}
+                <div className="shrink-0">
+                  <FollowButton targetUserId={r.id} />
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>
