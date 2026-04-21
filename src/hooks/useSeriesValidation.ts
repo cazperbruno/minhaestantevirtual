@@ -12,7 +12,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { CACHE, qk } from "@/lib/query-client";
+import { CACHE } from "@/lib/query-client";
 import { toast } from "sonner";
 
 export interface SeriesIntegrityRow {
