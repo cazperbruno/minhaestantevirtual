@@ -33,6 +33,7 @@ export function EditBookDialog({ book, onUpdated, trigger }: Props) {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [searchingCover, setSearchingCover] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const [form, setForm] = useState({
