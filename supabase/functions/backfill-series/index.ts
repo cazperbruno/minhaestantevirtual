@@ -373,14 +373,25 @@ Deno.serve(async (req) => {
           if (cErr || !created) throw cErr ?? new Error("create series failed");
 
           const allIds = [b.id, ...matchingPeers.map((p) => p.id)];
+          // Ordena por created_at p/ numerar volumes sequencialmente
+          // (necessário no caso "série não-numerada" — Chainsaw Man etc.)
+          const orderedAll = [b, ...matchingPeers].slice().sort((p1, p2) => {
+            const t1 = p1.created_at ? new Date(p1.created_at).getTime() : 0;
+            const t2 = p2.created_at ? new Date(p2.created_at).getTime() : 0;
+            return t1 - t2;
+          });
           // Atualiza cada um (volume_number distinto por livro)
-          for (const peer of [b, ...matchingPeers]) {
+          for (let i = 0; i < orderedAll.length; i++) {
+            const peer = orderedAll[i];
             const peerNorm = normalizeSeriesTitle(peer.title);
+            const detected = peerNorm.volume ?? peer.volume_number ?? null;
+            // Se for série não-numerada, força volume sequencial 1..N
+            const finalVol = isLikelyUnnumberedSeries ? i + 1 : detected;
             await supabase
               .from("books")
               .update({
                 series_id: created.id,
-                volume_number: peerNorm.volume ?? peer.volume_number ?? null,
+                volume_number: finalVol,
               })
               .eq("id", peer.id);
           }
