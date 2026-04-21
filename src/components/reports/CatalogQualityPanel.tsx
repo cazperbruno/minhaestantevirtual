@@ -187,10 +187,21 @@ export function CatalogQualityPanel() {
             onClick={runSeed}
             disabled={draining !== null}
             className="gap-2"
-            title="Importa 200 livros públicos novos do OpenLibrary (idempotente)"
+            title="Importa 200 livros públicos novos do OpenLibrary (idempotente). Roda validação de ISBN automaticamente."
           >
             {draining === "seed" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             Importar lote
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={runValidateIsbns}
+            disabled={draining !== null}
+            className="gap-2"
+            title="Valida ISBN-10/13 com checksum, deriva pares, limpa inválidos e propõe merge para duplicatas"
+          >
+            {draining === "isbn" ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+            Validar ISBNs
           </Button>
           <Button
             size="sm"
