@@ -75,6 +75,7 @@ export default function SearchPage() {
     setActiveQuery(value);
     // AI: registra busca como sinal de interesse temporário (boost por 7 dias)
     trackSearch(value);
+    const t0 = performance.now();
     try {
       const digits = value.replace(/\D/g, "");
       const looksLikeIsbn = digits.length === 10 || digits.length === 13;
@@ -82,9 +83,11 @@ export default function SearchPage() {
         const b = await lookupIsbn(digits);
         if (b) {
           setResults([b]);
+          trackEvent("search_executed", { query: value, kind: "isbn", results: 1, latency_ms: Math.round(performance.now() - t0) });
         } else {
           const list = await searchBooksGet(value);
           setResults(list);
+          trackEvent("search_executed", { query: value, kind: "isbn_fallback", results: list.length, latency_ms: Math.round(performance.now() - t0) });
           if (list.length === 0) toast.info("Nada encontrado para este ISBN");
         }
       } else {
@@ -104,8 +107,14 @@ export default function SearchPage() {
         // AI: reordena por afinidade do usuário (categorias × user_taste)
         const ranked = user ? await rerankByTaste(merged, user.id, value) : merged;
         setResults(ranked);
+        trackEvent("search_executed", {
+          query: value, kind: "text", results: ranked.length,
+          books: booksTyped.length, manga: manga.length,
+          latency_ms: Math.round(performance.now() - t0),
+        });
       }
     } catch (err: any) {
+      trackEvent("search_error", { query: value, message: err?.message ?? "unknown" });
       toast.error(err.message || "Erro na busca");
     } finally {
       setBusy(false);
