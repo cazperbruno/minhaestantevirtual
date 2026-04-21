@@ -1499,6 +1499,27 @@ export type Database = {
           success: boolean
         }[]
       }
+      active_seasonal_challenges: {
+        Args: never
+        Returns: {
+          category: string
+          code: string
+          description: string
+          icon: string
+          metric: string
+          tags: string[] | null
+          target: number
+          title: string
+          weight: number
+          xp_reward: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "challenge_templates"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       activity_relevance: {
         Args: {
           _activity_user: string
@@ -1571,6 +1592,7 @@ export type Database = {
           success: boolean
         }[]
       }
+      division_from_xp: { Args: { _xp: number }; Returns: string }
       ensure_invite: { Args: { _user_id: string }; Returns: string }
       get_affiliate_interactions_admin: {
         Args: { _from: string }
@@ -1733,6 +1755,19 @@ export type Database = {
         Returns: {
           category: string
           weight: number
+        }[]
+      }
+      weekly_league_for_user: {
+        Args: { _user_id: string }
+        Returns: {
+          demotion_threshold: number
+          division: string
+          division_label: string
+          position_global: number
+          position_in_division: number
+          promotion_threshold: number
+          total_in_division: number
+          weekly_xp: number
         }[]
       }
       xp_for_level: { Args: { _level: number }; Returns: number }
