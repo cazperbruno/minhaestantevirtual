@@ -216,6 +216,66 @@ export type Database = {
         }
         Relationships: []
       }
+      book_signals: {
+        Row: {
+          avg_rating: number | null
+          book_id: string
+          dismisses_count: number
+          finished_count: number
+          library_count: number
+          popularity_score: number
+          quality_score: number
+          rec_clicks_count: number
+          recs_count: number
+          reviews_count: number
+          updated_at: string
+          views_count: number
+        }
+        Insert: {
+          avg_rating?: number | null
+          book_id: string
+          dismisses_count?: number
+          finished_count?: number
+          library_count?: number
+          popularity_score?: number
+          quality_score?: number
+          rec_clicks_count?: number
+          recs_count?: number
+          reviews_count?: number
+          updated_at?: string
+          views_count?: number
+        }
+        Update: {
+          avg_rating?: number | null
+          book_id?: string
+          dismisses_count?: number
+          finished_count?: number
+          library_count?: number
+          popularity_score?: number
+          quality_score?: number
+          rec_clicks_count?: number
+          recs_count?: number
+          reviews_count?: number
+          updated_at?: string
+          views_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_signals_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: true
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "book_signals_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: true
+            referencedRelation: "trending_books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       books: {
         Row: {
           authors: string[]
@@ -2209,6 +2269,8 @@ export type Database = {
           score: number
         }[]
       }
+      recompute_all_book_signals: { Args: { _limit?: number }; Returns: number }
+      recompute_book_signals: { Args: { _book_id: string }; Returns: undefined }
       recompute_challenge_progress: {
         Args: { _user_id: string }
         Returns: number
@@ -2270,6 +2332,14 @@ export type Database = {
         Args: { _book_id: string; _limit?: number }
         Returns: {
           id: string
+          score: number
+        }[]
+      }
+      similar_books_lexical: {
+        Args: { _book_id: string; _limit?: number }
+        Returns: {
+          id: string
+          reason: string
           score: number
         }[]
       }
