@@ -74,11 +74,12 @@ export const qk = {
  */
 export const invalidate = {
   library: (userId?: string) => {
-    queryClient.invalidateQueries({ queryKey: ["library", userId] });
-    queryClient.invalidateQueries({ queryKey: ["wishlist", userId] });
-    queryClient.invalidateQueries({ queryKey: ["my-series", userId || "anon"] });
-    queryClient.invalidateQueries({ queryKey: ["series-ranking"] });
-    queryClient.invalidateQueries({ queryKey: ["feed"] });
+    queryClient.invalidateQueries({ queryKey: qk.library(userId) });
+    queryClient.invalidateQueries({ queryKey: qk.wishlist(userId) });
+    queryClient.invalidateQueries({ queryKey: qk.mySeries(userId) });
+    queryClient.invalidateQueries({ queryKey: qk.seriesRanking() });
+    queryClient.invalidateQueries({ queryKey: qk.ranking() });
+    queryClient.invalidateQueries({ queryKey: qk.feed() });
   },
   follow: (viewerId: string, targetId: string) => {
     queryClient.invalidateQueries({ queryKey: qk.followState(viewerId, targetId) });

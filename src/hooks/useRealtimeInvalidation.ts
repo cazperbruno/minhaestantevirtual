@@ -107,9 +107,11 @@ export function useRealtimeInvalidation() {
             queryClient.invalidateQueries({ queryKey: qk.wishlist(userId) });
             // Minhas séries depende diretamente de user_books → invalida sempre
             queryClient.invalidateQueries({ queryKey: qk.mySeries(userId) });
-            // Ranking colecionador também muda quando alguém adiciona volumes
-            queryClient.invalidateQueries({ queryKey: qk.seriesRanking() });
           }
+          // Ranking de séries (colecionador) e ranking global de leitores
+          // refletem ações de qualquer usuário — invalidar sempre.
+          queryClient.invalidateQueries({ queryKey: qk.seriesRanking() });
+          queryClient.invalidateQueries({ queryKey: qk.ranking() });
           // Atividade de qualquer usuário pode aparecer no feed "Seguindo"
           queryClient.invalidateQueries({ queryKey: qk.feed() });
         },
