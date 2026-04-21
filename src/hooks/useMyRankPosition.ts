@@ -10,7 +10,7 @@ export interface RankPosition {
 /** Posição do usuário nos rankings global + semanal, com XP até o próximo. */
 export function useMyRankPosition(userId: string | undefined) {
   return useQuery<RankPosition>({
-    queryKey: ["my-rank", userId],
+    queryKey: qk.myRank(userId),
     enabled: !!userId,
     queryFn: async () => {
       if (!userId) return { global: null, weekly: null };
