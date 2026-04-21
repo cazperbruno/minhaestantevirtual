@@ -224,6 +224,50 @@ async function fetchAi(
   }
 }
 
+// ============================================================
+// Helpers de qualidade — escolhem a MELHOR capa/sinopse entre as fontes
+// ============================================================
+
+/**
+ * Escolhe a melhor URL de capa entre a atual e a candidata.
+ * Prefere AniList extraLarge (geralmente >800px) e capas que não sejam
+ * "thumbnails" (heurística por substring no path). Se a atual já é boa,
+ * mantém — exceto quando a candidata é claramente uma versão maior.
+ */
+function pickBetterCover(current: string | null, candidate: string | null): string | null {
+  if (!candidate) return current;
+  if (!current) return candidate;
+  if (current === candidate) return current;
+
+  const score = (url: string): number => {
+    let s = 0;
+    if (/anilist\.co|anili\.st/i.test(url)) s += 5;          // AniList tem capas grandes
+    if (/extraLarge|large|original|2x/i.test(url)) s += 4;
+    if (/thumb|small|medium|sml/i.test(url)) s -= 3;
+    if (/openlibrary\.org\/b\/.*-S\.jpg/i.test(url)) s -= 4;  // tamanho S do OpenLibrary
+    if (/openlibrary\.org\/b\/.*-L\.jpg/i.test(url)) s += 2;
+    return s;
+  };
+
+  return score(candidate) > score(current) ? candidate : current;
+}
+
+/**
+ * Escolhe a melhor descrição. Critério: a maior, desde que tenha
+ * conteúdo razoável (>=80 chars). Se a atual já tem >400 chars, só
+ * substitui se a candidata for >50% maior.
+ */
+function pickBetterDescription(current: string | null, candidate: string | null): string | null {
+  const a = (current || "").trim();
+  const b = (candidate || "").trim();
+  if (!b) return a || null;
+  if (!a) return b.length >= 40 ? b : null;
+  if (b.length < 80) return a;
+  if (a.length < 80) return b;
+  if (a.length >= 400) return b.length > a.length * 1.5 ? b : a;
+  return b.length > a.length ? b : a;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
