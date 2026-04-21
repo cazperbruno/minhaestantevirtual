@@ -465,23 +465,56 @@ export default function ScannerPage() {
           </div>
 
           {mode === "barcode" && (
-            <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-card/60 border border-border">
-              <Repeat className={cn("w-3.5 h-3.5 transition-colors", continuous ? "text-primary" : "text-muted-foreground")} />
-              <Label htmlFor="continuous-mode" className="text-xs font-medium cursor-pointer select-none">
-                Modo contínuo
-              </Label>
-              <Switch
-                id="continuous-mode"
-                checked={continuous}
-                onCheckedChange={setContinuous}
-                aria-label="Ativar modo contínuo de escaneamento"
-              />
+            <div
+              className="inline-flex items-center gap-1 p-1 rounded-full bg-card/60 border border-border"
+              role="radiogroup"
+              aria-label="Comportamento do scanner"
+            >
+              {[
+                { value: "single",     label: "Único",     icon: ScanLine, hint: "Para após cada livro" },
+                { value: "continuous", label: "Contínuo",  icon: Repeat,   hint: "Auto-adiciona ao acervo" },
+                { value: "batch",      label: "Lote",      icon: Layers,   hint: "Junta numa lista pra revisar" },
+              ].map(({ value, label, icon: Icon, hint }) => (
+                <button
+                  key={value}
+                  role="radio"
+                  aria-checked={scanMode === value}
+                  title={hint}
+                  onClick={() => setScanMode(value as typeof scanMode)}
+                  className={cn(
+                    "px-3 h-8 text-xs font-medium rounded-full transition-all flex items-center gap-1.5",
+                    scanMode === value
+                      ? "bg-primary text-primary-foreground shadow-glow"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon className="w-3 h-3" /> {label}
+                </button>
+              ))}
             </div>
           )}
         </div>
 
-        {/* Histórico da sessão atual — feedback visual ao escanear vários livros */}
-        {mode === "barcode" && continuous && sessionLog.length > 0 && (
+        {/* === BATCH MODE: lista de revisão antes de salvar em massa === */}
+        {mode === "barcode" && scanMode === "batch" && batch.length > 0 && (
+          <div className="mb-6">
+            <BatchScanList
+              items={batch}
+              onUpdateStatus={(key, status) =>
+                setBatch((prev) => prev.map((it) => it.key === key ? { ...it, pickedStatus: status } : it))
+              }
+              onRemove={(key) => setBatch((prev) => prev.filter((it) => it.key !== key))}
+              onClear={() => setBatch([])}
+              onMarkSaved={(keys) => {
+                const set = new Set(keys);
+                setBatch((prev) => prev.map((it) => set.has(it.key) ? { ...it, status: "saved" } : it));
+              }}
+            />
+          </div>
+        )}
+
+        {/* === CONTINUOUS MODE: histórico horizontal compacto === */}
+        {mode === "barcode" && scanMode === "continuous" && sessionLog.length > 0 && (
           <div className="glass rounded-2xl p-4 mb-6 animate-fade-in">
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
