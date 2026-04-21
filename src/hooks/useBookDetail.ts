@@ -53,7 +53,6 @@ export function useCommitUserBook(book: Book | null | undefined) {
         book_id: book.id,
         status: (patch.status ?? current?.status ?? "not_read") as BookStatus,
         rating: patch.rating ?? current?.rating ?? null,
-        notes: patch.notes ?? current?.notes ?? null,
         current_page: patch.current_page ?? current?.current_page ?? 0,
         is_public: current?.is_public ?? true,
         ...(patch.status === "read" && !current?.finished_at
@@ -78,7 +77,6 @@ export function useCommitUserBook(book: Book | null | undefined) {
         book_id: book?.id ?? "",
         status: (patch.status ?? previous?.status ?? "not_read") as BookStatus,
         rating: patch.rating ?? previous?.rating ?? null,
-        notes: patch.notes ?? previous?.notes ?? null,
         current_page: patch.current_page ?? previous?.current_page ?? 0,
         is_public: previous?.is_public ?? true,
         started_at: previous?.started_at ?? null,
