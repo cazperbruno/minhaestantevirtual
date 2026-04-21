@@ -268,6 +268,56 @@ function pickBetterDescription(current: string | null, candidate: string | null)
   return b.length > a.length ? b : a;
 }
 
+// ============================================================
+// Idempotência — só inclui no patch os campos que REALMENTE mudaram
+// ============================================================
+
+/** Compara valores de forma estável (arrays, objetos, primitivos). */
+function isEqualValue(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (a == null && b == null) return true;
+  if (a == null || b == null) return false;
+  if (typeof a !== typeof b) return false;
+  if (typeof a === "object") {
+    try { return JSON.stringify(a) === JSON.stringify(b); } catch { return false; }
+  }
+  return false;
+}
+
+/**
+ * Constrói um patch contendo apenas as chaves cujo `next` difere do `current`.
+ * Garante idempotência: chamadas repetidas com os mesmos dados externos
+ * resultam em patch vazio → nenhum UPDATE é disparado.
+ */
+function diffPatch<T extends Record<string, unknown>>(
+  current: T,
+  next: Partial<T>,
+): Partial<T> {
+  const patch: Partial<T> = {};
+  for (const k of Object.keys(next) as (keyof T)[]) {
+    const nv = next[k];
+    if (nv === undefined) continue;
+    if (!isEqualValue(current[k], nv)) {
+      (patch as any)[k] = nv;
+    }
+  }
+  return patch;
+}
+
+/** Campos materiais para detectar mudança real (ignora timestamps/raw). */
+const MATERIAL_FIELDS = [
+  "total_volumes",
+  "status",
+  "description",
+  "cover_url",
+  "source",
+  "source_id",
+] as const;
+
+function hasMaterialChange(patch: Record<string, unknown>): boolean {
+  return MATERIAL_FIELDS.some((f) => f in patch);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -321,18 +371,26 @@ Deno.serve(async (req) => {
         .eq("content_type", series.content_type)
         .maybeSingle();
       if (cached && cached.total_volumes) {
-        const updates = {
+        const candidate = {
           total_volumes: series.total_volumes && series.total_volumes > cached.total_volumes
             ? series.total_volumes // mantém o maior se usuário já tem mais
             : cached.total_volumes,
           status: series.status || cached.status,
-          // ⬇️ fallback inteligente: pega a sinopse mais rica
           description: pickBetterDescription(series.description, cached.description),
-          // ⬇️ fallback inteligente: pega a capa de maior qualidade
           cover_url: pickBetterCover(series.cover_url, cached.cover_url),
-          // banner_url não existe na tabela series — fica no cache
           source: cached.source,
           source_id: cached.source_id,
+        };
+        const patch = diffPatch(series as any, candidate);
+        // Idempotência: se nada material mudou, não escreve nem bumpa timestamp
+        if (!hasMaterialChange(patch)) {
+          return new Response(
+            JSON.stringify({ ok: true, from: "cache", skipped_update: true, reason: "no_changes", series, cached }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        const updates = {
+          ...patch,
           raw: cached.raw,
           last_enriched_at: new Date().toISOString(),
           enriched_by: `cache:${cached.source}`,
@@ -340,7 +398,7 @@ Deno.serve(async (req) => {
         const { data: updated } = await supabase
           .from("series").update(updates).eq("id", seriesId).select().single();
         return new Response(
-          JSON.stringify({ ok: true, from: "cache", series: updated, cached }),
+          JSON.stringify({ ok: true, from: "cache", changed_fields: Object.keys(patch), series: updated, cached }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
@@ -385,37 +443,51 @@ Deno.serve(async (req) => {
     const finalTotal = series.total_volumes && result.total_volumes && series.total_volumes > result.total_volumes
       ? series.total_volumes
       : result.total_volumes;
-    const updates: any = {
+    const candidate = {
       total_volumes: finalTotal,
       status: series.status || result.status,
-      // ⬇️ fallback inteligente: usa a sinopse mais rica
       description: pickBetterDescription(series.description, result.description),
-      // ⬇️ fallback inteligente: prefere capa grande do AniList sobre thumbnails
       cover_url: pickBetterCover(series.cover_url, result.cover_url),
-      // banner_url só vai pro cache global — não há coluna na tabela series
       source: result.source,
       source_id: result.source_id,
-      raw: result.raw,
-      last_enriched_at: new Date().toISOString(),
-      enriched_by: result.source,
     };
-    const { data: updated, error: upErr } = await supabase
-      .from("series").update(updates).eq("id", seriesId).select().single();
-    if (upErr) {
-      console.error("update series failed", upErr);
-      return new Response(JSON.stringify({ error: upErr.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const patch = diffPatch(series as any, candidate);
+
+    let updated: any = series;
+    let changedFields: string[] = [];
+    // Idempotência: só faz UPDATE se algo material mudou.
+    // raw/last_enriched_at/enriched_by só são gravados quando há mudança real.
+    if (hasMaterialChange(patch)) {
+      const updates: any = {
+        ...patch,
+        raw: result.raw,
+        last_enriched_at: new Date().toISOString(),
+        enriched_by: result.source,
+      };
+      const { data: upd, error: upErr } = await supabase
+        .from("series").update(updates).eq("id", seriesId).select().single();
+      if (upErr) {
+        console.error("update series failed", upErr);
+        return new Response(JSON.stringify({ error: upErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      updated = upd;
+      changedFields = Object.keys(patch);
     }
 
     // Salva no cache global (upsert) — apenas se confiança razoável
+    // E somente se difere do que já está em cache (idempotência).
+    let cacheUpserted = false;
     if (result.confidence >= 0.5 && result.total_volumes) {
-      await supabase.from("series_enrichment_cache").upsert({
-        cache_key: key,
-        content_type: series.content_type,
-        title: series.title,
-        authors: series.authors || [],
+      const { data: existingCache } = await supabase
+        .from("series_enrichment_cache")
+        .select("total_volumes,total_chapters,status,description,cover_url,banner_url,categories,published_year,source,source_id,confidence")
+        .eq("cache_key", key)
+        .eq("content_type", series.content_type)
+        .maybeSingle();
+      const cacheCandidate = {
         total_volumes: result.total_volumes,
         total_chapters: result.total_chapters,
         status: result.status,
@@ -426,13 +498,34 @@ Deno.serve(async (req) => {
         published_year: result.published_year,
         source: result.source,
         source_id: result.source_id,
-        raw: result.raw,
         confidence: result.confidence,
-      }, { onConflict: "cache_key,content_type" });
+      };
+      const cachePatch = existingCache
+        ? diffPatch(existingCache as any, cacheCandidate)
+        : cacheCandidate;
+      if (Object.keys(cachePatch).length > 0) {
+        await supabase.from("series_enrichment_cache").upsert({
+          cache_key: key,
+          content_type: series.content_type,
+          title: series.title,
+          authors: series.authors || [],
+          ...cacheCandidate,
+          raw: result.raw,
+        }, { onConflict: "cache_key,content_type" });
+        cacheUpserted = true;
+      }
     }
 
     return new Response(
-      JSON.stringify({ ok: true, from: result.source, series: updated, enrichment: result }),
+      JSON.stringify({
+        ok: true,
+        from: result.source,
+        skipped_update: changedFields.length === 0,
+        changed_fields: changedFields,
+        cache_upserted: cacheUpserted,
+        series: updated,
+        enrichment: result,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
