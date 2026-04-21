@@ -245,28 +245,34 @@ export function EditBookDialog({ book, onUpdated, trigger }: Props) {
 
           {/* Fields */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-muted/40 border border-border/40">
-              <div className="min-w-0">
-                <p className="text-xs font-medium">Buscar dados atualizados</p>
-                <p className="text-[11px] text-muted-foreground truncate">
-                  {form.isbn_13 || form.isbn_10
-                    ? "Reprocessa pelo ISBN em fontes públicas"
-                    : "Tentaremos pelo título e autor"}
-                </p>
+            {/* Refresh por ISBN — destaque no topo dos campos */}
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2">
+              <div className="flex items-start gap-2">
+                <RefreshCw className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold leading-tight">
+                    Rebuscar livro pelo ISBN
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {form.isbn_13 || form.isbn_10
+                      ? `Reprocessa metadados a partir do ISBN ${form.isbn_13 || form.isbn_10} em fontes públicas (BrasilAPI, OpenLibrary, Google Books).`
+                      : "Sem ISBN cadastrado — tentaremos buscar por título e autor."}
+                  </p>
+                </div>
               </div>
               <Button
-                variant="outline"
+                variant="hero"
                 size="sm"
                 onClick={refreshData}
                 disabled={refreshing}
-                className="gap-2 shrink-0"
+                className="w-full gap-2"
               >
                 {refreshing ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  <RefreshCw className="w-3.5 h-3.5" />
+                  <RefreshCw className="w-4 h-4" />
                 )}
-                Atualizar
+                {refreshing ? "Buscando dados atualizados…" : "Buscar dados atualizados"}
               </Button>
             </div>
             <Field label="Título *" value={form.title} onChange={(v) => set("title", v)} />
