@@ -346,24 +346,26 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 2) AniList
+    // 2) AniList — sempre tenta primeiro (capa grande + sinopse oficial + banner)
     let result = await fetchAnilist(series.title, series.content_type, series.authors || []);
 
-    // 3) Fallback IA (sempre que AniList não retornou volumes)
+    // 3) Fallback IA — sempre que AniList não retornou volumes
     if (!result || !result.total_volumes) {
       const aiResult = await fetchAi(series.title, series.authors || [], series.content_type);
       if (aiResult && (aiResult.total_volumes || !result)) {
-        // Se AniList trouxe algo (ex: status, capa) e IA trouxe volumes, mescla
         if (result) {
+          // Mescla: PRESERVA capa/banner/sinopse do AniList (são oficiais e ricas),
+          // só pega da IA o que faltou — principalmente total_volumes.
           result = {
             ...result,
-            total_volumes: aiResult.total_volumes ?? result.total_volumes,
+            total_volumes: result.total_volumes ?? aiResult.total_volumes,
+            total_chapters: result.total_chapters ?? aiResult.total_chapters,
             status: result.status ?? aiResult.status,
-            description: result.description ?? aiResult.description,
+            description: pickBetterDescription(result.description, aiResult.description),
             categories: result.categories.length ? result.categories : aiResult.categories,
             published_year: result.published_year ?? aiResult.published_year,
             confidence: Math.max(result.confidence, aiResult.confidence),
-            source: aiResult.total_volumes ? "ai" : result.source,
+            source: aiResult.total_volumes && !result.total_volumes ? "ai" : result.source,
             raw: { ...result.raw, ai: aiResult.raw },
           };
         } else {
