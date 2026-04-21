@@ -13,11 +13,12 @@ import { AppShell } from "@/components/layout/AppShell";
 import { useMySeries, type MySeriesRow } from "@/hooks/useMySeries";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { BookOpen, Layers, CheckCircle2, PlayCircle, Search, Settings } from "lucide-react";
+import { BookOpen, Layers, CheckCircle2, PlayCircle, Search, Settings, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ContentTypeFilter, useContentFilter } from "@/components/books/ContentTypeFilter";
 import { CONTENT_TYPE_ICON, CONTENT_TYPE_LABEL } from "@/types/book";
 import { cn } from "@/lib/utils";
+import { useEnrichSeries } from "@/hooks/useEnrichSeries";
 
 export default function MySeriesPage() {
   const { data, isLoading } = useMySeries();
