@@ -3,11 +3,12 @@ import { Book, UserBook } from "@/types/book";
 import { Rating } from "./Rating";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Users } from "lucide-react";
+import { Check, Sparkles, ShoppingCart, Users } from "lucide-react";
 import { AvailabilityToggles } from "./AvailabilityToggles";
 import { RecommendBookDialog } from "./RecommendBookDialog";
 import { InviteBuddyDialog } from "@/components/social/InviteBuddyDialog";
 import { Button } from "@/components/ui/button";
+import { openAmazon } from "@/lib/amazon";
 import { useBookNotes, useSaveBookNotes } from "@/hooks/useBookNotes";
 
 interface Props {
