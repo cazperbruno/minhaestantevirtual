@@ -884,6 +884,75 @@ export type Database = {
           },
         ]
       }
+      merge_suggestions: {
+        Row: {
+          canonical_id: string
+          detected_at: string
+          duplicate_id: string
+          id: string
+          resolved_at: string | null
+          similarity_score: number
+          status: string
+        }
+        Insert: {
+          canonical_id: string
+          detected_at?: string
+          duplicate_id: string
+          id?: string
+          resolved_at?: string | null
+          similarity_score: number
+          status?: string
+        }
+        Update: {
+          canonical_id?: string
+          detected_at?: string
+          duplicate_id?: string
+          id?: string
+          resolved_at?: string | null
+          similarity_score?: number
+          status?: string
+        }
+        Relationships: []
+      }
+      metadata_normalization_queue: {
+        Row: {
+          attempts: number
+          book_id: string
+          enqueued_at: string
+          fields_changed: string[] | null
+          id: string
+          last_error: string | null
+          next_attempt_at: string
+          processed_at: string | null
+          reasons: string[]
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          book_id: string
+          enqueued_at?: string
+          fields_changed?: string[] | null
+          id?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          processed_at?: string | null
+          reasons?: string[]
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          book_id?: string
+          enqueued_at?: string
+          fields_changed?: string[] | null
+          id?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          processed_at?: string | null
+          reasons?: string[]
+          status?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null
@@ -1941,6 +2010,10 @@ export type Database = {
         Returns: number
       }
       assign_daily_challenges: { Args: { _user_id: string }; Returns: number }
+      book_meta_issues: {
+        Args: { _authors: string[]; _title: string }
+        Returns: string[]
+      }
       book_quality_score: {
         Args: { b: Database["public"]["Tables"]["books"]["Row"] }
         Returns: number
@@ -1998,6 +2071,15 @@ export type Database = {
       }
       division_from_xp: { Args: { _xp: number }; Returns: string }
       ensure_invite: { Args: { _user_id: string }; Returns: string }
+      find_duplicate_book: {
+        Args: {
+          _author: string
+          _content_type?: Database["public"]["Enums"]["content_type"]
+          _exclude_id?: string
+          _title: string
+        }
+        Returns: string
+      }
       get_affiliate_interactions_admin: {
         Args: { _from: string }
         Returns: {
@@ -2090,6 +2172,10 @@ export type Database = {
         Returns: boolean
       }
       level_for_xp: { Args: { _xp: number }; Returns: number }
+      merge_books: {
+        Args: { _canonical_id: string; _duplicate_id: string }
+        Returns: Json
+      }
       parse_series_title: {
         Args: { _title: string }
         Returns: {

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Database, Sparkles, Loader2, RefreshCw, BookOpen, Image, FileText, Tag } from "lucide-react";
+import { Database, Sparkles, Loader2, RefreshCw, BookOpen, Image, FileText, Tag, Wand2, GitMerge } from "lucide-react";
 
 interface Quality {
   total_books: number;
@@ -26,42 +26,48 @@ interface QueueStat {
 
 export function CatalogQualityPanel() {
   const [quality, setQuality] = useState<Quality | null>(null);
-  const [queue, setQueue] = useState<QueueStat[]>([]);
+  const [enrichQueue, setEnrichQueue] = useState<QueueStat[]>([]);
+  const [normQueue, setNormQueue] = useState<QueueStat[]>([]);
+  const [mergeSuggestions, setMergeSuggestions] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [draining, setDraining] = useState(false);
+  const [draining, setDraining] = useState<null | "enrich" | "normalize">(null);
+
+  const aggregate = (rows: any[] | null): QueueStat[] => {
+    if (!rows) return [];
+    const map = new Map<string, number>();
+    rows.forEach((r: any) => map.set(r.status, (map.get(r.status) ?? 0) + 1));
+    return Array.from(map, ([status, count]) => ({ status, count }));
+  };
 
   const load = async () => {
     setLoading(true);
-    const [{ data: q }, { data: qq }] = await Promise.all([
+    const [{ data: q }, eq, nq, ms] = await Promise.all([
       (supabase.from("books_quality_report" as any).select("*").maybeSingle() as any),
-      supabase
-        .from("enrichment_queue")
-        .select("status")
-        .then((res) => {
-          if (!res.data) return { data: [] as QueueStat[] };
-          const map = new Map<string, number>();
-          res.data.forEach((r: any) => map.set(r.status, (map.get(r.status) ?? 0) + 1));
-          return { data: Array.from(map, ([status, count]) => ({ status, count })) };
-        }),
+      supabase.from("enrichment_queue").select("status"),
+      supabase.from("metadata_normalization_queue" as any).select("status") as any,
+      supabase.from("merge_suggestions" as any).select("id", { count: "exact", head: true }).eq("status", "pending") as any,
     ]);
     setQuality(q as Quality | null);
-    setQueue(qq);
+    setEnrichQueue(aggregate(eq.data));
+    setNormQueue(aggregate(nq.data));
+    setMergeSuggestions((ms as any)?.count ?? 0);
     setLoading(false);
   };
 
   useEffect(() => { void load(); }, []);
 
-  const drainQueue = async () => {
-    setDraining(true);
+  const drain = async (kind: "enrich" | "normalize") => {
+    setDraining(kind);
     try {
-      const { data, error } = await supabase.functions.invoke("process-enrichment-queue");
+      const fn = kind === "enrich" ? "process-enrichment-queue" : "process-normalization-queue";
+      const { data, error } = await supabase.functions.invoke(fn);
       if (error) throw error;
-      toast.success(`Processados ${data?.processed ?? 0} livros (${data?.success ?? 0} OK, ${data?.skipped ?? 0} pulados, ${data?.failed ?? 0} falhas)`);
+      toast.success(`Processados ${data?.processed ?? 0} (${data?.success ?? 0} OK, ${data?.skipped ?? 0} pulados, ${data?.failed ?? 0} falhas)`);
       await load();
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao processar fila");
     } finally {
-      setDraining(false);
+      setDraining(null);
     }
   };
 
@@ -86,8 +92,10 @@ export function CatalogQualityPanel() {
 
   const total = quality.total_books || 1;
   const pct = (n: number) => Math.round((n / total) * 100);
-  const pendingCount = queue.find((q) => q.status === "pending")?.count ?? 0;
-  const failedCount = queue.find((q) => q.status === "failed")?.count ?? 0;
+  const enrichPending = enrichQueue.find((q) => q.status === "pending")?.count ?? 0;
+  const enrichFailed = enrichQueue.find((q) => q.status === "failed")?.count ?? 0;
+  const normPending = normQueue.find((q) => q.status === "pending")?.count ?? 0;
+  const normFailed = normQueue.find((q) => q.status === "failed")?.count ?? 0;
 
   return (
     <Card className="p-6 space-y-5">
@@ -100,20 +108,31 @@ export function CatalogQualityPanel() {
           <p className="text-sm text-muted-foreground mt-1">
             {quality.total_books} livros · nota média{" "}
             <span className="font-semibold text-foreground">{quality.avg_quality_score}</span>/100
+            <span className="ml-2 text-xs">· cron a cada 5/10 min</span>
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button variant="ghost" size="sm" onClick={load} aria-label="Atualizar">
             <RefreshCw className="w-4 h-4" />
           </Button>
           <Button
             size="sm"
-            onClick={drainQueue}
-            disabled={draining || pendingCount === 0}
+            variant="outline"
+            onClick={() => drain("normalize")}
+            disabled={draining !== null || normPending === 0}
             className="gap-2"
           >
-            {draining ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {draining ? "Processando…" : `Enriquecer agora (${pendingCount})`}
+            {draining === "normalize" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+            Normalizar IA ({normPending})
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => drain("enrich")}
+            disabled={draining !== null || enrichPending === 0}
+            className="gap-2"
+          >
+            {draining === "enrich" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            Enriquecer ({enrichPending})
           </Button>
         </div>
       </div>
@@ -125,17 +144,25 @@ export function CatalogQualityPanel() {
         <Metric icon={<BookOpen className="w-4 h-4" />} label="Com categorias" value={pct(quality.with_categories)} suffix="%" />
       </div>
 
-      {(pendingCount > 0 || failedCount > 0) && (
-        <div className="flex flex-wrap gap-2 text-xs pt-2 border-t border-border/50">
-          {pendingCount > 0 && <Badge variant="secondary">{pendingCount} aguardando</Badge>}
-          {failedCount > 0 && <Badge variant="destructive">{failedCount} falharam</Badge>}
-          {quality.poor_quality_count > 0 && (
-            <Badge variant="outline" className="text-warning">
-              {quality.poor_quality_count} com qualidade &lt;50
-            </Badge>
-          )}
-        </div>
-      )}
+      <div className="flex flex-wrap gap-2 text-xs pt-2 border-t border-border/50">
+        {enrichPending > 0 && <Badge variant="secondary"><Sparkles className="w-3 h-3 mr-1" />{enrichPending} a enriquecer</Badge>}
+        {enrichFailed > 0 && <Badge variant="destructive">{enrichFailed} enrich falhou</Badge>}
+        {normPending > 0 && <Badge variant="secondary"><Wand2 className="w-3 h-3 mr-1" />{normPending} a normalizar</Badge>}
+        {normFailed > 0 && <Badge variant="destructive">{normFailed} norm falhou</Badge>}
+        {mergeSuggestions > 0 && (
+          <Badge variant="outline" className="text-primary">
+            <GitMerge className="w-3 h-3 mr-1" />{mergeSuggestions} duplicatas sugeridas
+          </Badge>
+        )}
+        {quality.poor_quality_count > 0 && (
+          <Badge variant="outline" className="text-warning">
+            {quality.poor_quality_count} com qualidade &lt;50
+          </Badge>
+        )}
+        {enrichPending + normPending + mergeSuggestions === 0 && (
+          <Badge variant="outline" className="text-success">Catálogo saudável ✓</Badge>
+        )}
+      </div>
     </Card>
   );
 }
