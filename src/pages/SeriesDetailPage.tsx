@@ -1,20 +1,20 @@
 /**
- * Página de detalhe de uma série (mangá / HQ).
- * Mostra capa, banner (se anilist), sinopse, e lista de volumes com progresso.
+ * Página de detalhe de uma série (mangá / HQ) — modo colecionador.
+ * - Banner (anilist) + capa + sinopse
+ * - Card colecionador com % progresso + média global
+ * - Timeline vertical estilo "feed do Telegram" com volumes possuídos + faltantes
  */
-import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { useSeriesDetail } from "@/hooks/useSeries";
 import { BookCover } from "@/components/books/BookCover";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Progress } from "@/components/ui/progress";
 import { ContentTypeBadge } from "@/components/books/ContentTypeBadge";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { CheckCircle2, BookOpen, Circle, Plus } from "lucide-react";
-import { AddVolumeDialog } from "@/components/series/AddVolumeDialog";
+import { BookOpen } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { SeriesTimeline } from "@/components/series/SeriesTimeline";
+import { CollectorRankCard } from "@/components/series/CollectorRankCard";
 
 const STATUS_LABEL: Record<string, string> = {
   finished: "Finalizada",
@@ -28,7 +28,6 @@ export default function SeriesDetailPage() {
   const { id } = useParams();
   const { user } = useAuth();
   const { data, isLoading } = useSeriesDetail(id);
-  const [addOpen, setAddOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -37,9 +36,9 @@ export default function SeriesDetailPage() {
           <Skeleton className="h-72 w-full rounded-2xl mb-6" />
           <Skeleton className="h-8 w-1/2 mb-3" />
           <Skeleton className="h-4 w-2/3 mb-10" />
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="aspect-[2/3]" />
+          <div className="space-y-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-20 rounded-xl" />
             ))}
           </div>
         </div>
@@ -58,9 +57,8 @@ export default function SeriesDetailPage() {
     );
   }
 
-  const { series, volumes, read_count, total } = data;
+  const { series, owned_count, total, completion_pct, missing_count, ranking } = data;
   const banner = (series as any).raw?.banner_url as string | undefined;
-  const progressPct = total > 0 ? Math.round((read_count / total) * 100) : 0;
 
   return (
     <AppShell>
@@ -91,6 +89,9 @@ export default function SeriesDetailPage() {
                 {series.source === "anilist" && (
                   <Badge variant="outline" className="text-xs">via AniList</Badge>
                 )}
+                {series.source === "auto-detected" && (
+                  <Badge variant="outline" className="text-xs">Auto-agrupada</Badge>
+                )}
               </div>
               <h1 className="font-display text-4xl md:text-6xl font-bold leading-tight">
                 {series.title}
@@ -104,75 +105,35 @@ export default function SeriesDetailPage() {
                 </p>
               )}
 
-              {/* Progresso global */}
-              <div className="max-w-md pt-2">
-                <div className="flex items-center justify-between text-sm mb-2">
-                  <span className="text-muted-foreground">
-                    Progresso: <span className="text-foreground font-semibold tabular-nums">{read_count}/{total}</span>
-                  </span>
-                  <span className="font-semibold text-primary tabular-nums">{progressPct}%</span>
-                </div>
-                <Progress value={progressPct} className="h-2" />
+              {/* Card colecionador */}
+              <div className="pt-4">
+                <CollectorRankCard
+                  myCompletionPct={completion_pct}
+                  collectors={ranking?.collectors}
+                  avgCompletion={ranking?.avg_completion}
+                  missingCount={missing_count}
+                  total={total}
+                />
               </div>
             </div>
           </div>
 
-          {/* Volumes */}
-          <section className="mt-14">
+          {/* Timeline vertical de volumes */}
+          <section className="mt-12">
             <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
               <h2 className="font-display text-2xl font-bold flex items-center gap-2">
                 <BookOpen className="w-5 h-5 text-primary" />
-                Volumes
+                Coleção
                 <span className="text-sm font-normal text-muted-foreground tabular-nums">
-                  · {volumes.length} no acervo
+                  · {owned_count}/{total} {total > 0 ? `(${completion_pct}%)` : ""}
                 </span>
               </h2>
-              {user && (
-                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setAddOpen(true)}>
-                  <Plus className="w-4 h-4" /> Adicionar volume
-                </Button>
-              )}
             </div>
 
-            {volumes.length === 0 ? (
-              <div className="glass rounded-2xl p-8 text-center text-muted-foreground text-sm">
-                Nenhum volume cadastrado ainda. {user && "Clique em \"Adicionar volume\" para começar."}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-5 gap-y-8">
-                {volumes.map((v) => {
-                  const status = v.user_book?.status;
-                  const dot =
-                    status === "read" ? <CheckCircle2 className="w-4 h-4 text-status-read" /> :
-                    status === "reading" ? <BookOpen className="w-4 h-4 text-status-reading" /> :
-                    <Circle className="w-4 h-4 text-muted-foreground/40" />;
-                  return (
-                    <Link key={v.id} to={`/livro/${v.id}`} className="group block animate-fade-in">
-                      <div className="relative">
-                        <BookCover book={v} size="md" className="mx-auto group-hover:shadow-elevated" />
-                        <div className="absolute top-1.5 left-1.5 z-10 w-7 h-7 rounded-full bg-background/90 backdrop-blur-sm border border-border/60 shadow-sm flex items-center justify-center">
-                          {dot}
-                        </div>
-                        {v.volume_number != null && (
-                          <div className="absolute bottom-1.5 right-1.5 z-10 px-2 py-0.5 rounded-full bg-background/90 backdrop-blur-sm border border-border/60 text-[10px] font-semibold tabular-nums">
-                            #{v.volume_number}
-                          </div>
-                        )}
-                      </div>
-                      <h3 className="mt-2.5 px-1 font-display font-semibold text-xs leading-tight line-clamp-2 group-hover:text-primary transition-colors">
-                        {v.title}
-                      </h3>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
+            <SeriesTimeline detail={data} canEdit={!!user} />
           </section>
         </div>
       </div>
-      {user && data && (
-        <AddVolumeDialog open={addOpen} onOpenChange={setAddOpen} detail={data} />
-      )}
     </AppShell>
   );
 }
