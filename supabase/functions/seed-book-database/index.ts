@@ -324,8 +324,32 @@ Deno.serve(async (req) => {
       },
     });
 
+    // 7) Verificação automática de ISBNs dos livros recém-importados
+    //    (idempotente — corrige formatação, valida checksum, deriva par,
+    //    invalida quebrados e propõe merge p/ conflitos UNIQUE).
+    let isbn_validation: any = null;
+    if (insertedIds.length > 0) {
+      try {
+        const r = await fetch(
+          `${SUPABASE_URL}/functions/v1/validate-isbns`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${SERVICE_ROLE}`,
+              apikey: SERVICE_ROLE,
+            },
+            body: JSON.stringify({ mode: "recent", limit: insertedIds.length + 50 }),
+          },
+        );
+        if (r.ok) isbn_validation = await r.json().catch(() => null);
+      } catch (e) {
+        console.warn("[seed] validate-isbns failed:", (e as Error).message);
+      }
+    }
+
     summary.duration_ms = Date.now() - t0;
-    return jsonResponse(summary);
+    return jsonResponse({ ...summary, isbn_validation });
   } catch (e) {
     console.error("seed-book-database error", e);
     return jsonResponse({ error: e instanceof Error ? e.message : "Erro" }, 500);

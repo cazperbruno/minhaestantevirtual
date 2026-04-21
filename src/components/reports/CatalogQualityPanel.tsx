@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Database, Sparkles, Loader2, RefreshCw, BookOpen, Image, FileText, Tag, Wand2, GitMerge, Brush, Zap, Download } from "lucide-react";
+import { Database, Sparkles, Loader2, RefreshCw, BookOpen, Image, FileText, Tag, Wand2, GitMerge, Brush, Zap, Download, ShieldCheck } from "lucide-react";
 
 interface Quality {
   total_books: number;
@@ -30,7 +30,7 @@ export function CatalogQualityPanel() {
   const [normQueue, setNormQueue] = useState<QueueStat[]>([]);
   const [mergeSuggestions, setMergeSuggestions] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [draining, setDraining] = useState<null | "enrich" | "normalize" | "clean" | "clean-aggressive" | "seed">(null);
+  const [draining, setDraining] = useState<null | "enrich" | "normalize" | "clean" | "clean-aggressive" | "seed" | "isbn">(null);
 
   const aggregate = (rows: any[] | null): QueueStat[] => {
     if (!rows) return [];
@@ -100,13 +100,38 @@ export function CatalogQualityPanel() {
       });
       if (error) throw error;
       const d: any = data ?? {};
+      const v = d.isbn_validation;
+      const isbnNote = v
+        ? ` · ISBN: ${v.updated ?? 0} corrigidos, ${v.invalid_dropped ?? 0} inválidos`
+        : "";
       toast.success(
         `Importou ${d.inserted ?? 0} livros novos · ${d.already_existed ?? 0} já existiam · ` +
-        `${d.enqueued_for_enrichment ?? 0} na fila de enriquecimento`,
+        `${d.enqueued_for_enrichment ?? 0} na fila de enriquecimento${isbnNote}`,
       );
       await load();
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao importar");
+    } finally {
+      setDraining(null);
+    }
+  };
+
+  const runValidateIsbns = async () => {
+    setDraining("isbn");
+    try {
+      const { data, error } = await supabase.functions.invoke("validate-isbns", {
+        body: { mode: "recent", limit: 1000 },
+      });
+      if (error) throw error;
+      const d: any = data ?? {};
+      toast.success(
+        `Verificou ${d.checked ?? 0} livros · ${d.updated ?? 0} corrigidos · ` +
+        `${d.invalid_dropped ?? 0} inválidos limpos · ${d.derived_pair ?? 0} pares derivados · ` +
+        `${d.duplicate_conflict_suggested ?? 0} duplicatas sugeridas`,
+      );
+      await load();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao validar ISBNs");
     } finally {
       setDraining(null);
     }
@@ -162,10 +187,21 @@ export function CatalogQualityPanel() {
             onClick={runSeed}
             disabled={draining !== null}
             className="gap-2"
-            title="Importa 200 livros públicos novos do OpenLibrary (idempotente)"
+            title="Importa 200 livros públicos novos do OpenLibrary (idempotente). Roda validação de ISBN automaticamente."
           >
             {draining === "seed" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             Importar lote
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={runValidateIsbns}
+            disabled={draining !== null}
+            className="gap-2"
+            title="Valida ISBN-10/13 com checksum, deriva pares, limpa inválidos e propõe merge para duplicatas"
+          >
+            {draining === "isbn" ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+            Validar ISBNs
           </Button>
           <Button
             size="sm"
