@@ -231,7 +231,7 @@ export function useRealtimeInvalidation() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "recommendation_comments" },
-        () => queryClient.invalidateQueries({ queryKey: ["recommendations"] }),
+        () => cold(["recommendations"]),
       )
       .subscribe((status) => {
         // SUBSCRIBED → canal OK, desliga polling de fallback
