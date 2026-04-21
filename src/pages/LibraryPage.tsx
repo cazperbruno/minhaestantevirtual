@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { LibraryShelf } from "@/components/books/LibraryShelf";
+import { SmartShelfRow } from "@/components/books/SmartShelfRow";
+import { useSmartShelves } from "@/hooks/useSmartShelves";
 import { BookCard } from "@/components/books/BookCard";
 import { ShelfSkeleton, BookGridSkeleton } from "@/components/ui/skeletons";
 import { Button } from "@/components/ui/button";
@@ -36,12 +37,11 @@ export default function LibraryPage() {
   );
   const gridFiltered = useMemo(() => applyLibraryFilters(items, filters), [items, filters]);
 
-  const shelves = useMemo(() => ({
-    reading: shelfFiltered.filter((i) => i.status === "reading"),
-    wishlist: shelfFiltered.filter((i) => i.status === "wishlist"),
-    read: shelfFiltered.filter((i) => i.status === "read"),
-    not_read: shelfFiltered.filter((i) => i.status === "not_read"),
-  }), [shelfFiltered]);
+  const smartShelves = useSmartShelves(shelfFiltered);
+  const readShelf = useMemo(
+    () => shelfFiltered.filter((i) => i.status === "read"),
+    [shelfFiltered],
+  );
 
   const totalCount = items.length;
   const readingCount = items.filter((i) => i.status === "reading").length;
