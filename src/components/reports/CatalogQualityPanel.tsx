@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Database, Sparkles, Loader2, RefreshCw, BookOpen, Image, FileText, Tag, Wand2, GitMerge, Brush, Zap } from "lucide-react";
+import { Database, Sparkles, Loader2, RefreshCw, BookOpen, Image, FileText, Tag, Wand2, GitMerge, Brush, Zap, Download } from "lucide-react";
 
 interface Quality {
   total_books: number;
@@ -30,7 +30,7 @@ export function CatalogQualityPanel() {
   const [normQueue, setNormQueue] = useState<QueueStat[]>([]);
   const [mergeSuggestions, setMergeSuggestions] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [draining, setDraining] = useState<null | "enrich" | "normalize" | "clean" | "clean-aggressive">(null);
+  const [draining, setDraining] = useState<null | "enrich" | "normalize" | "clean" | "clean-aggressive" | "seed">(null);
 
   const aggregate = (rows: any[] | null): QueueStat[] => {
     if (!rows) return [];
