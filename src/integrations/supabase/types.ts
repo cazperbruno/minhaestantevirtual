@@ -2196,6 +2196,7 @@ export type Database = {
       }
       division_from_xp: { Args: { _xp: number }; Returns: string }
       ensure_invite: { Args: { _user_id: string }; Returns: string }
+      extract_volume_number: { Args: { title: string }; Returns: number }
       find_duplicate_book: {
         Args: {
           _author: string
