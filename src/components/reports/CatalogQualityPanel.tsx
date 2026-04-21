@@ -33,8 +33,7 @@ export function CatalogQualityPanel() {
   const load = async () => {
     setLoading(true);
     const [{ data: q }, { data: qq }] = await Promise.all([
-      // @ts-expect-error — view recém-criada, ainda não no types
-      supabase.from("books_quality_report").select("*").maybeSingle(),
+      (supabase.from("books_quality_report" as any).select("*").maybeSingle() as any),
       supabase
         .from("enrichment_queue")
         .select("status")
