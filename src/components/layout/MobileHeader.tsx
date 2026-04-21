@@ -6,20 +6,11 @@ import {
   Library,
   Infinity as InfinityIcon,
   Users,
-  ScanBarcode,
-  MessageSquare,
-  Trophy,
-  Target,
-  BarChart3,
   Heart,
   ArrowRightLeft,
   Repeat,
-  Search,
   User as UserIcon,
-  FileText,
   LogOut,
-  Settings,
-  Sparkles,
   Layers,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -28,11 +19,14 @@ import { NotificationsBell } from "@/components/social/NotificationsBell";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
 import readifyLogo from "@/assets/readify-logo-v8.png";
 
 type Item = { to: string; label: string; icon: typeof Book; group: string };
 
+/**
+ * Menu mobile enxuto — espelha o Sidebar desktop.
+ * Estatísticas/Metas/Relatórios moveram-se para dentro do Perfil (hub).
+ */
 const items: Item[] = [
   { to: "/", label: "Início", icon: Book, group: "Descobrir" },
   { to: "/feed-infinito", label: "Para você", icon: InfinityIcon, group: "Descobrir" },
@@ -43,30 +37,18 @@ const items: Item[] = [
   { to: "/desejos", label: "Lista de desejos", icon: Heart, group: "Meus livros" },
   { to: "/emprestimos", label: "Empréstimos", icon: ArrowRightLeft, group: "Meus livros" },
   { to: "/trocas", label: "Trocas", icon: Repeat, group: "Meus livros" },
-  { to: "/scanner", label: "Scanner", icon: ScanBarcode, group: "Meus livros" },
-  { to: "/buscar", label: "Buscar livros", icon: Search, group: "Meus livros" },
 
-  { to: "/feed", label: "Feed social", icon: MessageSquare, group: "Comunidade" },
-  { to: "/clubes", label: "Clubes de leitura", icon: Users, group: "Comunidade" },
-  { to: "/ranking", label: "Ranking", icon: Trophy, group: "Comunidade" },
-
-  { to: "/progresso", label: "Progresso", icon: Sparkles, group: "Você" },
-  { to: "/metas", label: "Metas", icon: Target, group: "Você" },
-  { to: "/estatisticas", label: "Estatísticas", icon: BarChart3, group: "Você" },
-  { to: "/relatorios", label: "Relatórios", icon: FileText, group: "Você" },
   { to: "/perfil", label: "Perfil", icon: UserIcon, group: "Você" },
 ];
 
-const groups = ["Descobrir", "Meus livros", "Comunidade", "Você"] as const;
+const groups = ["Descobrir", "Meus livros", "Você"] as const;
 
 export function MobileHeader() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { isAdmin } = useIsAdmin();
   const [open, setOpen] = useState(false);
 
-  // "Relatórios" só aparece para admins (contém painel de cliques de afiliados)
-  const visibleItems = isAdmin ? items : items.filter((i) => i.to !== "/relatorios");
+  const visibleItems = items;
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
