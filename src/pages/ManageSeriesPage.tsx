@@ -176,8 +176,11 @@ function SeriesRow({
   onLink: () => void;
 }) {
   const del = useDeleteSeries();
+  const enrich = useEnrichSeries();
+  const enriching = enrich.isPending && enrich.variables?.seriesId === s.id;
   const total = s.total_volumes ?? s.user_volume_count;
   const pct = total > 0 ? Math.min(100, Math.round((s.user_volume_count / total) * 100)) : 0;
+  const totalUnknown = s.total_volumes == null;
 
   return (
     <li className="glass rounded-2xl p-4 flex flex-col sm:flex-row gap-4 items-start">
