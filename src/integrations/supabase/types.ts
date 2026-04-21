@@ -1067,6 +1067,86 @@ export type Database = {
         }
         Relationships: []
       }
+      stories: {
+        Row: {
+          bg_color: string | null
+          book_id: string | null
+          content: string | null
+          created_at: string
+          current_page: number | null
+          expires_at: string
+          id: string
+          kind: string
+          total_pages: number | null
+          user_id: string
+        }
+        Insert: {
+          bg_color?: string | null
+          book_id?: string | null
+          content?: string | null
+          created_at?: string
+          current_page?: number | null
+          expires_at?: string
+          id?: string
+          kind?: string
+          total_pages?: number | null
+          user_id: string
+        }
+        Update: {
+          bg_color?: string | null
+          book_id?: string | null
+          content?: string | null
+          created_at?: string
+          current_page?: number | null
+          expires_at?: string
+          id?: string
+          kind?: string
+          total_pages?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stories_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stories_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "trending_books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      story_views: {
+        Row: {
+          story_id: string
+          user_id: string
+          viewed_at: string
+        }
+        Insert: {
+          story_id: string
+          user_id: string
+          viewed_at?: string
+        }
+        Update: {
+          story_id?: string
+          user_id?: string
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_views_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trades: {
         Row: {
           created_at: string
@@ -1610,6 +1690,18 @@ export type Database = {
           book_id: string
           collab_score: number
           reader_count: number
+        }[]
+      }
+      get_following_stories: {
+        Args: { _user_id: string }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          has_unseen: boolean
+          latest_at: string
+          story_count: number
+          user_id: string
+          username: string
         }[]
       }
       get_similar_users: {
