@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { CACHE } from "@/lib/query-client";
+import { CACHE, qk } from "@/lib/query-client";
 
 export interface RankPosition {
   global: { position: number; xp: number; level: number; xpToNext: number | null } | null;
