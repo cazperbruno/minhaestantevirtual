@@ -112,6 +112,7 @@ export function CatalogQualityPanel() {
     }
   };
 
+  if (loading) {
     return (
       <Card className="p-6 space-y-4">
         <Skeleton className="h-6 w-48" />
