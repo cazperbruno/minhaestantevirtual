@@ -107,33 +107,23 @@ export default function LibraryPage() {
               shelfFiltered.length === 0 ? (
                 <NoMatchState />
               ) : (
-                <div className="space-y-12">
-                  {shelves.reading.length > 0 && (
-                    <LibraryShelf
-                      title="Lendo agora"
-                      subtitle={`${shelves.reading.length} ${shelves.reading.length === 1 ? "livro em andamento" : "livros em andamento"}`}
-                      items={shelves.reading}
+                <div className="space-y-2">
+                  {smartShelves.map((s) => (
+                    <SmartShelfRow
+                      key={s.id}
+                      id={s.id}
+                      title={s.title}
+                      subtitle={s.subtitle}
+                      items={s.items}
                     />
-                  )}
-                  {shelves.wishlist.length > 0 && (
-                    <LibraryShelf
-                      title="Quero ler"
-                      subtitle={`${shelves.wishlist.length} na fila`}
-                      items={shelves.wishlist}
-                    />
-                  )}
-                  {shelves.read.length > 0 && (
-                    <LibraryShelf
+                  ))}
+                  {/* Garante "Concluídos" como prateleira final dedicada quando faz sentido */}
+                  {readShelf.length >= 3 && !smartShelves.some((s) => s.id === "read") && (
+                    <SmartShelfRow
+                      id="read"
                       title="Concluídos"
-                      subtitle={`${shelves.read.length} ${shelves.read.length === 1 ? "livro lido" : "livros lidos"}`}
-                      items={shelves.read}
-                    />
-                  )}
-                  {shelves.not_read.length > 0 && (
-                    <LibraryShelf
-                      title="No acervo"
-                      subtitle={`${shelves.not_read.length} disponíveis`}
-                      items={shelves.not_read}
+                      subtitle={`${readShelf.length} ${readShelf.length === 1 ? "livro lido" : "livros lidos"}`}
+                      items={readShelf}
                     />
                   )}
                 </div>
