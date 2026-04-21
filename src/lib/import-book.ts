@@ -33,7 +33,14 @@ export function isExternal(book: Pick<Book, "id">): boolean {
  */
 export async function ensurePersistedBook(book: Book | (Book & Partial<AnilistManga>)): Promise<Book | null> {
   if (!isExternal(book)) return book;
+  const t0 = performance.now();
   const { id: _ignore, ...payload } = book as any;
   const saved = await saveBook(payload);
+  trackEvent(saved ? "import_external_book_ok" : "import_external_book_failed", {
+    source: book.source ?? null,
+    source_id: book.source_id ?? null,
+    title: book.title,
+    latency_ms: Math.round(performance.now() - t0),
+  });
   return saved ?? null;
 }
