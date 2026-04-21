@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { BookCover } from "@/components/books/BookCover";
 import { CommentsThread } from "@/components/social/CommentsThread";
 import {
-  Heart, BookPlus, BookOpen, CheckCircle2, Star, UserPlus, Trophy, Library,
+  Heart, BookPlus, BookOpen, CheckCircle2, Star, UserPlus, Trophy, Library, Sparkles,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -32,7 +32,10 @@ const KIND_META: Record<ActivityKind, { icon: any; label: (a: ActivityItem) => s
   leveled_up: { icon: Trophy, label: (a) => `subiu para o nível ${a.meta?.level ?? ""}`, color: "text-yellow-500" },
   ranked_up: { icon: Trophy, label: () => "subiu no ranking", color: "text-orange-500" },
   book_lent: { icon: BookPlus, label: () => "emprestou um livro", color: "text-muted-foreground" },
-};
+  // kinds extras emitidos por outras triggers (recomendação, etc.) — fallback amigável
+  book_recommended: { icon: Sparkles, label: () => "recomendou um livro", color: "text-primary" } as any,
+  trade_completed: { icon: BookPlus, label: () => "completou uma troca", color: "text-emerald-500" } as any,
+} as Record<string, { icon: any; label: (a: ActivityItem) => string; color: string }>;
 
 function ActivityCardImpl({ activity: a, onToggleLike }: Props) {
   const meta = KIND_META[a.kind] ?? KIND_META.book_added;
