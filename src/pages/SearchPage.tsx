@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { searchBooksGet, lookupIsbn } from "@/lib/books-api";
 import { searchManga } from "@/lib/anilist-api";
 import { trackSearch } from "@/lib/ai-tracking";
+import { trackEvent } from "@/lib/track";
 import { rerankByTaste } from "@/lib/search-rerank";
 import { useAuth } from "@/hooks/useAuth";
 import { Book } from "@/types/book";
