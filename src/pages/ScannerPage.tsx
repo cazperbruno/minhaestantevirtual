@@ -266,6 +266,7 @@ export default function ScannerPage() {
           title: book.title,
           authors: (book as any).authors,
           cover_url: (book as any).cover_url,
+          content_type: (book as any).content_type ?? "book",
         } : it));
         if (user) {
           void supabase.from("user_interactions").insert({
