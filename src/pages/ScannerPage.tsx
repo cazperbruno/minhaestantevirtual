@@ -8,7 +8,7 @@ import {
   Layers, Repeat, ScanLine,
 } from "lucide-react";
 import { BatchScanList, type BatchItem } from "@/components/books/BatchScanList";
-import { cn as _cn } from "@/lib/utils"; // alias to avoid name clash below
+
 import { invalidate } from "@/lib/query-client";
 import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
