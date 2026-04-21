@@ -43,7 +43,6 @@ export interface UserBook {
   book_id: string;
   status: BookStatus;
   rating?: number | null;
-  notes?: string | null;
   current_page?: number | null;
   started_at?: string | null;
   finished_at?: string | null;
