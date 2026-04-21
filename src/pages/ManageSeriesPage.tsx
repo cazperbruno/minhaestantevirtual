@@ -93,9 +93,12 @@ export default function ManageSeriesPage() {
               Crie, edite e organize manualmente quando o detector automático não acerta.
             </p>
           </div>
-          <Button onClick={() => setCreating(true)} className="gap-2 shrink-0">
-            <Plus className="w-4 h-4" /> Nova série
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <BulkEnrichButton series={series ?? []} />
+            <Button onClick={() => setCreating(true)} className="gap-2">
+              <Plus className="w-4 h-4" /> Nova série
+            </Button>
+          </div>
         </header>
 
         <div className="mb-6">
