@@ -1,24 +1,31 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { LogOut, BookOpen, Star, Trophy, Lock, Globe, Users, Instagram, Twitter, Music2, ExternalLink, Eye, EyeOff } from "lucide-react";
+import {
+  LogOut, Lock, Globe, Users, Instagram, Twitter, Music2, Eye, EyeOff,
+  Library as LibraryIcon, BarChart3, Target, Settings as SettingsIcon, ArrowRight, Flame,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ProfileHeader } from "@/components/profile/ProfileHeader";
+import { ProfileStatsRow } from "@/components/profile/ProfileStatsRow";
+import { ProfileSocialTab } from "@/components/profile/ProfileSocialTab";
 import { AchievementsPanel } from "@/components/profile/AchievementsPanel";
 import { LatestAchievementBanner } from "@/components/profile/LatestAchievementBanner";
-import { Progress } from "@/components/ui/progress";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Link } from "react-router-dom";
-import { cn } from "@/lib/utils";
 import { InstallAppCard } from "@/components/pwa/InstallAppCard";
 import { PushNotificationsCard } from "@/components/pwa/PushNotificationsCard";
 import { VersionTag } from "@/components/pwa/VersionTag";
+import { useStreak } from "@/hooks/useStreak";
 
 type Visibility = "public" | "private";
 type LibVisibility = "public" | "followers" | "private";
@@ -27,16 +34,23 @@ export default function ProfilePage() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [stats, setStats] = useState({ total: 0, read: 0, reading: 0, avgRating: 0, followers: 0, following: 0 });
+  const [goal, setGoal] = useState<{ target: number; finished: number } | null>(null);
   const [saving, setSaving] = useState(false);
+  const { data: streak } = useStreak(user?.id);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const [{ data: p }, { data: ub }, { count: followers }, { count: following }] = await Promise.all([
+      const year = new Date().getFullYear();
+      const start = `${year}-01-01`;
+      const end = `${year}-12-31T23:59:59`;
+      const [{ data: p }, { data: ub }, { count: followers }, { count: following }, { data: g }, { count: yearRead }] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
         supabase.from("user_books").select("status,rating").eq("user_id", user.id),
         supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", user.id),
         supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", user.id),
+        supabase.from("reading_goals").select("target_books").eq("user_id", user.id).eq("year", year).maybeSingle(),
+        supabase.from("user_books").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "read").gte("finished_at", start).lte("finished_at", end),
       ]);
       setProfile(p);
       const list = ub || [];
@@ -49,6 +63,8 @@ export default function ProfilePage() {
         followers: followers || 0,
         following: following || 0,
       });
+      if (g) setGoal({ target: g.target_books, finished: yearRead || 0 });
+      else setGoal({ target: 0, finished: yearRead || 0 });
     })();
   }, [user]);
 
@@ -82,6 +98,11 @@ export default function ProfilePage() {
 
   const logout = async () => { await supabase.auth.signOut(); window.location.href = "/auth"; };
 
+  const goalProgress = useMemo(() => {
+    if (!goal || !goal.target) return undefined;
+    return Math.min(100, (goal.finished / goal.target) * 100);
+  }, [goal]);
+
   if (!profile) return (
     <AppShell>
       <div className="px-5 md:px-10 pt-8 pb-16 max-w-3xl mx-auto space-y-6 animate-fade-in">
@@ -93,142 +114,202 @@ export default function ProfilePage() {
             <Skeleton className="h-3 w-32" />
           </div>
         </div>
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-          {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
         </div>
         <Skeleton className="h-64 rounded-2xl" />
       </div>
     </AppShell>
   );
 
+  const publicHref = profile.username ? `/u/${profile.username}` : `/u/${user!.id}`;
+
   return (
     <AppShell>
-      <div className="px-5 md:px-10 pt-8 pb-16 max-w-3xl mx-auto">
-        <div className="flex items-center gap-5 mb-8 animate-fade-in">
-          <Avatar className="w-20 h-20 ring-2 ring-primary/30">
-            <AvatarImage src={profile.avatar_url} />
-            <AvatarFallback className="bg-gradient-gold text-primary-foreground font-display text-2xl">
-              {(profile.display_name || user?.email || "?").charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <h1 className="font-display text-3xl font-bold truncate">{profile.display_name || "Leitor"}</h1>
-            <p className="text-muted-foreground text-sm truncate">{user?.email}</p>
-            <div className="flex items-center gap-2 mt-2">
-              <Trophy className="w-4 h-4 text-primary" />
-              <span className="text-sm">Nível {profile.level} · {profile.xp} XP</span>
+      <div className="px-4 sm:px-6 md:px-10 pt-6 sm:pt-8 pb-16 max-w-3xl mx-auto min-w-0">
+        <ProfileHeader
+          profile={profile}
+          email={user?.email}
+          publicHref={publicHref}
+          onEdit={() => {
+            const el = document.getElementById("tab-config");
+            el?.click();
+            setTimeout(() => document.getElementById("edit-section")?.scrollIntoView({ behavior: "smooth" }), 50);
+          }}
+        />
+
+        <div className="mt-6">
+          <LatestAchievementBanner userId={user!.id} />
+        </div>
+
+        <div className="mt-5">
+          <ProfileStatsRow
+            total={stats.total}
+            read={stats.read}
+            avgRating={stats.avgRating}
+            followers={stats.followers}
+            following={stats.following}
+            streak={streak?.current_days ?? 0}
+            goalProgress={goalProgress}
+          />
+        </div>
+
+        <Tabs defaultValue="overview" className="mt-8">
+          <TabsList className="w-full overflow-x-auto scrollbar-hide flex justify-start gap-1 bg-card/50 h-11 p-1">
+            <TabsTrigger value="overview" className="gap-1.5 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+              <LibraryIcon className="w-3.5 h-3.5" /> Visão geral
+            </TabsTrigger>
+            <TabsTrigger value="stats" className="gap-1.5 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+              <BarChart3 className="w-3.5 h-3.5" /> Estatísticas
+            </TabsTrigger>
+            <TabsTrigger value="goals" className="gap-1.5 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+              <Target className="w-3.5 h-3.5" /> Metas
+            </TabsTrigger>
+            <TabsTrigger value="social" className="gap-1.5 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+              <Users className="w-3.5 h-3.5" /> Social
+            </TabsTrigger>
+            <TabsTrigger id="tab-config" value="config" className="gap-1.5 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+              <SettingsIcon className="w-3.5 h-3.5" /> Configurações
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Visão geral: conquistas + atalhos */}
+          <TabsContent value="overview" className="mt-6 space-y-6 animate-fade-in">
+            <AchievementsPanel userId={user!.id} />
+            <div className="grid sm:grid-cols-2 gap-3">
+              <QuickLink to="/biblioteca" icon={<LibraryIcon className="w-4 h-4" />} title="Minha biblioteca" desc={`${stats.total} livros`} />
+              <QuickLink to="/desejos" icon={<Target className="w-4 h-4" />} title="Lista de desejos" desc="O que ler depois" />
+              <QuickLink to="/series" icon={<LibraryIcon className="w-4 h-4" />} title="Minhas séries" desc="Coleções e volumes" />
+              <QuickLink to="/leitores" icon={<Users className="w-4 h-4" />} title="Encontrar leitores" desc="Comunidade Readify" />
             </div>
-            <div className="mt-2">
-              <Progress value={(profile.xp % 100)} className="h-1.5" />
-              <p className="text-[10px] text-muted-foreground mt-1">
-                {100 - (profile.xp % 100)} XP para o nível {profile.level + 1}
-              </p>
+          </TabsContent>
+
+          {/* Estatísticas: resumo + link para página completa */}
+          <TabsContent value="stats" className="mt-6 space-y-4 animate-fade-in">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <MiniStat label="Lidos" value={stats.read} />
+              <MiniStat label="Lendo" value={stats.reading} />
+              <MiniStat label="Avaliação" value={stats.avgRating ? stats.avgRating.toFixed(1) : "—"} />
+              <MiniStat label="Streak" value={`${streak?.current_days ?? 0}d`} icon={<Flame className="w-3.5 h-3.5 text-status-wishlist" />} />
             </div>
-          </div>
-          <Button asChild variant="outline" size="sm" className="gap-1.5 hidden sm:inline-flex">
-            <Link to={profile.username ? `/u/${profile.username}` : `/u/${user!.id}`}>
-              <ExternalLink className="w-3.5 h-3.5" /> Ver público
-            </Link>
-          </Button>
-        </div>
+            <Button asChild variant="outline" className="w-full gap-1.5">
+              <Link to="/estatisticas">Ver estatísticas completas <ArrowRight className="w-4 h-4" /></Link>
+            </Button>
+          </TabsContent>
 
-        {/* Última conquista — só aparece se houver pelo menos uma desbloqueada */}
-        <LatestAchievementBanner userId={user!.id} />
-
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-8">
-          <Stat icon={<BookOpen className="w-4 h-4" />} value={stats.total} label="Acervo" />
-          <Stat icon={<BookOpen className="w-4 h-4 text-status-read" />} value={stats.read} label="Lidos" />
-          <Stat icon={<Star className="w-4 h-4 text-primary fill-primary" />} value={stats.avgRating ? stats.avgRating.toFixed(1) : "—"} label="Média" />
-          <Stat icon={<Users className="w-4 h-4" />} value={stats.followers} label="Seguidores" />
-          <Stat icon={<Users className="w-4 h-4" />} value={stats.following} label="Seguindo" />
-        </div>
-
-        <div className="mb-6">
-          <AchievementsPanel userId={user!.id} />
-        </div>
-
-        {/* Editar perfil */}
-        <div className="glass rounded-2xl p-6 space-y-5 mb-6">
-          <h2 className="font-display text-xl font-semibold">Editar perfil</h2>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="dn">Nome</Label>
-              <Input id="dn" value={profile.display_name || ""} onChange={(e) => setProfile({ ...profile, display_name: e.target.value })} />
+          {/* Metas */}
+          <TabsContent value="goals" className="mt-6 space-y-4 animate-fade-in">
+            <div className="glass rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-muted-foreground">Meta anual {new Date().getFullYear()}</p>
+                <p className="font-display text-lg font-bold tabular-nums">
+                  {goal?.finished ?? 0}<span className="text-muted-foreground text-sm">/{goal?.target || "—"}</span>
+                </p>
+              </div>
+              {goal?.target ? (
+                <>
+                  <Progress value={goalProgress ?? 0} className="h-2.5" />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {goalProgress! >= 100 ? "🎉 Meta concluída!" : `${Math.max(0, goal.target - goal.finished)} livros para concluir`}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">Defina uma meta anual para acompanhar seu ritmo de leitura.</p>
+              )}
             </div>
-            <div>
-              <Label htmlFor="un">Usuário (@)</Label>
-              <Input id="un" value={profile.username || ""} onChange={(e) => setProfile({ ...profile, username: e.target.value })} placeholder="seunome" />
+            <Button asChild variant="outline" className="w-full gap-1.5">
+              <Link to="/metas">Gerenciar metas <ArrowRight className="w-4 h-4" /></Link>
+            </Button>
+          </TabsContent>
+
+          {/* Social */}
+          <TabsContent value="social" className="mt-6 animate-fade-in">
+            <ProfileSocialTab userId={user!.id} />
+          </TabsContent>
+
+          {/* Configurações: edição + privacidade + redes + PWA */}
+          <TabsContent value="config" className="mt-6 space-y-6 animate-fade-in">
+            <section id="edit-section" className="glass rounded-2xl p-5 space-y-4">
+              <h2 className="font-display text-xl font-semibold">Editar perfil</h2>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="dn">Nome</Label>
+                  <Input id="dn" value={profile.display_name || ""} onChange={(e) => setProfile({ ...profile, display_name: e.target.value })} />
+                </div>
+                <div>
+                  <Label htmlFor="un">Usuário (@)</Label>
+                  <Input id="un" value={profile.username || ""} onChange={(e) => setProfile({ ...profile, username: e.target.value })} placeholder="seunome" />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="bio">Bio</Label>
+                <Textarea id="bio" value={profile.bio || ""} onChange={(e) => setProfile({ ...profile, bio: e.target.value })} rows={3} maxLength={280} placeholder="Conte um pouco sobre você e seus livros favoritos..." />
+                <p className="text-[10px] text-muted-foreground mt-1 text-right">{(profile.bio || "").length}/280</p>
+              </div>
+            </section>
+
+            <section className="glass rounded-2xl p-5 space-y-3">
+              <div>
+                <h2 className="font-display text-xl font-semibold">Redes sociais</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Aparecem no seu perfil público.</p>
+              </div>
+              <SocialField icon={<Instagram className="w-4 h-4" />} label="Instagram" placeholder="seunome"
+                value={profile.instagram || ""} onChange={(v) => setProfile({ ...profile, instagram: v })} />
+              <SocialField icon={<Music2 className="w-4 h-4" />} label="TikTok" placeholder="seunome"
+                value={profile.tiktok || ""} onChange={(v) => setProfile({ ...profile, tiktok: v })} />
+              <SocialField icon={<Twitter className="w-4 h-4" />} label="X (Twitter)" placeholder="seunome"
+                value={profile.twitter || ""} onChange={(v) => setProfile({ ...profile, twitter: v })} />
+              <SocialField icon={<Globe className="w-4 h-4" />} label="Website" placeholder="https://seusite.com"
+                value={profile.website || ""} onChange={(v) => setProfile({ ...profile, website: v })} />
+            </section>
+
+            <section className="glass rounded-2xl p-5 space-y-5">
+              <div>
+                <h2 className="font-display text-xl font-semibold flex items-center gap-2"><Lock className="w-4 h-4" /> Privacidade</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Controle quem vê seu perfil e biblioteca.</p>
+              </div>
+
+              <div>
+                <Label className="text-sm mb-2 block">Visibilidade do perfil</Label>
+                <RadioGroup
+                  value={profile.profile_visibility || "public"}
+                  onValueChange={(v: Visibility) => setProfile({ ...profile, profile_visibility: v })}
+                  className="grid sm:grid-cols-2 gap-2"
+                >
+                  <PrivacyOption value="public" icon={<Eye className="w-4 h-4" />} label="Público" desc="Qualquer leitor pode ver" current={profile.profile_visibility} />
+                  <PrivacyOption value="private" icon={<EyeOff className="w-4 h-4" />} label="Privado" desc="Só você vê" current={profile.profile_visibility} />
+                </RadioGroup>
+              </div>
+
+              <div>
+                <Label className="text-sm mb-2 block">Visibilidade da biblioteca</Label>
+                <RadioGroup
+                  value={profile.library_visibility || "public"}
+                  onValueChange={(v: LibVisibility) => setProfile({ ...profile, library_visibility: v })}
+                  className="grid sm:grid-cols-3 gap-2"
+                >
+                  <PrivacyOption value="public" icon={<Globe className="w-4 h-4" />} label="Pública" desc="Todos veem" current={profile.library_visibility} />
+                  <PrivacyOption value="followers" icon={<Users className="w-4 h-4" />} label="Seguidores" desc="Só quem te segue" current={profile.library_visibility} />
+                  <PrivacyOption value="private" icon={<Lock className="w-4 h-4" />} label="Privada" desc="Só você" current={profile.library_visibility} />
+                </RadioGroup>
+              </div>
+            </section>
+
+            <div className="space-y-4">
+              <InstallAppCard />
+              <PushNotificationsCard />
             </div>
-          </div>
-          <div>
-            <Label htmlFor="bio">Bio</Label>
-            <Textarea id="bio" value={profile.bio || ""} onChange={(e) => setProfile({ ...profile, bio: e.target.value })} rows={3} maxLength={280} placeholder="Conte um pouco sobre você e seus livros favoritos..." />
-            <p className="text-[10px] text-muted-foreground mt-1 text-right">{(profile.bio || "").length}/280</p>
-          </div>
-        </div>
 
-        {/* Redes sociais */}
-        <div className="glass rounded-2xl p-6 space-y-4 mb-6">
-          <div>
-            <h2 className="font-display text-xl font-semibold">Redes sociais</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Aparecem no seu perfil público para outros leitores te encontrarem.</p>
-          </div>
-          <SocialField icon={<Instagram className="w-4 h-4" />} label="Instagram" placeholder="seunome"
-            value={profile.instagram || ""} onChange={(v) => setProfile({ ...profile, instagram: v })} />
-          <SocialField icon={<Music2 className="w-4 h-4" />} label="TikTok" placeholder="seunome"
-            value={profile.tiktok || ""} onChange={(v) => setProfile({ ...profile, tiktok: v })} />
-          <SocialField icon={<Twitter className="w-4 h-4" />} label="X (Twitter)" placeholder="seunome"
-            value={profile.twitter || ""} onChange={(v) => setProfile({ ...profile, twitter: v })} />
-          <SocialField icon={<Globe className="w-4 h-4" />} label="Website" placeholder="https://seusite.com"
-            value={profile.website || ""} onChange={(v) => setProfile({ ...profile, website: v })} />
-        </div>
+            <div className="flex justify-between items-center pt-2">
+              <Button variant="ghost" onClick={logout} className="gap-2"><LogOut className="w-4 h-4" /> Sair</Button>
+              <Button variant="hero" onClick={save} disabled={saving} size="lg">
+                {saving ? "Salvando…" : "Salvar alterações"}
+              </Button>
+            </div>
+          </TabsContent>
+        </Tabs>
 
-        {/* Instalar app (PWA) + Push */}
-        <div className="mb-6 space-y-4">
-          <InstallAppCard />
-          <PushNotificationsCard />
-        </div>
-
-        {/* Privacidade */}
-        <div className="glass rounded-2xl p-6 space-y-5 mb-6">
-          <div>
-            <h2 className="font-display text-xl font-semibold flex items-center gap-2"><Lock className="w-4 h-4" /> Privacidade</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Controle quem vê seu perfil e biblioteca.</p>
-          </div>
-
-          <div>
-            <Label className="text-sm mb-2 block">Visibilidade do perfil</Label>
-            <RadioGroup
-              value={profile.profile_visibility || "public"}
-              onValueChange={(v: Visibility) => setProfile({ ...profile, profile_visibility: v })}
-              className="grid sm:grid-cols-2 gap-2"
-            >
-              <PrivacyOption value="public" icon={<Eye className="w-4 h-4" />} label="Público" desc="Qualquer leitor pode ver" current={profile.profile_visibility} />
-              <PrivacyOption value="private" icon={<EyeOff className="w-4 h-4" />} label="Privado" desc="Só você vê" current={profile.profile_visibility} />
-            </RadioGroup>
-          </div>
-
-          <div>
-            <Label className="text-sm mb-2 block">Visibilidade da biblioteca</Label>
-            <RadioGroup
-              value={profile.library_visibility || "public"}
-              onValueChange={(v: LibVisibility) => setProfile({ ...profile, library_visibility: v })}
-              className="grid sm:grid-cols-3 gap-2"
-            >
-              <PrivacyOption value="public" icon={<Globe className="w-4 h-4" />} label="Pública" desc="Todos veem" current={profile.library_visibility} />
-              <PrivacyOption value="followers" icon={<Users className="w-4 h-4" />} label="Seguidores" desc="Só quem te segue" current={profile.library_visibility} />
-              <PrivacyOption value="private" icon={<Lock className="w-4 h-4" />} label="Privada" desc="Só você" current={profile.library_visibility} />
-            </RadioGroup>
-          </div>
-        </div>
-
-        <div className="flex justify-between items-center pt-2">
-          <Button variant="ghost" onClick={logout} className="gap-2"><LogOut className="w-4 h-4" /> Sair</Button>
-          <Button variant="hero" onClick={save} disabled={saving} size="lg">
-            {saving ? "Salvando…" : "Salvar alterações"}
-          </Button>
-        </div>
-        <div className="pt-4 flex justify-center">
+        <div className="pt-8 flex justify-center">
           <VersionTag />
         </div>
       </div>
@@ -236,13 +317,26 @@ export default function ProfilePage() {
   );
 }
 
-function Stat({ icon, value, label }: { icon: React.ReactNode; value: number | string; label: string }) {
+function MiniStat({ label, value, icon }: { label: string; value: string | number; icon?: React.ReactNode }) {
   return (
-    <div className="glass rounded-xl p-3 text-center">
-      <div className="flex items-center justify-center mb-1 text-muted-foreground">{icon}</div>
-      <p className="font-display text-xl font-bold tabular-nums">{value}</p>
-      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+    <div className="glass rounded-xl p-3 text-center min-w-0">
+      {icon && <div className="flex items-center justify-center mb-1">{icon}</div>}
+      <p className="font-display text-xl font-bold tabular-nums truncate">{value}</p>
+      <p className="text-[10px] text-muted-foreground uppercase tracking-wider truncate">{label}</p>
     </div>
+  );
+}
+
+function QuickLink({ to, icon, title, desc }: { to: string; icon: React.ReactNode; title: string; desc: string }) {
+  return (
+    <Link to={to} className="glass rounded-2xl p-4 flex items-center gap-3 hover:border-primary/30 transition-all tap-scale group">
+      <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">{icon}</div>
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-sm truncate">{title}</p>
+        <p className="text-xs text-muted-foreground truncate">{desc}</p>
+      </div>
+      <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+    </Link>
   );
 }
 
@@ -252,7 +346,7 @@ function SocialField({ icon, label, placeholder, value, onChange }: {
   return (
     <div className="flex items-center gap-2">
       <div className="w-9 h-9 rounded-lg bg-card border border-border flex items-center justify-center text-muted-foreground shrink-0">{icon}</div>
-      <div className="flex-1">
+      <div className="flex-1 min-w-0">
         <Label className="text-xs text-muted-foreground">{label}</Label>
         <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-9 mt-0.5" />
       </div>
