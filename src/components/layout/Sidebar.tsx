@@ -20,6 +20,7 @@ const baseItems = [
   { to: "/feed", label: "Feed social", icon: MessageSquare },
   { to: "/leitores", label: "Leitores", icon: Users },
   { to: "/clubes", label: "Clubes", icon: Users },
+  { to: "/buddy", label: "Buddy Reading", icon: BookOpen },
   { to: "/progresso", label: "Progresso", icon: Sparkles },
   { to: "/ranking", label: "Ranking", icon: Trophy },
   { to: "/metas", label: "Metas", icon: Target },
