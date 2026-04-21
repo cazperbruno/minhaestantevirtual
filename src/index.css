@@ -227,6 +227,23 @@
 }
 .animate-float-soft { animation: floatSoft 4.5s ease-in-out infinite; }
 
+/* ==========================================================================
+   Hero Stagger — entrada cinematográfica escalonada (título → autor → ações).
+   Cada elemento com .hero-stagger usa delay próprio via inline style.
+   ========================================================================== */
+@keyframes heroStagger {
+  from { opacity: 0; transform: translate3d(0, 14px, 0); filter: blur(4px); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); filter: blur(0); }
+}
+.hero-stagger {
+  opacity: 0;
+  animation: heroStagger 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity, filter;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-stagger { animation-duration: 0.01ms !important; opacity: 1 !important; filter: none !important; transform: none !important; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

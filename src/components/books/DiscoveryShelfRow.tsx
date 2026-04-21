@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, Sparkles, Loader2, Check } from "lucide-react";
+import { Plus, Sparkles, Loader2, Check, Compass } from "lucide-react";
 import { BookCover } from "./BookCover";
 import { CinematicShelf, ShelfItem } from "./CinematicShelf";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,40 @@ export function DiscoveryShelfRow() {
     );
   }
 
-  if (!items.length) return null;
+  if (!items.length) {
+    // Fallback inteligente: estado vazio amigável com CTA
+    return (
+      <div className="mb-10 px-1 animate-fade-in">
+        <h2 className="font-display text-xl md:text-2xl font-semibold mb-4 flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-primary" />
+          Você pode gostar
+        </h2>
+        <div className="rounded-2xl border border-dashed border-border/60 bg-card/40 backdrop-blur-sm p-8 md:p-10 text-center">
+          <div className="w-14 h-14 rounded-2xl mx-auto mb-4 bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/20">
+            <Compass className="w-7 h-7 text-primary" />
+          </div>
+          <p className="font-display text-lg font-semibold mb-1.5">
+            Continue lendo pra desbloquear recomendações
+          </p>
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
+            Quanto mais livros você adicionar e avaliar, mais precisas serão suas descobertas personalizadas.
+          </p>
+          <div className="flex flex-wrap gap-2 justify-center">
+            <Link to="/descobrir">
+              <Button variant="hero" size="sm" className="gap-2">
+                <Compass className="w-4 h-4" /> Explorar livros
+              </Button>
+            </Link>
+            <Link to="/buscar">
+              <Button variant="outline" size="sm">
+                Buscar título
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleAdd = (bookId: string) => {
     if (added.has(bookId)) return;

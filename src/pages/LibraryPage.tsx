@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { SmartShelfRow } from "@/components/books/SmartShelfRow";
 import { DiscoveryShelfRow } from "@/components/books/DiscoveryShelfRow";
+import { FollowingReadsShelfRow } from "@/components/books/FollowingReadsShelfRow";
+import { StreakFreezeButton } from "@/components/gamification/StreakFreezeButton";
 import { useSmartShelves } from "@/hooks/useSmartShelves";
 import { BookCard } from "@/components/books/BookCard";
 import { ShelfSkeleton, BookGridSkeleton } from "@/components/ui/skeletons";
@@ -67,23 +69,26 @@ export default function LibraryPage() {
             )}
           </div>
           {totalCount > 0 && (
-            <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/30 border border-border/40">
-              <Button
-                variant={view === "shelves" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setView("shelves")}
-                className="gap-1.5 h-8"
-              >
-                <Rows3 className="w-3.5 h-3.5" /> Prateleiras
-              </Button>
-              <Button
-                variant={view === "grid" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setView("grid")}
-                className="gap-1.5 h-8"
-              >
-                <LayoutGrid className="w-3.5 h-3.5" /> Grade
-              </Button>
+            <div className="flex items-center gap-2">
+              <StreakFreezeButton />
+              <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/30 border border-border/40">
+                <Button
+                  variant={view === "shelves" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setView("shelves")}
+                  className="gap-1.5 h-8"
+                >
+                  <Rows3 className="w-3.5 h-3.5" /> Prateleiras
+                </Button>
+                <Button
+                  variant={view === "grid" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setView("grid")}
+                  className="gap-1.5 h-8"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" /> Grade
+                </Button>
+              </div>
             </div>
           )}
         </header>
@@ -127,6 +132,8 @@ export default function LibraryPage() {
                       items={readShelf}
                     />
                   )}
+                  {/* Social: livros lidos pela sua rede */}
+                  <FollowingReadsShelfRow />
                   {/* Descoberta: livros que você ainda não tem, recomendados pela IA */}
                   <DiscoveryShelfRow />
                 </div>
