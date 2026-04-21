@@ -155,56 +155,17 @@ function SmartShelfCard({
       <div
         className={cn(
           "absolute top-2 right-2 z-10",
-          // Desktop: aparece no hover do card
           "opacity-0 group-hover/sc:opacity-100 transition-opacity duration-200",
-          // Mobile: visível quando o menu está aberto via long-press
           actionsOpen && "opacity-100",
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        <QuickActionsMenuControlled
+        <QuickActionsMenu
           ub={ub}
           open={actionsOpen}
           onOpenChange={setActionsOpen}
         />
       </div>
-    </div>
-  );
-}
-
-// Pequeno wrapper controlado para reaproveitar o menu existente sem duplicar lógica.
-function QuickActionsMenuControlled({
-  ub,
-  open,
-  onOpenChange,
-}: {
-  ub: UserBook;
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-}) {
-  // O componente já gerencia seu próprio estado, mas precisamos abrí-lo via long-press.
-  // Truque: re-renderizamos um wrapper invisível que só serve de âncora; o menu real
-  // dentro de QuickActionsMenu mantém estado interno. Para sincronizar, usamos uma
-  // ref que dispara um click programático no trigger quando `open` vira true.
-  // Implementação simples: confiar no estado interno do trigger via clique programático.
-  const triggerRef = useRef<HTMLDivElement>(null);
-  const wasOpen = useRef(false);
-
-  if (open && !wasOpen.current) {
-    wasOpen.current = true;
-    // Dispara clique no trigger interno
-    setTimeout(() => {
-      const btn = triggerRef.current?.querySelector("button");
-      btn?.click();
-    }, 0);
-  }
-  if (!open && wasOpen.current) {
-    wasOpen.current = false;
-  }
-
-  return (
-    <div ref={triggerRef} onPointerDown={() => onOpenChange(false)}>
-      <QuickActionsMenu ub={ub} />
     </div>
   );
 }
