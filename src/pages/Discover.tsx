@@ -18,11 +18,15 @@ import { trackRecsShown, recomputeUserWeights } from "@/lib/ai-tracking";
 import { useMySeries } from "@/hooks/useMySeries";
 import { NextAchievementsCard } from "@/components/gamification/NextAchievementsCard";
 import { StoriesBar } from "@/components/social/StoriesBar";
+import { FollowingReadsShelfRow } from "@/components/books/FollowingReadsShelfRow";
+import { useBecauseYouRead } from "@/hooks/useBecauseYouRead";
+import { dedupeByIsbn } from "@/lib/dedupe";
 
 export default function Discover() {
   const { user } = useAuth();
   const { active: activeTypes } = useContentFilter();
   const { data: mySeries } = useMySeries();
+  const { data: becauseYouRead } = useBecauseYouRead(12);
   const [shelves, setShelves] = useState<Shelf[]>([]);
   const [loading, setLoading] = useState(true);
   const [reading, setReading] = useState<UserBook[]>([]);
@@ -63,11 +67,15 @@ export default function Discover() {
   }, [user]);
 
   // Filtra prateleiras pelos tipos ativos (livros sem content_type → "book")
+  // + dedupe por ISBN dentro de cada prateleira (item 6)
   const visibleShelves = useMemo(() => {
     return shelves
       .map((s) => ({
         ...s,
-        books: s.books.filter((b) => activeTypes.includes(b.content_type || "book")),
+        books: dedupeByIsbn(
+          s.books.filter((b) => activeTypes.includes(b.content_type || "book")),
+          (b) => b,
+        ),
       }))
       .filter((s) => s.books.length > 0);
   }, [shelves, activeTypes]);
