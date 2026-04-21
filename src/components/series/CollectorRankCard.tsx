@@ -40,7 +40,7 @@ export function CollectorRankCard({ myCompletionPct, collectors, avgCompletion, 
             className={cn(
               "h-full rounded-full transition-all duration-700",
               myCompletionPct >= 100
-                ? "bg-gradient-to-r from-primary via-amber-400 to-primary animate-pulse"
+                ? "bg-gradient-to-r from-primary via-primary/80 to-primary animate-pulse shadow-[0_0_12px_hsl(var(--primary)/0.6)]"
                 : "bg-gradient-to-r from-primary/60 via-primary to-primary",
             )}
             style={{ width: `${myCompletionPct}%` }}

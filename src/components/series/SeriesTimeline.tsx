@@ -119,7 +119,7 @@ export function SeriesTimeline({ detail, canEdit }: Props) {
                 )}
               >
                 <div className="w-12 h-16 shrink-0">
-                  <BookCover book={v} size="xs" className="!w-12 !h-16" />
+                  <BookCover book={v} size="sm" className="!w-12 !h-16 !text-[9px]" interactive={false} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
