@@ -92,8 +92,10 @@ export function CatalogQualityPanel() {
 
   const total = quality.total_books || 1;
   const pct = (n: number) => Math.round((n / total) * 100);
-  const pendingCount = queue.find((q) => q.status === "pending")?.count ?? 0;
-  const failedCount = queue.find((q) => q.status === "failed")?.count ?? 0;
+  const enrichPending = enrichQueue.find((q) => q.status === "pending")?.count ?? 0;
+  const enrichFailed = enrichQueue.find((q) => q.status === "failed")?.count ?? 0;
+  const normPending = normQueue.find((q) => q.status === "pending")?.count ?? 0;
+  const normFailed = normQueue.find((q) => q.status === "failed")?.count ?? 0;
 
   return (
     <Card className="p-6 space-y-5">
@@ -106,20 +108,31 @@ export function CatalogQualityPanel() {
           <p className="text-sm text-muted-foreground mt-1">
             {quality.total_books} livros · nota média{" "}
             <span className="font-semibold text-foreground">{quality.avg_quality_score}</span>/100
+            <span className="ml-2 text-xs">· cron a cada 5/10 min</span>
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button variant="ghost" size="sm" onClick={load} aria-label="Atualizar">
             <RefreshCw className="w-4 h-4" />
           </Button>
           <Button
             size="sm"
-            onClick={drainQueue}
-            disabled={draining || pendingCount === 0}
+            variant="outline"
+            onClick={() => drain("normalize")}
+            disabled={draining !== null || normPending === 0}
             className="gap-2"
           >
-            {draining ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {draining ? "Processando…" : `Enriquecer agora (${pendingCount})`}
+            {draining === "normalize" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+            Normalizar IA ({normPending})
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => drain("enrich")}
+            disabled={draining !== null || enrichPending === 0}
+            className="gap-2"
+          >
+            {draining === "enrich" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            Enriquecer ({enrichPending})
           </Button>
         </div>
       </div>
@@ -131,17 +144,25 @@ export function CatalogQualityPanel() {
         <Metric icon={<BookOpen className="w-4 h-4" />} label="Com categorias" value={pct(quality.with_categories)} suffix="%" />
       </div>
 
-      {(pendingCount > 0 || failedCount > 0) && (
-        <div className="flex flex-wrap gap-2 text-xs pt-2 border-t border-border/50">
-          {pendingCount > 0 && <Badge variant="secondary">{pendingCount} aguardando</Badge>}
-          {failedCount > 0 && <Badge variant="destructive">{failedCount} falharam</Badge>}
-          {quality.poor_quality_count > 0 && (
-            <Badge variant="outline" className="text-warning">
-              {quality.poor_quality_count} com qualidade &lt;50
-            </Badge>
-          )}
-        </div>
-      )}
+      <div className="flex flex-wrap gap-2 text-xs pt-2 border-t border-border/50">
+        {enrichPending > 0 && <Badge variant="secondary"><Sparkles className="w-3 h-3 mr-1" />{enrichPending} a enriquecer</Badge>}
+        {enrichFailed > 0 && <Badge variant="destructive">{enrichFailed} enrich falhou</Badge>}
+        {normPending > 0 && <Badge variant="secondary"><Wand2 className="w-3 h-3 mr-1" />{normPending} a normalizar</Badge>}
+        {normFailed > 0 && <Badge variant="destructive">{normFailed} norm falhou</Badge>}
+        {mergeSuggestions > 0 && (
+          <Badge variant="outline" className="text-primary">
+            <GitMerge className="w-3 h-3 mr-1" />{mergeSuggestions} duplicatas sugeridas
+          </Badge>
+        )}
+        {quality.poor_quality_count > 0 && (
+          <Badge variant="outline" className="text-warning">
+            {quality.poor_quality_count} com qualidade &lt;50
+          </Badge>
+        )}
+        {enrichPending + normPending + mergeSuggestions === 0 && (
+          <Badge variant="outline" className="text-success">Catálogo saudável ✓</Badge>
+        )}
+      </div>
     </Card>
   );
 }
