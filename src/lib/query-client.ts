@@ -43,6 +43,8 @@ export const qk = {
   library: (userId?: string) => ["library", userId] as const,
   wishlist: (userId?: string) => ["wishlist", userId] as const,
   profile: (idOrUsername: string) => ["profile", idOrUsername] as const,
+  mySeries: (userId?: string) => ["my-series", userId || "anon"] as const,
+  seriesRanking: () => ["series-ranking"] as const,
 
   // social
   reviews: (bookId: string) => ["reviews", bookId] as const,
@@ -74,6 +76,8 @@ export const invalidate = {
   library: (userId?: string) => {
     queryClient.invalidateQueries({ queryKey: ["library", userId] });
     queryClient.invalidateQueries({ queryKey: ["wishlist", userId] });
+    queryClient.invalidateQueries({ queryKey: ["my-series", userId || "anon"] });
+    queryClient.invalidateQueries({ queryKey: ["series-ranking"] });
     queryClient.invalidateQueries({ queryKey: ["feed"] });
   },
   follow: (viewerId: string, targetId: string) => {

@@ -105,9 +105,41 @@ export function useRealtimeInvalidation() {
           if (ownerId === userId) {
             queryClient.invalidateQueries({ queryKey: qk.library(userId) });
             queryClient.invalidateQueries({ queryKey: qk.wishlist(userId) });
+            // Minhas séries depende diretamente de user_books → invalida sempre
+            queryClient.invalidateQueries({ queryKey: qk.mySeries(userId) });
+            // Ranking colecionador também muda quando alguém adiciona volumes
+            queryClient.invalidateQueries({ queryKey: qk.seriesRanking() });
           }
           // Atividade de qualquer usuário pode aparecer no feed "Seguindo"
           queryClient.invalidateQueries({ queryKey: qk.feed() });
+        },
+      )
+      // -------- BOOKS (novos volumes / series_id atribuído via enriquecimento) --------
+      // Quando um livro é criado/atualizado e ganha series_id, a agregação de
+      // "Minhas séries" precisa refazer — mesmo sem mudar user_books.
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "books" },
+        (payload: any) => {
+          const seriesId = payload.new?.series_id || payload.old?.series_id;
+          if (seriesId) {
+            queryClient.invalidateQueries({ queryKey: qk.mySeries(userId) });
+            queryClient.invalidateQueries({ queryKey: qk.seriesRanking() });
+            queryClient.invalidateQueries({ queryKey: ["series", seriesId] });
+          }
+        },
+      )
+      // -------- SERIES (metadados da série: total_volumes, status, capa) --------
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "series" },
+        (payload: any) => {
+          queryClient.invalidateQueries({ queryKey: qk.mySeries(userId) });
+          queryClient.invalidateQueries({ queryKey: qk.seriesRanking() });
+          const seriesId = payload.new?.id || payload.old?.id;
+          if (seriesId) {
+            queryClient.invalidateQueries({ queryKey: ["series", seriesId] });
+          }
         },
       )
       // -------- ACTIVITIES (feed social bruto) --------
