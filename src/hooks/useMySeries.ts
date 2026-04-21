@@ -91,12 +91,14 @@ export function useMySeries() {
       }
 
       // 3) Resolve next_volume / completion / missing
+      // IMPORTANTE: completion_pct é métrica de COLECIONADOR (volumes possuídos / total),
+      // não de leitura. Para mangás/HQs, "ter a coleção completa" é o objetivo principal.
       return Array.from(map.values())
         .map((r) => {
           const { _unread_volumes, ...clean } = r;
           const next = _unread_volumes.sort((a, b) => a - b)[0];
           const total = clean.total_volumes ?? clean.owned_count;
-          const pct = total > 0 ? Math.min(100, Math.round((clean.read_count / total) * 100)) : 0;
+          const pct = total > 0 ? Math.min(100, Math.round((clean.owned_count / total) * 100)) : 0;
           const missing =
             clean.total_volumes != null
               ? Math.max(0, clean.total_volumes - clean.owned_count)
