@@ -268,6 +268,56 @@ function pickBetterDescription(current: string | null, candidate: string | null)
   return b.length > a.length ? b : a;
 }
 
+// ============================================================
+// Idempotência — só inclui no patch os campos que REALMENTE mudaram
+// ============================================================
+
+/** Compara valores de forma estável (arrays, objetos, primitivos). */
+function isEqualValue(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (a == null && b == null) return true;
+  if (a == null || b == null) return false;
+  if (typeof a !== typeof b) return false;
+  if (typeof a === "object") {
+    try { return JSON.stringify(a) === JSON.stringify(b); } catch { return false; }
+  }
+  return false;
+}
+
+/**
+ * Constrói um patch contendo apenas as chaves cujo `next` difere do `current`.
+ * Garante idempotência: chamadas repetidas com os mesmos dados externos
+ * resultam em patch vazio → nenhum UPDATE é disparado.
+ */
+function diffPatch<T extends Record<string, unknown>>(
+  current: T,
+  next: Partial<T>,
+): Partial<T> {
+  const patch: Partial<T> = {};
+  for (const k of Object.keys(next) as (keyof T)[]) {
+    const nv = next[k];
+    if (nv === undefined) continue;
+    if (!isEqualValue(current[k], nv)) {
+      (patch as any)[k] = nv;
+    }
+  }
+  return patch;
+}
+
+/** Campos materiais para detectar mudança real (ignora timestamps/raw). */
+const MATERIAL_FIELDS = [
+  "total_volumes",
+  "status",
+  "description",
+  "cover_url",
+  "source",
+  "source_id",
+] as const;
+
+function hasMaterialChange(patch: Record<string, unknown>): boolean {
+  return MATERIAL_FIELDS.some((f) => f in patch);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
