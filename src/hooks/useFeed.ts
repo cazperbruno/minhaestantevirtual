@@ -147,8 +147,8 @@ export function useFeed(tab: "all" | "following" | "you") {
         liked_by_me: likedSet.has(r.id),
       }));
 
-      // AI: re-rank na primeira página (apenas se temos sinal de gosto)
-      if (isFirstPage && user && (taste as Map<string, number>).size > 0) {
+      // AI: re-rank na primeira página (apenas se temos sinal de gosto e tab "all")
+      if (isFirstPage && user && tab === "all" && (taste as Map<string, number>).size > 0) {
         // Carrega autores amados (rating>=4) do cache se disponível
         const { data: loved } = await supabase
           .from("user_books")
@@ -190,7 +190,7 @@ export function useFeed(tab: "all" | "following" | "you") {
 }
 
 /** Toggle like com optimistic update — atualiza a página correta em cache. */
-export function useToggleReviewLike(tab: "all" | "following") {
+export function useToggleReviewLike(tab: "all" | "following" | "you") {
   const { user } = useAuth();
   const key = [...qk.feed(), tab, user?.id || "anon"];
 
