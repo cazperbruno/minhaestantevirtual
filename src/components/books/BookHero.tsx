@@ -199,6 +199,19 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
                 <Button
                   variant="outline"
                   size="default"
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className="h-10 shrink-0 gap-2 hover:border-primary/60 hover:text-primary"
+                  aria-label="Atualizar informações do livro"
+                  title="Reprocessa título, autor, descrição, capa, editora, idioma e categorias usando múltiplas fontes"
+                >
+                  {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  <span>Atualizar dados</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="default"
                   onClick={onShare}
                   className="h-10 shrink-0 gap-2 hover:border-primary/60 hover:text-primary"
                   aria-label="Compartilhar"
