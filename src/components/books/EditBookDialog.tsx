@@ -14,9 +14,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { BookCover } from "./BookCover";
-import { Pencil, Trash2, Upload, Wand2, Loader2, X } from "lucide-react";
+import { Pencil, Trash2, Upload, Wand2, Loader2, X, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { resolveCover } from "@/lib/cover-fallback";
+import { refreshBookData } from "@/lib/refresh-book";
 import { useNavigate } from "react-router-dom";
 
 interface Props {
