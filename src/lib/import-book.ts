@@ -11,8 +11,19 @@ import { saveBook } from "@/lib/books-api";
 import type { Book } from "@/types/book";
 import type { AnilistManga } from "@/lib/anilist-api";
 
+/** UUID v4-ish check — a real internal book id is always a UUID. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Considera "externo" qualquer item que ainda NÃO está persistido no banco
+ * interno como UUID. Inclui resultados crus de Google/OpenLibrary/AniList
+ * (sem `id` ou com `id` no formato `ext_*`/`source_id`), garantindo que ao
+ * clicar no card a busca unificada o salve antes de navegar para o detalhe.
+ */
 export function isExternal(book: Pick<Book, "id">): boolean {
-  return typeof book.id === "string" && book.id.startsWith("ext_");
+  if (!book?.id || typeof book.id !== "string") return true;
+  if (book.id.startsWith("ext_")) return true;
+  return !UUID_RE.test(book.id);
 }
 
 /**

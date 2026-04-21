@@ -134,20 +134,40 @@ function useSameAuthor(book: Book) {
 }
 
 function useSameSeries(book: Book) {
+  const author = book.authors?.[0];
   return useQuery<Book[]>({
-    queryKey: ["sug", "series", book.series_id ?? "_", book.id],
-    enabled: !!book.series_id,
+    queryKey: ["sug", "series", book.series_id ?? "_", author ?? "_", book.id],
+    enabled: !!(book.series_id || author),
     ...CACHE.CATALOG,
     queryFn: async () => {
-      if (!book.series_id) return [];
+      // 1) Caminho direto: já tem series_id
+      if (book.series_id) {
+        const { data } = await supabase
+          .from("books")
+          .select("*")
+          .eq("series_id", book.series_id)
+          .neq("id", book.id)
+          .order("volume_number", { ascending: true, nullsFirst: false })
+          .limit(30);
+        return (data as Book[]) || [];
+      }
+      // 2) Fallback: detecta volumes do mesmo autor por título normalizado
+      if (!author) return [];
+      const { normalizeSeriesTitle, isLikelySameSeries } = await import("@/lib/series-normalize");
+      const seedNorm = normalizeSeriesTitle(book.title);
+      if (!seedNorm.key || seedNorm.key.length < 3) return [];
       const { data } = await supabase
         .from("books")
         .select("*")
-        .eq("series_id", book.series_id)
+        .contains("authors", [author])
         .neq("id", book.id)
-        .order("volume_number", { ascending: true, nullsFirst: false })
-        .limit(30);
-      return (data as Book[]) || [];
+        .limit(60);
+      const matches = ((data as Book[]) || [])
+        .map((b) => ({ b, n: normalizeSeriesTitle(b.title) }))
+        .filter(({ n }) => isLikelySameSeries(seedNorm.key, n.key))
+        .sort((a, z) => (a.n.volume ?? 999) - (z.n.volume ?? 999))
+        .map(({ b }) => b);
+      return matches.slice(0, 30);
     },
   });
 }
