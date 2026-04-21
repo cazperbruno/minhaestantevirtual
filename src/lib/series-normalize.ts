@@ -15,7 +15,7 @@
  */
 
 const VOL_KEYWORDS =
-  "vol(?:ume|\\.)?|tome|tomo|book|livro|capitulo|chapter|cap\\.?|n[º°o]?\\.?|#";
+  "vol(?:ume|\\.+)?|tome|tomo|book|livro|capitulo|chapter|cap\\.*|n[º°o]?\\.*|#";
 
 /** Remove acentos e lowercase. */
 export function strFold(s: string): string {
