@@ -1,15 +1,18 @@
 import { useMemo, useState } from "react";
-import { Loader2, Trash2, Check, AlertTriangle, BookOpen, Sparkles } from "lucide-react";
+import { Loader2, Trash2, Check, AlertTriangle, BookOpen, Sparkles, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
-import type { BookStatus } from "@/types/book";
+import type { BookStatus, ContentType } from "@/types/book";
+import { CONTENT_TYPE_LABEL } from "@/types/book";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { invalidate } from "@/lib/query-client";
 import { awardXp } from "@/lib/xp";
+import { strFold } from "@/lib/series-normalize";
 import { toast } from "sonner";
 
 /**
@@ -33,6 +36,10 @@ export interface BatchItem {
   cover_url?: string | null;
   /** Status que será atribuído ao adicionar à biblioteca. */
   pickedStatus: BookStatus;
+  /** Tipo de conteúdo atual no banco (vem do lookup). */
+  content_type?: ContentType;
+  /** Override manual do usuário (override do `content_type` antes do upsert). */
+  pickedContentType?: ContentType;
   errorMessage?: string;
 }
 
@@ -43,10 +50,14 @@ const STATUS_OPTIONS: Array<{ value: BookStatus; label: string; hint: string }> 
   { value: "read",     label: "Lido",      hint: "Já concluído" },
 ];
 
+const CONTENT_TYPE_OPTIONS: ContentType[] = ["book", "manga", "comic", "magazine"];
+
 interface Props {
   items: BatchItem[];
   /** Atualiza o status escolhido para um item específico. */
   onUpdateStatus: (key: string, status: BookStatus) => void;
+  /** Atualiza o content_type escolhido para um item específico. */
+  onUpdateContentType: (key: string, ct: ContentType) => void;
   /** Remove um item da lista. */
   onRemove: (key: string) => void;
   /** Limpa toda a lista (após salvar ou descarte). */
@@ -56,17 +67,19 @@ interface Props {
 }
 
 /**
- * Lista visual do lote de scan. Substitui a UI antiga de "histórico da sessão"
- * por cards completos com seleção de status e ação em massa.
+ * Lista visual do lote de scan.
  *
- * Fluxo:
- *  1. Scanner detecta ISBN → pai cria item `loading`
- *  2. Lookup resolve → pai muda para `ready` (ou `error`)
- *  3. Usuário ajusta status por item (default: "Acervo")
- *  4. "Adicionar todos" → upsert paralelo, toast de sucesso, invalida cache
+ * Detecção de "provável série não-numerada":
+ * Quando 2+ itens do lote compartilham o MESMO título normalizado +
+ * MESMO primeiro autor, exibe alerta no header e destaca esses itens
+ * em vermelho-âmbar pedindo confirmação do `content_type` (book vs manga
+ * vs comic). Isso resolve o caso "Chainsaw Man" — múltiplas cópias com
+ * título idêntico que na verdade são volumes distintos. Ao salvar com
+ * `pickedContentType` definido, atualizamos `books.content_type` antes
+ * do upsert, permitindo que o detector de séries reconheça o agrupamento.
  */
 export function BatchScanList({
-  items, onUpdateStatus, onRemove, onClear, onMarkSaved,
+  items, onUpdateStatus, onUpdateContentType, onRemove, onClear, onMarkSaved,
 }: Props) {
   const { user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
@@ -78,6 +91,63 @@ export function BatchScanList({
     error:   items.filter((i) => i.status === "error").length,
     saved:   items.filter((i) => i.status === "saved").length,
   }), [items]);
+
+  /**
+   * Mapa keyDoGrupo → quantidade. Um grupo é definido como
+   * (titulo normalizado + primeiro autor normalizado).
+   * Itens com count >= 2 são "potencial série".
+   */
+  const groupCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const it of items) {
+      if (it.status !== "ready" && it.status !== "saving") continue;
+      if (!it.title) continue;
+      const titleKey = strFold(it.title);
+      const authorKey = strFold(it.authors?.[0] || "");
+      const k = `${titleKey}|${authorKey}`;
+      m.set(k, (m.get(k) ?? 0) + 1);
+    }
+    return m;
+  }, [items]);
+
+  const groupKeyOf = (it: BatchItem) =>
+    `${strFold(it.title || "")}|${strFold(it.authors?.[0] || "")}`;
+
+  // Itens em colisão (mesmo título+autor que outro item ready)
+  const colidingKeys = useMemo(() => {
+    const set = new Set<string>();
+    for (const it of items) {
+      if (!it.title) continue;
+      if ((groupCounts.get(groupKeyOf(it)) ?? 0) >= 2) set.add(it.key);
+    }
+    return set;
+  }, [items, groupCounts]);
+
+  /**
+   * Grupos não resolvidos: ≥2 itens compartilhando título+autor onde NENHUM
+   * tem `pickedContentType` definido (override) e o `content_type` original
+   * é `book`. Esses são os candidatos a "provavelmente mangá/HQ".
+   */
+  const unresolvedGroups = useMemo(() => {
+    const groups = new Map<string, BatchItem[]>();
+    for (const it of items) {
+      if (it.status !== "ready" || !it.title) continue;
+      const k = groupKeyOf(it);
+      if ((groupCounts.get(k) ?? 0) < 2) continue;
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k)!.push(it);
+    }
+    // só "não resolvido" se TODOS os itens do grupo ainda estão como `book` puro
+    // sem override do usuário
+    const out: BatchItem[][] = [];
+    for (const arr of groups.values()) {
+      const allDefaultBook = arr.every((it) =>
+        !it.pickedContentType && (it.content_type ?? "book") === "book"
+      );
+      if (allDefaultBook) out.push(arr);
+    }
+    return out;
+  }, [items, groupCounts]);
 
   const canSubmit = !submitting && counts.ready > 0;
 
@@ -92,11 +162,30 @@ export function BatchScanList({
     setSubmitting(true);
     const savedKeys: string[] = [];
     let okCount = 0;
+    let typeChanges = 0;
 
     // Upsert em paralelo, mas com pequeno limite implícito (Promise.all aguenta dezenas)
     await Promise.all(
       toSave.map(async (item) => {
         try {
+          // Se o usuário trocou o content_type, atualiza o book antes
+          // (necessário para que o detector de séries agrupe corretamente).
+          const wantsTypeChange =
+            item.pickedContentType &&
+            item.pickedContentType !== (item.content_type ?? "book");
+          if (wantsTypeChange) {
+            const { error: ctErr } = await supabase
+              .from("books")
+              .update({ content_type: item.pickedContentType! })
+              .eq("id", item.bookId!);
+            if (ctErr) {
+              // não bloqueia o save — apenas registra
+              console.warn("update content_type failed", item.isbn, ctErr);
+            } else {
+              typeChanges++;
+            }
+          }
+
           const { error } = await supabase
             .from("user_books")
             .upsert(
@@ -124,6 +213,14 @@ export function BatchScanList({
         okCount === 1
           ? "1 livro adicionado à biblioteca"
           : `${okCount} livros adicionados à biblioteca`,
+      );
+    }
+    if (typeChanges > 0) {
+      toast.info(
+        typeChanges === 1
+          ? "1 livro reclassificado — série será agrupada em segundos"
+          : `${typeChanges} livros reclassificados — séries serão agrupadas em segundos`,
+        { duration: 3500 },
       );
     }
     if (okCount < toSave.length) {
@@ -169,6 +266,37 @@ export function BatchScanList({
         </div>
       </div>
 
+      {/* Aviso de provável série não-numerada */}
+      {unresolvedGroups.length > 0 && (
+        <div className="px-4 pt-4">
+          <Alert className="border-amber-500/40 bg-amber-500/5">
+            <Layers className="h-4 w-4 text-amber-500" aria-hidden />
+            <AlertTitle className="text-sm">Provável série detectada</AlertTitle>
+            <AlertDescription className="text-xs">
+              {unresolvedGroups.length === 1
+                ? "Encontramos várias cópias com o mesmo título e autor — provavelmente são volumes da mesma série."
+                : `Encontramos ${unresolvedGroups.length} grupos de cópias com mesmo título — provavelmente são séries.`}{" "}
+              Confirme o tipo (mangá / quadrinho) abaixo para que eles sejam agrupados automaticamente.
+              <div className="mt-2 flex flex-wrap gap-2">
+                {unresolvedGroups.map((grp, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => {
+                      // marca todos como manga (sugestão default mais comum)
+                      grp.forEach((it) => onUpdateContentType(it.key, "manga"));
+                    }}
+                    className="text-xs px-2.5 py-1 rounded-md bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 transition-colors"
+                  >
+                    Marcar “{grp[0].title}” ({grp.length}×) como mangá
+                  </button>
+                ))}
+              </div>
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+
       {/* Lista de items — scroll vertical contido se passar de ~5 itens */}
       <div className="max-h-[60vh] overflow-y-auto divide-y divide-border/40">
         {items.map((item) => (
@@ -176,7 +304,9 @@ export function BatchScanList({
             key={item.key}
             item={item}
             disabled={submitting}
+            isColliding={colidingKeys.has(item.key)}
             onUpdateStatus={(s) => onUpdateStatus(item.key, s)}
+            onUpdateContentType={(ct) => onUpdateContentType(item.key, ct)}
             onRemove={() => onRemove(item.key)}
           />
         ))}
@@ -186,28 +316,39 @@ export function BatchScanList({
 }
 
 function BatchItemRow({
-  item, disabled, onUpdateStatus, onRemove,
+  item, disabled, isColliding, onUpdateStatus, onUpdateContentType, onRemove,
 }: {
   item: BatchItem;
   disabled: boolean;
+  isColliding: boolean;
   onUpdateStatus: (s: BookStatus) => void;
+  onUpdateContentType: (ct: ContentType) => void;
   onRemove: () => void;
 }) {
   const isError = item.status === "error";
   const isSaved = item.status === "saved";
   const isLoading = item.status === "loading";
   const isSaving = item.status === "saving";
+  const effectiveType: ContentType =
+    item.pickedContentType ?? item.content_type ?? "book";
+  // Mostrar destaque só quando colide E ainda está como "book" puro
+  const needsAttention =
+    isColliding &&
+    !item.pickedContentType &&
+    (item.content_type ?? "book") === "book";
 
   return (
     <div className={cn(
       "flex items-center gap-3 p-3 transition-colors",
       isSaved && "bg-status-read/5",
       isError && "bg-destructive/5",
+      needsAttention && !isSaved && !isError && "bg-amber-500/5",
     )}>
       {/* Capa */}
       <div className={cn(
         "w-12 h-16 shrink-0 rounded-md overflow-hidden bg-muted ring-1 ring-border relative",
         isSaved && "ring-status-read/40",
+        needsAttention && "ring-amber-500/50",
       )}>
         {item.cover_url ? (
           <img src={item.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" />
@@ -247,45 +388,79 @@ function BatchItemRow({
                 {item.authors[0]}
               </p>
             )}
+            {needsAttention && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3" />
+                Confirme o tipo para agrupar como série
+              </p>
+            )}
           </>
         )}
       </div>
 
       {/* Ações */}
-      <div className="flex items-center gap-1.5 shrink-0">
+      <div className="flex flex-col items-end gap-1.5 shrink-0">
         {(item.status === "ready" || isSaving) && !isSaved && (
-          <Select
-            value={item.pickedStatus}
-            onValueChange={(v) => onUpdateStatus(v as BookStatus)}
-            disabled={disabled || isSaving}
-          >
-            <SelectTrigger className="h-8 w-[110px] text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                  <span className="font-medium">{opt.label}</span>
-                  <span className="text-muted-foreground ml-1.5 text-[10px]">{opt.hint}</span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+          <div className="flex items-center gap-1.5">
+            {/* Tipo de conteúdo — sempre mostra quando colide; senão escondido */}
+            {isColliding && (
+              <Select
+                value={effectiveType}
+                onValueChange={(v) => onUpdateContentType(v as ContentType)}
+                disabled={disabled || isSaving}
+              >
+                <SelectTrigger
+                  className={cn(
+                    "h-8 w-[100px] text-xs",
+                    needsAttention && "border-amber-500/50",
+                  )}
+                  aria-label="Tipo de conteúdo"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CONTENT_TYPE_OPTIONS.map((ct) => (
+                    <SelectItem key={ct} value={ct} className="text-xs">
+                      {CONTENT_TYPE_LABEL[ct]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
 
-        {isSaving && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
+            <Select
+              value={item.pickedStatus}
+              onValueChange={(v) => onUpdateStatus(v as BookStatus)}
+              disabled={disabled || isSaving}
+            >
+              <SelectTrigger className="h-8 w-[110px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                    <span className="font-medium">{opt.label}</span>
+                    <span className="text-muted-foreground ml-1.5 text-[10px]">{opt.hint}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-        {!isSaving && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onRemove}
-            disabled={disabled}
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-            aria-label="Remover do lote"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
+            {isSaving && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
+
+            {!isSaving && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onRemove}
+                disabled={disabled}
+                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                aria-label="Remover do lote"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            )}
+          </div>
         )}
       </div>
     </div>

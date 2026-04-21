@@ -266,6 +266,7 @@ export default function ScannerPage() {
           title: book.title,
           authors: (book as any).authors,
           cover_url: (book as any).cover_url,
+          content_type: (book as any).content_type ?? "book",
         } : it));
         if (user) {
           void supabase.from("user_interactions").insert({
@@ -546,6 +547,9 @@ export default function ScannerPage() {
               items={batch}
               onUpdateStatus={(key, status) =>
                 setBatch((prev) => prev.map((it) => it.key === key ? { ...it, pickedStatus: status } : it))
+              }
+              onUpdateContentType={(key, ct) =>
+                setBatch((prev) => prev.map((it) => it.key === key ? { ...it, pickedContentType: ct } : it))
               }
               onRemove={(key) => setBatch((prev) => prev.filter((it) => it.key !== key))}
               onClear={() => setBatch([])}
