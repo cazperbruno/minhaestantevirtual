@@ -19,6 +19,8 @@ interface Props {
   /** Allow click-to-fix interactive menu. Defaults to true when there's a book.id. */
   interactive?: boolean;
   onCoverChange?: (url: string) => void;
+  /** view-transition-name aplicado no wrapper — usado para shared element entre telas. */
+  transitionName?: string;
 }
 
 const SIZES = {
@@ -29,7 +31,7 @@ const SIZES = {
 };
 
 export function BookCover({
-  book, size = "md", className, fallback = true, interactive, onCoverChange,
+  book, size = "md", className, fallback = true, interactive, onCoverChange, transitionName,
 }: Props) {
   const { user } = useAuth();
   const [src, setSrc] = useState<string | null>(book.cover_url ?? null);
@@ -117,8 +119,15 @@ export function BookCover({
     </div>
   );
 
+  const transitionStyle = transitionName
+    ? ({ viewTransitionName: transitionName } as React.CSSProperties)
+    : undefined;
+
   const inner = showImage ? (
-    <div className={cn("book-cover relative", SIZES[size], className)}>
+    <div
+      className={cn("book-cover relative", SIZES[size], className)}
+      style={transitionStyle}
+    >
       <img
         src={src!}
         alt={`Capa de ${book.title}`}
@@ -139,6 +148,7 @@ export function BookCover({
       style={{
         background:
           "linear-gradient(135deg, hsl(30 18% 14%) 0%, hsl(30 14% 8%) 50%, hsl(8 35% 18%) 100%)",
+        ...(transitionStyle || {}),
       }}
     >
       <div className="absolute inset-0 opacity-20" style={{

@@ -234,3 +234,35 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ==========================================================================
+   View Transitions API — shared element capa do card → BookHero.
+   Suporte: Chrome/Edge ≥111. Safari/Firefox: fallback automático (sem animação).
+   ========================================================================== */
+
+/* Crossfade base mais suave entre rotas (default seria 250ms abrupt). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 380ms;
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Capa compartilhada: usa nome dinâmico `book-cover-<id>` aplicado em ambas as telas.
+   O navegador interpola posição + tamanho automaticamente — só ajustamos a curva. */
+::view-transition-old(book-cover-*),
+::view-transition-new(book-cover-*) {
+  animation-duration: 520ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  /* mix-blend-mode normal evita flash em capas com transparência */
+  mix-blend-mode: normal;
+}
+
+/* Em reduced-motion, View Transitions também devem ser quase instantâneas. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  ::view-transition-old(book-cover-*),
+  ::view-transition-new(book-cover-*) {
+    animation-duration: 0.01ms !important;
+  }
+}

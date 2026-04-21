@@ -11,6 +11,7 @@ import { BookChat } from "./BookChat";
 import { EditBookDialog } from "./EditBookDialog";
 import { Heart, ShoppingBag, Share2, Plus, Loader2, Pencil } from "lucide-react";
 import { openAmazon } from "@/lib/amazon";
+import { bookCoverTransitionName } from "@/lib/view-transitions";
 
 interface Props {
   book: Book;
@@ -49,7 +50,7 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
       <div className="px-5 md:px-10 pt-10 md:pt-16 pb-12 max-w-6xl mx-auto">
         <div className="grid md:grid-cols-[280px_1fr] gap-8 md:gap-14 items-start">
           <div className="mx-auto md:mx-0 animate-scale-in drop-shadow-[0_25px_50px_hsl(var(--primary)/0.25)]">
-            <BookCover book={book} size="xl" />
+            <BookCover book={book} size="xl" transitionName={bookCoverTransitionName(book.id)} />
           </div>
 
           <div className="animate-fade-in space-y-5">
