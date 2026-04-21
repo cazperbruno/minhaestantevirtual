@@ -32,13 +32,13 @@ describe("amazonSearchUrl", () => {
       title: "Dom Casmurro",
       authors: ["Machado de Assis", "Outro"],
     });
-    // URL encoded
-    expect(decodeURIComponent(url)).toContain("k=Dom Casmurro Machado de Assis");
+    // URLSearchParams encoda espaços como '+'
+    expect(url).toContain("k=Dom+Casmurro+Machado+de+Assis");
   });
 
   it("título sozinho quando não há autor", () => {
     const url = amazonSearchUrl({ title: "Só Título", authors: [] });
-    expect(decodeURIComponent(url)).toContain("k=Só Título");
+    expect(url).toContain("k=S%C3%B3+T%C3%ADtulo");
   });
 
   it("inclui tag de afiliados", () => {
