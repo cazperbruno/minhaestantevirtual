@@ -1753,6 +1753,18 @@ export type Database = {
         }
         Relationships: []
       }
+      app_events_daily: {
+        Row: {
+          day: string | null
+          event: string | null
+          p50_latency_ms: number | null
+          p95_latency_ms: number | null
+          sessions: number | null
+          total: number | null
+          users: number | null
+        }
+        Relationships: []
+      }
       ranking_view: {
         Row: {
           avatar_url: string | null
