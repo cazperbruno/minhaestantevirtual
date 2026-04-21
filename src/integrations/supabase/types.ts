@@ -1501,6 +1501,42 @@ export type Database = {
         }
         Relationships: []
       }
+      series_backfill_queue: {
+        Row: {
+          attempts: number
+          book_id: string
+          enqueued_at: string
+          id: string
+          last_error: string | null
+          matched_series_id: string | null
+          next_attempt_at: string
+          processed_at: string | null
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          book_id: string
+          enqueued_at?: string
+          id?: string
+          last_error?: string | null
+          matched_series_id?: string | null
+          next_attempt_at?: string
+          processed_at?: string | null
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          book_id?: string
+          enqueued_at?: string
+          id?: string
+          last_error?: string | null
+          matched_series_id?: string | null
+          next_attempt_at?: string
+          processed_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       stories: {
         Row: {
           bg_color: string | null
