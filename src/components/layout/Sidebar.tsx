@@ -1,43 +1,43 @@
-import { Book, BookOpen, Library, Heart, User as UserIcon, LogOut, Search, ScanBarcode, ArrowRightLeft, MessageSquare, Trophy, Target, Users, BarChart3, Infinity as InfinityIcon, Repeat, FileText, Sparkles, Layers, Download } from "lucide-react";
+import {
+  Book,
+  Library,
+  Heart,
+  User as UserIcon,
+  LogOut,
+  ArrowRightLeft,
+  Users,
+  Infinity as InfinityIcon,
+  Repeat,
+  Layers,
+} from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { NotificationsBell } from "@/components/social/NotificationsBell";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
 import readifyLogo from "@/assets/readify-logo-v8.png";
 
-const baseItems = [
-  { to: "/", label: "Descobrir", icon: Book },
+/**
+ * Menu lateral enxuto — apenas o essencial.
+ * Metas, Estatísticas, Relatórios, Ranking, Progresso, Scanner, Feed, Buddy,
+ * Clubes, Buscar e Instalar foram movidos para dentro do Perfil (hub central)
+ * ou para deep-links contextuais.
+ */
+const items = [
+  { to: "/", label: "Início", icon: Book },
   { to: "/feed-infinito", label: "Para você", icon: InfinityIcon },
+  { to: "/leitores", label: "Leitores", icon: Users },
   { to: "/biblioteca", label: "Biblioteca", icon: Library },
   { to: "/series", label: "Minhas séries", icon: Layers },
   { to: "/desejos", label: "Lista de desejos", icon: Heart },
   { to: "/emprestimos", label: "Empréstimos", icon: ArrowRightLeft },
   { to: "/trocas", label: "Trocas", icon: Repeat },
-  { to: "/scanner", label: "Scanner", icon: ScanBarcode },
-  { to: "/feed", label: "Feed social", icon: MessageSquare },
-  { to: "/leitores", label: "Leitores", icon: Users },
-  { to: "/clubes", label: "Clubes", icon: Users },
-  { to: "/buddy", label: "Buddy Reading", icon: BookOpen },
-  { to: "/progresso", label: "Progresso", icon: Sparkles },
-  { to: "/ranking", label: "Ranking", icon: Trophy },
-  { to: "/metas", label: "Metas", icon: Target },
-  { to: "/estatisticas", label: "Estatísticas", icon: BarChart3 },
-  { to: "/instalar", label: "Instalar app", icon: Download },
-  { to: "/perfil", label: "Perfil", icon: UserIcon },
+  { to: "/perfil", label: "Configurações", icon: UserIcon },
 ];
-
-const adminItem = { to: "/relatorios", label: "Relatórios", icon: FileText };
 
 export function Sidebar() {
   const navigate = useNavigate();
-  const { isAdmin } = useIsAdmin();
-  // Insere "Relatórios" antes de "Perfil" apenas para admins
-  const items = isAdmin
-    ? [...baseItems.slice(0, -1), adminItem, baseItems[baseItems.length - 1]]
-    : baseItems;
   const handleLogout = async () => {
     await supabase.auth.signOut();
     toast.success("Até logo!");
@@ -73,19 +73,6 @@ export function Sidebar() {
             {label}
           </NavLink>
         ))}
-        <NavLink
-          to="/buscar"
-          className={({ isActive }) =>
-            cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
-              isActive
-                ? "bg-primary/15 text-primary"
-                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground",
-            )
-          }
-        >
-          <Search className="h-4 w-4" /> Buscar livros
-        </NavLink>
       </nav>
       <div className="p-4 border-t border-sidebar-border shrink-0">
         <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={handleLogout}>
