@@ -478,12 +478,16 @@ Deno.serve(async (req) => {
     }
 
     // Salva no cache global (upsert) — apenas se confiança razoável
+    // E somente se difere do que já está em cache (idempotência).
+    let cacheUpserted = false;
     if (result.confidence >= 0.5 && result.total_volumes) {
-      await supabase.from("series_enrichment_cache").upsert({
-        cache_key: key,
-        content_type: series.content_type,
-        title: series.title,
-        authors: series.authors || [],
+      const { data: existingCache } = await supabase
+        .from("series_enrichment_cache")
+        .select("total_volumes,total_chapters,status,description,cover_url,banner_url,categories,published_year,source,source_id,confidence")
+        .eq("cache_key", key)
+        .eq("content_type", series.content_type)
+        .maybeSingle();
+      const cacheCandidate = {
         total_volumes: result.total_volumes,
         total_chapters: result.total_chapters,
         status: result.status,
@@ -494,13 +498,34 @@ Deno.serve(async (req) => {
         published_year: result.published_year,
         source: result.source,
         source_id: result.source_id,
-        raw: result.raw,
         confidence: result.confidence,
-      }, { onConflict: "cache_key,content_type" });
+      };
+      const cachePatch = existingCache
+        ? diffPatch(existingCache as any, cacheCandidate)
+        : cacheCandidate;
+      if (Object.keys(cachePatch).length > 0) {
+        await supabase.from("series_enrichment_cache").upsert({
+          cache_key: key,
+          content_type: series.content_type,
+          title: series.title,
+          authors: series.authors || [],
+          ...cacheCandidate,
+          raw: result.raw,
+        }, { onConflict: "cache_key,content_type" });
+        cacheUpserted = true;
+      }
     }
 
     return new Response(
-      JSON.stringify({ ok: true, from: result.source, series: updated, enrichment: result }),
+      JSON.stringify({
+        ok: true,
+        from: result.source,
+        skipped_update: changedFields.length === 0,
+        changed_fields: changedFields,
+        cache_upserted: cacheUpserted,
+        series: updated,
+        enrichment: result,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
