@@ -70,7 +70,7 @@ function ActivityCardImpl({ activity: a, onToggleLike }: Props) {
 
       {a.book && (
         <Link to={`/livro/${a.book.id}`} className="flex gap-3 group">
-          <BookCover src={a.book.cover_url} title={a.book.title} className="w-16 h-24 rounded-md shadow-book shrink-0" />
+          <BookCover book={a.book} className="w-16 h-24 rounded-md shadow-book shrink-0" />
           <div className="flex-1 min-w-0 py-1">
             <p className="font-display text-base font-semibold line-clamp-2 group-hover:text-primary transition-colors">
               {a.book.title}
