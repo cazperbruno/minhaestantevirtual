@@ -496,8 +496,13 @@ export default function ReportsPage() {
           )}
         </Card>
 
-        {/* Painel de afiliados Amazon — visível somente para admins */}
-        {isAdmin && <AffiliateClicksPanel />}
+        {/* Paineis admin */}
+        {isAdmin && (
+          <>
+            <EventsAnalyticsPanel />
+            <AffiliateClicksPanel />
+          </>
+        )}
       </div>
     </AppShell>
   );
