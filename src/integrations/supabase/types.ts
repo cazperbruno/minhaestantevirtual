@@ -1067,6 +1067,86 @@ export type Database = {
         }
         Relationships: []
       }
+      stories: {
+        Row: {
+          bg_color: string | null
+          book_id: string | null
+          content: string | null
+          created_at: string
+          current_page: number | null
+          expires_at: string
+          id: string
+          kind: string
+          total_pages: number | null
+          user_id: string
+        }
+        Insert: {
+          bg_color?: string | null
+          book_id?: string | null
+          content?: string | null
+          created_at?: string
+          current_page?: number | null
+          expires_at?: string
+          id?: string
+          kind?: string
+          total_pages?: number | null
+          user_id: string
+        }
+        Update: {
+          bg_color?: string | null
+          book_id?: string | null
+          content?: string | null
+          created_at?: string
+          current_page?: number | null
+          expires_at?: string
+          id?: string
+          kind?: string
+          total_pages?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stories_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stories_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "trending_books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      story_views: {
+        Row: {
+          story_id: string
+          user_id: string
+          viewed_at: string
+        }
+        Insert: {
+          story_id: string
+          user_id: string
+          viewed_at?: string
+        }
+        Update: {
+          story_id?: string
+          user_id?: string
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_views_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trades: {
         Row: {
           created_at: string
@@ -1499,6 +1579,27 @@ export type Database = {
           success: boolean
         }[]
       }
+      active_seasonal_challenges: {
+        Args: never
+        Returns: {
+          category: string
+          code: string
+          description: string
+          icon: string
+          metric: string
+          tags: string[] | null
+          target: number
+          title: string
+          weight: number
+          xp_reward: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "challenge_templates"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       activity_relevance: {
         Args: {
           _activity_user: string
@@ -1571,6 +1672,7 @@ export type Database = {
           success: boolean
         }[]
       }
+      division_from_xp: { Args: { _xp: number }; Returns: string }
       ensure_invite: { Args: { _user_id: string }; Returns: string }
       get_affiliate_interactions_admin: {
         Args: { _from: string }
@@ -1588,6 +1690,18 @@ export type Database = {
           book_id: string
           collab_score: number
           reader_count: number
+        }[]
+      }
+      get_following_stories: {
+        Args: { _user_id: string }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          has_unseen: boolean
+          latest_at: string
+          story_count: number
+          user_id: string
+          username: string
         }[]
       }
       get_similar_users: {
@@ -1733,6 +1847,19 @@ export type Database = {
         Returns: {
           category: string
           weight: number
+        }[]
+      }
+      weekly_league_for_user: {
+        Args: { _user_id: string }
+        Returns: {
+          demotion_threshold: number
+          division: string
+          division_label: string
+          position_global: number
+          position_in_division: number
+          promotion_threshold: number
+          total_in_division: number
+          weekly_xp: number
         }[]
       }
       xp_for_level: { Args: { _level: number }; Returns: number }
