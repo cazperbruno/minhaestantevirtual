@@ -47,7 +47,6 @@ function SmartShelfCard({
   shelfTitle: string;
   ub: UserBook;
 }) {
-  const navigate = useNavigate();
   const [actionsOpen, setActionsOpen] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
