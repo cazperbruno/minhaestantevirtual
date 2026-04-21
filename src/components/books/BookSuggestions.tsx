@@ -42,7 +42,7 @@ export function BookSuggestions({ book }: Props) {
   }
 
   return (
-    <div className="mt-10 space-y-2">
+    <div className="mt-10 space-y-2 min-w-0">
       {seriesShelf.length > 0 && (
         <CinematicShelf
           title={book.series_id ? "Outros volumes da série" : "Continuação / mesma série"}
