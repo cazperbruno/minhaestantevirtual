@@ -547,6 +547,9 @@ export default function ScannerPage() {
               onUpdateStatus={(key, status) =>
                 setBatch((prev) => prev.map((it) => it.key === key ? { ...it, pickedStatus: status } : it))
               }
+              onUpdateContentType={(key, ct) =>
+                setBatch((prev) => prev.map((it) => it.key === key ? { ...it, pickedContentType: ct } : it))
+              }
               onRemove={(key) => setBatch((prev) => prev.filter((it) => it.key !== key))}
               onClear={() => setBatch([])}
               onMarkSaved={(keys) => {
