@@ -165,14 +165,18 @@ export default function FeedPage() {
               </li>
             ))}
           </ul>
-        ) : reviews.length === 0 ? (
+        ) : rows.length === 0 ? (
           <EmptyFeed tab={tab} />
         ) : (
           <>
             <ul className="space-y-5">
-              {reviews.map((r) => (
-                <li key={r.id}>
-                  <ReviewFeedCard review={r} onToggleLike={handleToggleLike} />
+              {rows.map((row) => (
+                <li key={`${row.kind}:${row.id}`}>
+                  {row.kind === "review" ? (
+                    <ReviewFeedCard review={row.review} onToggleLike={handleToggleLike} />
+                  ) : (
+                    <ActivityCard activity={row.activity} onToggleLike={handleToggleActivityLike} />
+                  )}
                 </li>
               ))}
             </ul>
@@ -180,12 +184,12 @@ export default function FeedPage() {
             {/* Sentinela do IntersectionObserver */}
             <div ref={sentinelRef} className="h-10" aria-hidden />
 
-            {isFetchingNextPage && (
+            {(isFetchingNextPage || isFetchingActs) && (
               <div className="flex justify-center py-6">
                 <Loader2 className="w-5 h-5 animate-spin text-primary" />
               </div>
             )}
-            {!hasNextPage && reviews.length >= 20 && (
+            {!hasNextPage && !hasMoreActs && rows.length >= 20 && (
               <p className="text-center text-xs text-muted-foreground italic py-8">
                 Você chegou ao fim ✨
               </p>
