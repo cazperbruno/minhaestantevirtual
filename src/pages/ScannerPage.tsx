@@ -24,11 +24,36 @@ import { cn } from "@/lib/utils";
 import { awardXp } from "@/lib/xp";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { haptic } from "@/lib/haptics";
+import { markScanStart, markScanSuccess, markScanCancelled, getScanStats } from "@/lib/scan-metrics";
 
 type Mode = "barcode" | "cover" | "page";
 
-function vibrate(pattern: number | number[]) {
-  try { navigator.vibrate?.(pattern); } catch { /* noop */ }
+/** Erros normalizados pra mostrar fallback claro ao usuário. */
+type CameraError =
+  | { kind: "permission"; message: string }
+  | { kind: "no-device"; message: string }
+  | { kind: "in-use"; message: string }
+  | { kind: "insecure"; message: string }
+  | { kind: "unknown"; message: string };
+
+function classifyCameraError(err: unknown): CameraError {
+  const e = err as { name?: string; message?: string } | undefined;
+  const name = e?.name ?? "";
+  const msg = e?.message ?? "Erro desconhecido";
+  if (typeof window !== "undefined" && !window.isSecureContext) {
+    return { kind: "insecure", message: "A câmera só funciona em HTTPS" };
+  }
+  if (name === "NotAllowedError" || name === "SecurityError") {
+    return { kind: "permission", message: "Permissão de câmera negada" };
+  }
+  if (name === "NotFoundError" || name === "OverconstrainedError") {
+    return { kind: "no-device", message: "Nenhuma câmera traseira disponível" };
+  }
+  if (name === "NotReadableError" || name === "AbortError") {
+    return { kind: "in-use", message: "Câmera em uso por outro app" };
+  }
+  return { kind: "unknown", message: msg };
 }
 
 const MODE_LABEL: Record<Mode, string> = {
