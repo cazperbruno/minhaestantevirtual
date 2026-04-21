@@ -191,6 +191,17 @@ export function useRealtimeInvalidation() {
           hot(qk.followingReads(userId));
         },
       )
+      // -------- ACTIVITY LIKES / COMMENTS --------
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "activity_likes" },
+        () => hot(qk.feed()),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "activity_comments" },
+        () => hot(qk.feed()),
+      )
       // -------- BUDDY READS (chat ativo → HOT) --------
       .on(
         "postgres_changes",
