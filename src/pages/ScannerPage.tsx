@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import {
   Camera, Loader2, ScanBarcode, Sparkles, X, Search, BookX,
-  Zap, ZapOff, Check, ArrowRight, BookOpen, FileText, Image as ImageIcon, Plus, Repeat,
+  Zap, ZapOff, Check, ArrowRight, BookOpen, FileText, Image as ImageIcon, Plus,
+  Layers, Repeat, ScanLine,
 } from "lucide-react";
+import { BatchScanList, type BatchItem } from "@/components/books/BatchScanList";
+
+import { invalidate } from "@/lib/query-client";
 import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 import {
@@ -52,10 +54,17 @@ export default function ScannerPage() {
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [manualIsbn, setManualIsbn] = useState("");
-  /** Modo contínuo: após adicionar, volta sozinho a escanear em 2s. */
-  const [continuous, setContinuous] = useState(true);
-  /** Histórico da sessão atual de escaneamento (para feedback social-style). */
+  /**
+   * Modos de escaneamento (UX Apple-style segmented):
+   *  - "single":     scaneia 1 livro, pára e mostra cartão "ver livro"
+   *  - "continuous": auto-adiciona ao acervo (status: not_read) e reagenda scan
+   *  - "batch":      junta numa lista temporária com escolha de status por item
+   */
+  const [scanMode, setScanMode] = useState<"single" | "continuous" | "batch">("batch");
+  /** Histórico da sessão (modo contínuo). */
   const [sessionLog, setSessionLog] = useState<Array<{ id: string; title: string; cover_url?: string | null }>>([]);
+  /** Lista do lote atual (modo batch). Resetada manualmente pelo usuário. */
+  const [batch, setBatch] = useState<BatchItem[]>([]);
   const continuousTimerRef = useRef<number | null>(null);
 
   // Barcode state
@@ -172,8 +181,80 @@ export default function ScannerPage() {
     }
   };
 
-  // Cascade: ISBN → cache+search → cover IA
+  /**
+   * Reagenda um novo scan no modo contínuo OU lote — pequeno delay pro usuário
+   * conseguir ver o feedback visual antes da câmera reativar.
+   */
+  const rescheduleScan = (delay = 1200) => {
+    if (continuousTimerRef.current) clearTimeout(continuousTimerRef.current);
+    continuousTimerRef.current = window.setTimeout(() => {
+      setFoundBook(null);
+      setDetected(null);
+      if (mode === "barcode") startBarcode();
+    }, delay);
+  };
+
+  /**
+   * Adiciona um item ao batch (modo lote). Se o ISBN já existe na lista
+   * (ainda não salvo), apenas re-vibra como feedback — não duplica.
+   */
+  const pushBatchItem = async (isbn: string) => {
+    // Dedupe por ISBN dentro da sessão atual (ignora itens já salvos)
+    const exists = batch.some((b) => b.isbn === isbn && b.status !== "saved");
+    if (exists) {
+      vibrate(20);
+      toast.info("Já está no lote", { duration: 1200 });
+      rescheduleScan(800);
+      return;
+    }
+
+    const key = `${isbn}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setBatch((prev) => [
+      { key, isbn, status: "loading", pickedStatus: "not_read" },
+      ...prev,
+    ]);
+
+    // Reagenda câmera IMEDIATAMENTE — lookup roda em paralelo
+    rescheduleScan(900);
+
+    try {
+      const book = await lookupIsbn(isbn);
+      if (book?.id) {
+        vibrate([20, 30, 60]);
+        setBatch((prev) => prev.map((it) => it.key === key ? {
+          ...it,
+          status: "ready",
+          bookId: book.id,
+          title: book.title,
+          authors: (book as any).authors,
+          cover_url: (book as any).cover_url,
+        } : it));
+        if (user) {
+          void supabase.from("user_interactions").insert({
+            user_id: user.id, book_id: book.id, kind: "scan", weight: 1,
+          });
+        }
+      } else {
+        vibrate([100, 50, 100]);
+        setBatch((prev) => prev.map((it) => it.key === key ? {
+          ...it, status: "error", errorMessage: "ISBN não encontrado",
+        } : it));
+      }
+    } catch (e: any) {
+      setBatch((prev) => prev.map((it) => it.key === key ? {
+        ...it, status: "error", errorMessage: e?.message || "Erro",
+      } : it));
+    }
+  };
+
+  // Cascade: ISBN → cache+search. Roteia pelo modo selecionado.
   const resolveIsbn = async (isbn: string) => {
+    // ===== MODO LOTE: não bloqueia a UI, apenas empilha =====
+    if (scanMode === "batch") {
+      pushBatchItem(isbn);
+      return;
+    }
+
     setBusy(true);
     setBusyLabel(`Buscando ISBN ${isbn}…`);
     setNotFoundIsbn(null);
@@ -188,19 +269,19 @@ export default function ScannerPage() {
           authors: (book as any).authors,
           cover_url: (book as any).cover_url,
         });
-        // Registra a interação 'scan' (alimenta desafios) e concede XP
         if (user) {
           void supabase.from("user_interactions").insert({
             user_id: user.id, book_id: book.id, kind: "scan", weight: 1,
           });
           void awardXp(user.id, "scan_book", { silent: true });
 
-          // Modo contínuo: auto-adiciona à biblioteca como 'not_read' e reagenda scan
-          if (continuous) {
+          // Modo contínuo: auto-adiciona como 'not_read' e reagenda
+          if (scanMode === "continuous") {
             await supabase.from("user_books").upsert(
               { user_id: user.id, book_id: book.id, status: "not_read" },
               { onConflict: "user_id,book_id" },
             );
+            invalidate.library(user.id);
             setSessionLog((log) => [
               { id: book.id, title: book.title, cover_url: (book as any).cover_url },
               ...log,
@@ -209,13 +290,7 @@ export default function ScannerPage() {
               description: "Adicionado · escaneando próximo…",
               duration: 1800,
             });
-            // Reagenda novo scan automaticamente
-            if (continuousTimerRef.current) clearTimeout(continuousTimerRef.current);
-            continuousTimerRef.current = window.setTimeout(() => {
-              setFoundBook(null);
-              setDetected(null);
-              if (mode === "barcode") startBarcode();
-            }, 1500);
+            rescheduleScan(1500);
           } else {
             toast.success("Livro encontrado");
           }
@@ -390,23 +465,56 @@ export default function ScannerPage() {
           </div>
 
           {mode === "barcode" && (
-            <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-card/60 border border-border">
-              <Repeat className={cn("w-3.5 h-3.5 transition-colors", continuous ? "text-primary" : "text-muted-foreground")} />
-              <Label htmlFor="continuous-mode" className="text-xs font-medium cursor-pointer select-none">
-                Modo contínuo
-              </Label>
-              <Switch
-                id="continuous-mode"
-                checked={continuous}
-                onCheckedChange={setContinuous}
-                aria-label="Ativar modo contínuo de escaneamento"
-              />
+            <div
+              className="inline-flex items-center gap-1 p-1 rounded-full bg-card/60 border border-border"
+              role="radiogroup"
+              aria-label="Comportamento do scanner"
+            >
+              {[
+                { value: "single",     label: "Único",     icon: ScanLine, hint: "Para após cada livro" },
+                { value: "continuous", label: "Contínuo",  icon: Repeat,   hint: "Auto-adiciona ao acervo" },
+                { value: "batch",      label: "Lote",      icon: Layers,   hint: "Junta numa lista pra revisar" },
+              ].map(({ value, label, icon: Icon, hint }) => (
+                <button
+                  key={value}
+                  role="radio"
+                  aria-checked={scanMode === value}
+                  title={hint}
+                  onClick={() => setScanMode(value as typeof scanMode)}
+                  className={cn(
+                    "px-3 h-8 text-xs font-medium rounded-full transition-all flex items-center gap-1.5",
+                    scanMode === value
+                      ? "bg-primary text-primary-foreground shadow-glow"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon className="w-3 h-3" /> {label}
+                </button>
+              ))}
             </div>
           )}
         </div>
 
-        {/* Histórico da sessão atual — feedback visual ao escanear vários livros */}
-        {mode === "barcode" && continuous && sessionLog.length > 0 && (
+        {/* === BATCH MODE: lista de revisão antes de salvar em massa === */}
+        {mode === "barcode" && scanMode === "batch" && batch.length > 0 && (
+          <div className="mb-6">
+            <BatchScanList
+              items={batch}
+              onUpdateStatus={(key, status) =>
+                setBatch((prev) => prev.map((it) => it.key === key ? { ...it, pickedStatus: status } : it))
+              }
+              onRemove={(key) => setBatch((prev) => prev.filter((it) => it.key !== key))}
+              onClear={() => setBatch([])}
+              onMarkSaved={(keys) => {
+                const set = new Set(keys);
+                setBatch((prev) => prev.map((it) => set.has(it.key) ? { ...it, status: "saved" } : it));
+              }}
+            />
+          </div>
+        )}
+
+        {/* === CONTINUOUS MODE: histórico horizontal compacto === */}
+        {mode === "barcode" && scanMode === "continuous" && sessionLog.length > 0 && (
           <div className="glass rounded-2xl p-4 mb-6 animate-fade-in">
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
