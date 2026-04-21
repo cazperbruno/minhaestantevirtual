@@ -200,7 +200,10 @@ function PhysicalShelf({ label, books }: { label: string; books: UserBook[] }) {
           )}
         </div>
         {/* Linha de madeira (prateleira física) */}
-        <div className="h-2 rounded-b-md bg-gradient-to-b from-amber-900/40 to-amber-950/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_2px_6px_rgba(0,0,0,0.4)]" />
+        <div
+          className="h-2 rounded-b-md"
+          style={{ background: "var(--shelf-wood)", boxShadow: "var(--shadow-shelf)" }}
+        />
       </div>
     </section>
   );
