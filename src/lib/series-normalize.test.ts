@@ -26,8 +26,9 @@ describe("isLikelySameSeries", () => {
   it("igual → true", () => {
     expect(isLikelySameSeries("berserk", "berserk")).toBe(true);
   });
-  it("containment forte → true", () => {
-    expect(isLikelySameSeries("berserk", "berserkdeluxe")).toBe(true);
+  it("containment forte (≥70% do tamanho) → true", () => {
+    // "berserk" (7) contido em "berserkmax" (10) → 0.7
+    expect(isLikelySameSeries("berserk", "berserkmax")).toBe(true);
   });
   it("strings curtas distintas → false", () => {
     expect(isLikelySameSeries("a", "b")).toBe(false);
