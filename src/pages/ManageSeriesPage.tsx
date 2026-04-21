@@ -223,6 +223,24 @@ function SeriesRow({
             <BookOpen className="w-3.5 h-3.5" /> Ver
           </Button>
         </Link>
+        <Button
+          size="sm"
+          variant={totalUnknown ? "outline" : "ghost"}
+          onClick={() => enrich.mutate({ seriesId: s.id, force: true })}
+          disabled={enriching}
+          className={cn(
+            "gap-1.5",
+            totalUnknown && "border-primary/40 text-primary hover:bg-primary/10",
+          )}
+          title="Buscar metadados oficiais (volumes, status, sinopse) com IA + AniList"
+        >
+          {enriching ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Sparkles className="w-3.5 h-3.5" />
+          )}
+          IA
+        </Button>
         <Button size="sm" variant="ghost" onClick={onLink} className="gap-1.5">
           <Link2 className="w-3.5 h-3.5" /> Volumes
         </Button>
