@@ -42,13 +42,11 @@ function setup() {
   // Cria queries observáveis (com queryFn) para distinguir HOT (refetch agora)
   // de COLD (só marca stale). Active-only refetch precisa de observer.
   const seedActive = (key: readonly unknown[]) => {
-    queryClient.setQueryData(key as any, { __seed: true });
-    // Cria um observer "ativo" simulando uma tela montada que consome a query.
-    const obs = queryClient
-      .getQueryCache()
-      .build(queryClient, { queryKey: key as any, queryFn: async () => ({ __fresh: true }) });
-    obs.setData({ __seed: true });
-    // Adiciona observer fake — `isActive()` retorna true se observersCount > 0.
+    const obs = queryClient.getQueryCache().build(queryClient, {
+      queryKey: key as any,
+      queryFn: async () => ({ __fresh: true } as any),
+    });
+    obs.setData({ __seed: true } as any);
     obs.addObserver({} as any);
     return obs;
   };
