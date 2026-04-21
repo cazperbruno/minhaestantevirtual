@@ -1,6 +1,6 @@
 /**
  * Lista as séries (mangás/HQs) que o usuário está acompanhando, com
- * progresso agregado (volumes lidos / total).
+ * progresso agregado (volumes lidos / total) e ranking colecionador.
  *
  * Critério de "minha série": usuário tem pelo menos 1 volume da série
  * em user_books (status: reading / read / wishlist / not_read).
@@ -29,6 +29,10 @@ export interface MySeriesRow {
   next_volume?: number | null;
   /** atualização mais recente em qualquer volume da série */
   last_activity: string | null;
+  /** percentual completo (0-100) */
+  completion_pct: number;
+  /** quantos volumes faltam comprar (se total conhecido) */
+  missing_count: number | null;
 }
 
 export function useMySeries() {
@@ -70,26 +74,64 @@ export function useMySeries() {
             reading_count: 0,
             next_volume: null,
             last_activity: null,
+            completion_pct: 0,
+            missing_count: null,
             _unread_volumes: [],
           } as MySeriesRow & { _unread_volumes: number[] });
         cur.owned_count += 1;
         if (row.status === "read") cur.read_count += 1;
         else if (row.status === "reading") cur.reading_count += 1;
-        else if (typeof b.volume_number === "number") cur._unread_volumes.push(b.volume_number);
+        if (row.status !== "read" && typeof b.volume_number === "number") {
+          cur._unread_volumes.push(b.volume_number);
+        }
         if (!cur.last_activity || row.updated_at > cur.last_activity) {
           cur.last_activity = row.updated_at;
         }
         map.set(s.id, cur);
       }
 
-      // 3) Resolve next_volume e ordena por atividade recente
+      // 3) Resolve next_volume / completion / missing
       return Array.from(map.values())
         .map((r) => {
           const { _unread_volumes, ...clean } = r;
           const next = _unread_volumes.sort((a, b) => a - b)[0];
-          return { ...clean, next_volume: next ?? null };
+          const total = clean.total_volumes ?? clean.owned_count;
+          const pct = total > 0 ? Math.min(100, Math.round((clean.read_count / total) * 100)) : 0;
+          const missing =
+            clean.total_volumes != null
+              ? Math.max(0, clean.total_volumes - clean.owned_count)
+              : null;
+          return {
+            ...clean,
+            next_volume: next ?? null,
+            completion_pct: pct,
+            missing_count: missing,
+          };
         })
         .sort((a, b) => (b.last_activity || "").localeCompare(a.last_activity || ""));
+    },
+  });
+}
+
+export interface CollectionRankRow {
+  series_id: string;
+  title: string;
+  cover_url: string | null;
+  content_type: ContentType;
+  total_volumes: number | null;
+  collectors: number;
+  avg_completion: number;
+}
+
+/** Ranking global de séries mais completas (modo colecionador). */
+export function useCollectionRanking() {
+  return useQuery<CollectionRankRow[]>({
+    queryKey: ["series-ranking"],
+    ...CACHE.CATALOG,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("series_collection_ranking", { _limit: 30 });
+      if (error) throw error;
+      return (data as CollectionRankRow[]) || [];
     },
   });
 }

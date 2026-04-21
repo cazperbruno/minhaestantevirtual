@@ -1947,6 +1947,13 @@ export type Database = {
         Returns: boolean
       }
       level_for_xp: { Args: { _xp: number }; Returns: number }
+      parse_series_title: {
+        Args: { _title: string }
+        Returns: {
+          series_title: string
+          volume_num: number
+        }[]
+      }
       reading_streak: { Args: { _user_id: string }; Returns: number }
       recommend_book: {
         Args: {
@@ -1999,6 +2006,18 @@ export type Database = {
         Returns: {
           message: string
           success: boolean
+        }[]
+      }
+      series_collection_ranking: {
+        Args: { _limit?: number }
+        Returns: {
+          avg_completion: number
+          collectors: number
+          content_type: Database["public"]["Enums"]["content_type"]
+          cover_url: string
+          series_id: string
+          title: string
+          total_volumes: number
         }[]
       }
       similar_books: {

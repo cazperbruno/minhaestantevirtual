@@ -134,17 +134,23 @@ function Section({
 
 function SeriesCard({ s }: { s: MySeriesRow }) {
   const total = s.total_volumes ?? Math.max(s.owned_count, s.read_count);
-  const pct = total > 0 ? Math.min(100, Math.round((s.read_count / total) * 100)) : 0;
+  const pct = s.completion_pct;
   const complete = total > 0 && s.read_count >= total;
 
   return (
     <Link
       to={`/serie/${s.id}`}
       className={cn(
-        "group glass rounded-2xl p-4 flex gap-3 hover:border-primary/40 transition-all",
+        "group glass rounded-2xl p-4 flex gap-3 hover:border-primary/40 transition-all relative overflow-hidden",
         complete && "ring-1 ring-primary/30",
       )}
     >
+      {/* Pct badge destaque */}
+      {pct > 0 && (
+        <div className="absolute top-2 right-2 z-10 px-2 py-0.5 rounded-full bg-primary/15 backdrop-blur text-primary text-[10px] font-bold tabular-nums">
+          {pct}%
+        </div>
+      )}
       <div className="w-16 h-24 shrink-0 rounded-md overflow-hidden bg-muted shadow-book">
         {s.cover_url ? (
           <img
@@ -165,13 +171,13 @@ function SeriesCard({ s }: { s: MySeriesRow }) {
           {CONTENT_TYPE_LABEL[s.content_type]}
           {s.status && <span className="opacity-60">· {s.status}</span>}
         </div>
-        <h3 className="font-display font-semibold leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+        <h3 className="font-display font-semibold leading-tight line-clamp-2 group-hover:text-primary transition-colors pr-10">
           {s.title}
         </h3>
         <p className="text-xs text-muted-foreground truncate mt-0.5">{s.authors[0]}</p>
 
-        <div className="mt-auto pt-3">
-          <div className="flex items-center justify-between text-[11px] tabular-nums mb-1">
+        <div className="mt-auto pt-3 space-y-1">
+          <div className="flex items-center justify-between text-[11px] tabular-nums">
             <span className="text-muted-foreground">
               {s.read_count} / {total || "?"} {complete ? "✓" : ""}
             </span>
@@ -188,6 +194,11 @@ function SeriesCard({ s }: { s: MySeriesRow }) {
               style={{ width: `${pct}%` }}
             />
           </div>
+          {s.missing_count != null && s.missing_count > 0 && (
+            <p className="text-[10px] text-muted-foreground/80">
+              Faltam <span className="font-semibold text-foreground/80">{s.missing_count}</span> volume{s.missing_count !== 1 ? "s" : ""}
+            </p>
+          )}
         </div>
       </div>
     </Link>
