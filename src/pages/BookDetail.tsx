@@ -88,12 +88,14 @@ export default function BookDetail() {
           onBookUpdated={updateBookCache}
         />
 
-        <div className="px-5 md:px-10 pb-20 max-w-6xl mx-auto grid md:grid-cols-[1fr_340px] gap-10 md:gap-14 mt-4">
-          <BookSynopsis
-            bookId={book.id}
-            description={book.description}
-            onDescriptionUpdated={(d) => updateBookCache({ ...book, description: d })}
-          />
+        <div className="px-5 md:px-10 pb-20 max-w-6xl mx-auto grid md:grid-cols-[1fr_340px] gap-10 md:gap-14 mt-4 min-w-0 w-full">
+          <div className="min-w-0">
+            <BookSynopsis
+              bookId={book.id}
+              description={book.description}
+              onDescriptionUpdated={(d) => updateBookCache({ ...book, description: d })}
+            />
+          </div>
           {ub && (
             <BookSidePanel
               book={book}
@@ -104,11 +106,11 @@ export default function BookDetail() {
           )}
         </div>
 
-        <div className="px-5 md:px-10 pb-10 max-w-6xl mx-auto">
+        <div className="px-5 md:px-10 pb-10 max-w-6xl mx-auto min-w-0">
           <ReviewSection bookId={book.id} />
         </div>
 
-        <div className="px-5 md:px-10 pb-24 max-w-6xl mx-auto">
+        <div className="px-5 md:px-10 pb-24 max-w-6xl mx-auto min-w-0">
           <BookSuggestions book={book} />
         </div>
       </ShelfNavigator>

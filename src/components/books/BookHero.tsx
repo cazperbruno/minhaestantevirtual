@@ -46,35 +46,35 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
         </>
       )}
 
-      <div className="px-5 md:px-10 pt-10 md:pt-16 pb-12 max-w-6xl mx-auto">
-        <div className="grid md:grid-cols-[280px_1fr] gap-8 md:gap-14 items-start">
+      <div className="px-5 md:px-10 pt-10 md:pt-16 pb-12 max-w-6xl mx-auto w-full min-w-0">
+        <div className="grid md:grid-cols-[280px_1fr] gap-8 md:gap-14 items-start min-w-0">
           <div className="mx-auto md:mx-0 animate-scale-in drop-shadow-[0_25px_50px_hsl(var(--primary)/0.25)]">
             <BookCover book={book} size="xl" transitionName={bookCoverTransitionName(book.id)} />
           </div>
 
-          <div className="space-y-5">
+          <div className="space-y-5 min-w-0 w-full">
             {ub && (
               <div className="hero-stagger" style={{ animationDelay: "60ms" }}>
                 <StatusBadge status={ub.status} />
               </div>
             )}
 
-            <div className="space-y-2 hero-stagger" style={{ animationDelay: "120ms" }}>
-              <h1 className="font-display text-4xl md:text-6xl font-bold leading-[1.05] text-balance text-foreground">
+            <div className="space-y-2 hero-stagger min-w-0" style={{ animationDelay: "120ms" }}>
+              <h1 className="font-display text-3xl sm:text-4xl md:text-6xl font-bold leading-[1.1] text-foreground break-words hyphens-auto">
                 {book.title}
               </h1>
               {book.subtitle && (
-                <p className="text-lg md:text-xl text-muted-foreground italic font-display">
+                <p className="text-base sm:text-lg md:text-xl text-muted-foreground italic font-display break-words">
                   {book.subtitle}
                 </p>
               )}
             </div>
 
-            <div className="space-y-1 hero-stagger" style={{ animationDelay: "220ms" }}>
-              <p className="text-lg md:text-xl text-foreground/95">
+            <div className="space-y-1 hero-stagger min-w-0" style={{ animationDelay: "220ms" }}>
+              <p className="text-base sm:text-lg md:text-xl text-foreground/95 break-words">
                 {book.authors.length > 0 ? book.authors.join(", ") : "Autor desconhecido"}
               </p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground break-words">
                 {[book.publisher, book.published_year, book.page_count && `${book.page_count} páginas`]
                   .filter(Boolean).join(" · ")}
               </p>
