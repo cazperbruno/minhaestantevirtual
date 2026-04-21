@@ -8,6 +8,7 @@
  * e devolve o `Book` real com UUID.
  */
 import { saveBook } from "@/lib/books-api";
+import { trackEvent } from "@/lib/track";
 import type { Book } from "@/types/book";
 import type { AnilistManga } from "@/lib/anilist-api";
 
