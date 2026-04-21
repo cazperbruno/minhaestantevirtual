@@ -326,8 +326,11 @@ Deno.serve(async (req) => {
             ? series.total_volumes // mantém o maior se usuário já tem mais
             : cached.total_volumes,
           status: series.status || cached.status,
-          description: series.description || cached.description,
-          cover_url: series.cover_url || cached.cover_url,
+          // ⬇️ fallback inteligente: pega a sinopse mais rica
+          description: pickBetterDescription(series.description, cached.description),
+          // ⬇️ fallback inteligente: pega a capa de maior qualidade
+          cover_url: pickBetterCover(series.cover_url, cached.cover_url),
+          banner_url: cached.banner_url || null,
           source: cached.source,
           source_id: cached.source_id,
           raw: cached.raw,
