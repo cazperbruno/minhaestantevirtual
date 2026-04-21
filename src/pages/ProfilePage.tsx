@@ -172,16 +172,19 @@ export default function ProfilePage() {
           />
         </div>
 
-        <Tabs defaultValue="overview" className="mt-8">
+        <Tabs defaultValue="library" className="mt-8">
           <TabsList className="w-full overflow-x-auto scrollbar-hide flex justify-start gap-1 bg-card/50 h-11 p-1">
-            <TabsTrigger value="overview" className="gap-1.5 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
-              <LibraryIcon className="w-3.5 h-3.5" /> Visão geral
+            <TabsTrigger value="library" className="gap-1.5 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+              <LibraryIcon className="w-3.5 h-3.5" /> Biblioteca
             </TabsTrigger>
             <TabsTrigger value="stats" className="gap-1.5 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
               <BarChart3 className="w-3.5 h-3.5" /> Estatísticas
             </TabsTrigger>
             <TabsTrigger value="goals" className="gap-1.5 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
               <Target className="w-3.5 h-3.5" /> Metas
+            </TabsTrigger>
+            <TabsTrigger value="reports" className="gap-1.5 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+              <FileText className="w-3.5 h-3.5" /> Relatórios
             </TabsTrigger>
             <TabsTrigger value="social" className="gap-1.5 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
               <Users className="w-3.5 h-3.5" /> Social
@@ -191,18 +194,14 @@ export default function ProfilePage() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Visão geral: conquistas + atalhos */}
-          <TabsContent value="overview" className="mt-6 space-y-6 animate-fade-in">
-            <AchievementsPanel userId={user!.id} />
-            <div className="grid sm:grid-cols-2 gap-3">
-              <QuickLink to="/biblioteca" icon={<LibraryIcon className="w-4 h-4" />} title="Minha biblioteca" desc={`${stats.total} livros`} />
-              <QuickLink to="/desejos" icon={<Target className="w-4 h-4" />} title="Lista de desejos" desc="O que ler depois" />
-              <QuickLink to="/series" icon={<LibraryIcon className="w-4 h-4" />} title="Minhas séries" desc="Coleções e volumes" />
-              <QuickLink to="/leitores" icon={<Users className="w-4 h-4" />} title="Encontrar leitores" desc="Comunidade Readify" />
-            </div>
+          {/* Biblioteca: preview agrupado por status (lazy) */}
+          <TabsContent value="library" className="mt-6 animate-fade-in">
+            <Suspense fallback={<TabFallback />}>
+              <ProfileLibraryTab />
+            </Suspense>
           </TabsContent>
 
-          {/* Estatísticas: resumo + link para página completa */}
+          {/* Estatísticas: resumo + atalho para análise completa */}
           <TabsContent value="stats" className="mt-6 space-y-4 animate-fade-in">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <MiniStat label="Lidos" value={stats.read} />
@@ -210,6 +209,7 @@ export default function ProfilePage() {
               <MiniStat label="Avaliação" value={stats.avgRating ? stats.avgRating.toFixed(1) : "—"} />
               <MiniStat label="Streak" value={`${streak?.current_days ?? 0}d`} icon={<Flame className="w-3.5 h-3.5 text-status-wishlist" />} />
             </div>
+            <AchievementsPanel userId={user!.id} />
             <Button asChild variant="outline" className="w-full gap-1.5">
               <Link to="/estatisticas">Ver estatísticas completas <ArrowRight className="w-4 h-4" /></Link>
             </Button>
@@ -240,9 +240,18 @@ export default function ProfilePage() {
             </Button>
           </TabsContent>
 
-          {/* Social */}
+          {/* Relatórios — insights automáticos (lazy) */}
+          <TabsContent value="reports" className="mt-6 animate-fade-in">
+            <Suspense fallback={<TabFallback />}>
+              <ProfileReportsTab userId={user!.id} />
+            </Suspense>
+          </TabsContent>
+
+          {/* Social (lazy) */}
           <TabsContent value="social" className="mt-6 animate-fade-in">
-            <ProfileSocialTab userId={user!.id} />
+            <Suspense fallback={<TabFallback />}>
+              <ProfileSocialTab userId={user!.id} />
+            </Suspense>
           </TabsContent>
 
           {/* Configurações: edição + privacidade + redes + PWA */}
