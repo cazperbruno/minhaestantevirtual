@@ -49,12 +49,19 @@ export function BookCover({
     setErrored(false);
   }, [book.cover_url]);
 
-  // Auto-resolve when no cover or current source failed
+  // Auto-resolve when no cover or current source failed.
+  // CRÍTICO: quando errored=true a URL atual tá morta — passa cover_url:null
+  // pra forçar o cover-search a buscar uma nova fonte. invalidateCover() limpa
+  // o memo pra não reutilizar a URL quebrada cacheada.
   useEffect(() => {
     if (!fallback) return;
     if (src && !errored) return;
     let cancelled = false;
-    resolveCover(book).then((u) => {
+    if (errored) invalidateCover(book);
+    resolveCover(
+      errored ? { ...book, cover_url: null } : book,
+      { persist: !!book.id }, // persiste no banco — outros usuários não veem capa quebrada
+    ).then((u) => {
       if (cancelled || !u) return;
       setErrored(false);
       setSrc(u);
