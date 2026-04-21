@@ -483,6 +483,13 @@ function LinkBooksDialog({
                 <CandidateRow
                   key={b.book_id}
                   book={b}
+                  usedNumbers={
+                    new Map(
+                      linkedVolumes
+                        .filter((x) => typeof x.volume_number === "number")
+                        .map((x) => [x.volume_number as number, x.title]),
+                    )
+                  }
                   onAdd={(vol) =>
                     link.mutate({ bookId: b.book_id, seriesId: series.id, volumeNumber: vol })
                   }
@@ -500,16 +507,151 @@ function LinkBooksDialog({
   );
 }
 
+// ---------------- linha de volume já vinculado (com validação inline) ----------------
+function LinkedVolumeRow({
+  bookId,
+  title,
+  coverUrl,
+  currentVolume,
+  usedNumbers,
+  onSave,
+  onUnlink,
+}: {
+  bookId: string;
+  title: string;
+  coverUrl: string | null;
+  currentVolume: number | null;
+  /** map volumeNumber → bookId que já o usa (na MESMA série) */
+  usedNumbers: Map<number, string>;
+  onSave: (val: number | null) => void;
+  onUnlink: () => void;
+}) {
+  const [val, setVal] = useState<string>(currentVolume != null ? String(currentVolume) : "");
+  const parsed = val ? parseInt(val, 10) : null;
+  // Conflito = número já está em uso por OUTRO livro da mesma série
+  const conflictOwnerId =
+    parsed != null && !Number.isNaN(parsed) ? usedNumbers.get(parsed) : undefined;
+  const hasConflict = !!conflictOwnerId && conflictOwnerId !== bookId;
+  const isUnnumbered = currentVolume == null && !val;
+
+  const commit = () => {
+    if (hasConflict) {
+      toast.error(`Volume #${parsed} já está em uso nesta série`, {
+        description: "Escolha outro número ou remova o conflito antes de salvar.",
+      });
+      // restaura visual
+      setVal(currentVolume != null ? String(currentVolume) : "");
+      return;
+    }
+    if (parsed !== currentVolume) {
+      onSave(parsed && !Number.isNaN(parsed) ? parsed : null);
+    }
+  };
+
+  return (
+    <li
+      className={cn(
+        "flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors",
+        hasConflict
+          ? "bg-destructive/10 ring-1 ring-destructive/40"
+          : isUnnumbered
+            ? "bg-amber-500/5 ring-1 ring-amber-500/30"
+            : "hover:bg-muted/40",
+      )}
+    >
+      <div className="w-7 h-10 shrink-0 rounded bg-muted overflow-hidden">
+        {coverUrl && <img src={coverUrl} alt="" className="w-full h-full object-cover" loading="lazy" />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm line-clamp-1">{title}</p>
+        {hasConflict && (
+          <p className="text-[10px] text-destructive flex items-center gap-1 mt-0.5">
+            <AlertTriangle className="w-3 h-3" />
+            Já existe volume #{parsed} nesta série
+          </p>
+        )}
+        {!hasConflict && isUnnumbered && (
+          <p className="text-[10px] text-amber-500 flex items-center gap-1 mt-0.5">
+            <AlertTriangle className="w-3 h-3" /> Volume sem número
+          </p>
+        )}
+      </div>
+      <Input
+        type="number"
+        min="1"
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        }}
+        className={cn(
+          "w-16 h-8 text-xs",
+          hasConflict && "border-destructive focus-visible:ring-destructive",
+        )}
+        placeholder="vol"
+      />
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={onUnlink}
+        className="h-8 w-8 p-0 text-destructive"
+        title="Remover da série"
+      >
+        <Unlink className="w-3.5 h-3.5" />
+      </Button>
+    </li>
+  );
+}
+
 function CandidateRow({
   book,
+  usedNumbers,
   onAdd,
 }: {
   book: UnlinkedUserBook;
+  /** map volumeNumber → título do livro que já o usa nesta série */
+  usedNumbers: Map<number, string>;
   onAdd: (vol: number | null) => void;
 }) {
   const [vol, setVol] = useState<string>(book.volume_number ? String(book.volume_number) : "");
+  const parsed = vol ? parseInt(vol, 10) : null;
+  const numberConflict =
+    parsed != null && !Number.isNaN(parsed) ? usedNumbers.get(parsed) : undefined;
+  const hasNumberConflict = !!numberConflict;
+  // sobreposição entre séries: livro já pertence a OUTRA série
+  const hasSeriesOverlap = !!book.current_series_id;
+
+  const blocked = hasNumberConflict;
+
+  const handleAdd = () => {
+    if (hasNumberConflict) {
+      toast.error(`Volume #${parsed} já existe nesta série`, {
+        description: `Em uso por: ${numberConflict}. Escolha outro número.`,
+      });
+      return;
+    }
+    if (hasSeriesOverlap) {
+      // Não bloqueia, mas pede confirmação explícita
+      const ok = window.confirm(
+        `"${book.title}" já está em "${book.current_series_title}". Mover para esta série?`,
+      );
+      if (!ok) return;
+    }
+    onAdd(parsed && !Number.isNaN(parsed) ? parsed : null);
+  };
+
   return (
-    <li className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/40">
+    <li
+      className={cn(
+        "flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors",
+        hasNumberConflict
+          ? "bg-destructive/10 ring-1 ring-destructive/40"
+          : hasSeriesOverlap
+            ? "bg-amber-500/5 ring-1 ring-amber-500/30"
+            : "hover:bg-muted/40",
+      )}
+    >
       <div className="w-7 h-10 shrink-0 rounded bg-muted overflow-hidden">
         {book.cover_url && (
           <img src={book.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" />
@@ -517,7 +659,19 @@ function CandidateRow({
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm line-clamp-1">{book.title}</p>
-        {book.current_series_title && (
+        {hasSeriesOverlap && !hasNumberConflict && (
+          <p className="text-[10px] text-amber-500 flex items-center gap-1 mt-0.5">
+            <AlertTriangle className="w-3 h-3" />
+            Já vinculado a "{book.current_series_title}" — vai ser movido
+          </p>
+        )}
+        {hasNumberConflict && (
+          <p className="text-[10px] text-destructive flex items-center gap-1 mt-0.5">
+            <AlertTriangle className="w-3 h-3" />
+            Vol. #{parsed} já existe (em "{numberConflict}")
+          </p>
+        )}
+        {!hasSeriesOverlap && !hasNumberConflict && book.current_series_title && (
           <p className="text-[10px] text-muted-foreground line-clamp-1">
             atualmente em: {book.current_series_title}
           </p>
@@ -528,14 +682,21 @@ function CandidateRow({
         min="1"
         value={vol}
         onChange={(e) => setVol(e.target.value)}
-        className="w-16 h-8 text-xs"
+        className={cn(
+          "w-16 h-8 text-xs",
+          hasNumberConflict && "border-destructive focus-visible:ring-destructive",
+        )}
         placeholder="vol"
       />
       <Button
         size="sm"
         variant="ghost"
-        onClick={() => onAdd(vol ? parseInt(vol, 10) : null)}
-        className="h-8 px-2 gap-1 text-primary"
+        onClick={handleAdd}
+        disabled={blocked}
+        className={cn(
+          "h-8 px-2 gap-1",
+          blocked ? "text-muted-foreground" : "text-primary",
+        )}
       >
         <Plus className="w-3.5 h-3.5" /> Add
       </Button>
