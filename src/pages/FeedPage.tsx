@@ -6,10 +6,12 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MessageSquare, Users, Sparkles, Search, Loader2, User as UserIcon } from "lucide-react";
 import { useFeed, useToggleReviewLike, FeedReview } from "@/hooks/useFeed";
+import { useActivityFeed, useToggleActivityLike, ActivityItem } from "@/hooks/useActivityFeed";
 import { usePublicRecommendations } from "@/hooks/useRecommendations";
 import { RecommendationCard } from "@/components/books/RecommendationCard";
 import { ContentTypeFilter, useContentFilter } from "@/components/books/ContentTypeFilter";
 import { ReviewFeedCard } from "@/components/social/ReviewFeedCard";
+import { ActivityCard } from "@/components/social/ActivityCard";
 import { FeedStoriesBar } from "@/components/social/FeedStoriesBar";
 
 export default function FeedPage() {
