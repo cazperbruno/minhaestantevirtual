@@ -51,10 +51,8 @@ const items: Item[] = [
   { to: "/ranking", label: "Ranking", icon: Trophy, group: "Comunidade" },
 
   { to: "/progresso", label: "Progresso", icon: Sparkles, group: "Você" },
-  { to: "/metas", label: "Metas", icon: Target, group: "Você" },
-  { to: "/estatisticas", label: "Estatísticas", icon: BarChart3, group: "Você" },
-  { to: "/relatorios", label: "Relatórios", icon: FileText, group: "Você" },
   { to: "/perfil", label: "Perfil", icon: UserIcon, group: "Você" },
+  { to: "/configuracoes", label: "Configurações", icon: Settings, group: "Você" },
 ];
 
 const groups = ["Descobrir", "Meus livros", "Comunidade", "Você"] as const;
@@ -62,11 +60,9 @@ const groups = ["Descobrir", "Meus livros", "Comunidade", "Você"] as const;
 export function MobileHeader() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { isAdmin } = useIsAdmin();
   const [open, setOpen] = useState(false);
 
-  // "Relatórios" só aparece para admins (contém painel de cliques de afiliados)
-  const visibleItems = isAdmin ? items : items.filter((i) => i.to !== "/relatorios");
+  const visibleItems = items;
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -130,7 +126,7 @@ export function MobileHeader() {
 
             <div className="border-t border-border p-3 space-y-1">
               <NavLink
-                to="/perfil"
+                to="/configuracoes"
                 onClick={() => setOpen(false)}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:bg-accent/30 hover:text-foreground"
               >
