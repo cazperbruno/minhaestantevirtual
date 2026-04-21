@@ -6,10 +6,12 @@ import { BookHero } from "@/components/books/BookHero";
 import { BookSynopsis } from "@/components/books/BookSynopsis";
 import { BookSidePanel } from "@/components/books/BookSidePanel";
 import { ReviewSection } from "@/components/books/ReviewSection";
+import { ShelfNavigator } from "@/components/books/ShelfNavigator";
 import { BookDetailSkeleton } from "@/components/ui/skeletons";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useBook, useUserBook, useCommitUserBook } from "@/hooks/useBookDetail";
+import { useShelfNavigation } from "@/hooks/useShelfNavigation";
 import { Book, UserBook } from "@/types/book";
 import { trackBookView } from "@/lib/ai-tracking";
 
