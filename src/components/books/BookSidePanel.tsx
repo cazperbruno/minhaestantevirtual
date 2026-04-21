@@ -1,10 +1,12 @@
+import { useState } from "react";
 import { Book, UserBook } from "@/types/book";
 import { Rating } from "./Rating";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
-import { Check, Sparkles, ShoppingCart } from "lucide-react";
+import { Check, Sparkles, ShoppingCart, Users } from "lucide-react";
 import { AvailabilityToggles } from "./AvailabilityToggles";
 import { RecommendBookDialog } from "./RecommendBookDialog";
+import { InviteBuddyDialog } from "@/components/social/InviteBuddyDialog";
 import { Button } from "@/components/ui/button";
 import { openAmazon } from "@/lib/amazon";
 
@@ -17,6 +19,7 @@ interface Props {
 
 export function BookSidePanel({ book, ub, onUpdate, onCommit }: Props) {
   const showProgress = book.page_count && (ub.status === "reading" || ub.status === "read");
+  const [buddyOpen, setBuddyOpen] = useState(false);
 
   return (
     <aside className="glass rounded-2xl p-6 h-fit md:sticky md:top-6 space-y-6">
@@ -71,6 +74,17 @@ export function BookSidePanel({ book, ub, onUpdate, onCommit }: Props) {
         <div className="mt-3">
           <RecommendBookDialog bookId={book.id} bookTitle={book.title} />
         </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="mt-3 w-full gap-2"
+          onClick={() => setBuddyOpen(true)}
+        >
+          <Users className="w-4 h-4" />
+          Convidar pra ler junto
+        </Button>
+        <InviteBuddyDialog bookId={book.id} bookTitle={book.title} open={buddyOpen} onOpenChange={setBuddyOpen} />
         <Button
           type="button"
           variant="outline"
