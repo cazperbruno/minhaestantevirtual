@@ -274,7 +274,7 @@ Deno.serve(async (req) => {
         // (busca livros do MESMO content_type cujo título normalizado bata)
         const { data: peers } = await supabase
           .from("books")
-          .select("id,title,authors,content_type,series_id,volume_number")
+          .select("id,title,authors,content_type,series_id,volume_number,created_at")
           .eq("content_type", ct)
           .ilike("title", `%${norm.base.split(" ")[0] || norm.base}%`)
           .limit(50);
