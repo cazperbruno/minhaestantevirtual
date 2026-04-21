@@ -6,21 +6,35 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MessageSquare, Users, Sparkles, Search, Loader2, User as UserIcon } from "lucide-react";
 import { useFeed, useToggleReviewLike, FeedReview } from "@/hooks/useFeed";
+import { useActivityFeed, useToggleActivityLike, ActivityItem } from "@/hooks/useActivityFeed";
 import { usePublicRecommendations } from "@/hooks/useRecommendations";
 import { RecommendationCard } from "@/components/books/RecommendationCard";
 import { ContentTypeFilter, useContentFilter } from "@/components/books/ContentTypeFilter";
 import { ReviewFeedCard } from "@/components/social/ReviewFeedCard";
+import { ActivityCard } from "@/components/social/ActivityCard";
 import { FeedStoriesBar } from "@/components/social/FeedStoriesBar";
+
+type FeedRow =
+  | { kind: "review"; ts: string; id: string; review: FeedReview }
+  | { kind: "activity"; ts: string; id: string; activity: ActivityItem };
 
 export default function FeedPage() {
   const [tab, setTab] = useState<"all" | "following" | "you">("all");
   const {
     data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage,
   } = useFeed(tab);
+  const {
+    data: actsData, fetchNextPage: fetchActs, hasNextPage: hasMoreActs,
+    isFetchingNextPage: isFetchingActs,
+  } = useActivityFeed(tab);
   const toggleLike = useToggleReviewLike(tab);
-  // Ref estável para que o memo do ReviewFeedCard funcione (mutate é estável,
-  // mas a arrow inline criava nova ref a cada render do feed).
+  const toggleActivityLike = useToggleActivityLike(tab);
+  // Refs estáveis para que o memo dos cards funcione
   const handleToggleLike = useCallback((rev: FeedReview) => toggleLike.mutate(rev), [toggleLike]);
+  const handleToggleActivityLike = useCallback(
+    (a: ActivityItem) => toggleActivityLike.mutate(a),
+    [toggleActivityLike],
+  );
   const { data: recsData } = usePublicRecommendations();
   const recs = useMemo(() => {
     const seen = new Set<string>();
@@ -35,43 +49,63 @@ export default function FeedPage() {
 
   const { active: activeTypes, available } = useContentFilter();
 
-  // Achata + dedupe (realtime pode causar overlap entre páginas) e
-  // filtra por content_type ativo + usuários silenciados (sessionStorage).
-  const reviews = useMemo<FeedReview[]>(() => {
+  // Mescla resenhas + atividades em ordem cronológica única, com dedupe e
+  // filtro por content_type/usuários silenciados.
+  const rows = useMemo<FeedRow[]>(() => {
     const seen = new Set<string>();
-    const out: FeedReview[] = [];
     const typeSet = new Set(activeTypes);
     let muted: Set<string>;
     try {
       muted = new Set<string>(JSON.parse(sessionStorage.getItem("muted_users") || "[]"));
     } catch { muted = new Set(); }
+
+    const out: FeedRow[] = [];
+
     for (const page of data?.pages ?? []) {
       for (const r of page.items) {
-        if (seen.has(r.id)) continue;
+        const k = `r:${r.id}`;
+        if (seen.has(k)) continue;
         if (muted.has(r.user_id)) continue;
         const t = (r.book?.content_type ?? "book") as string;
         if (!typeSet.has(t as any)) continue;
-        seen.add(r.id);
-        out.push(r);
+        seen.add(k);
+        out.push({ kind: "review", ts: r.created_at, id: r.id, review: r });
       }
     }
+    for (const page of actsData?.pages ?? []) {
+      for (const a of page.items) {
+        const k = `a:${a.id}`;
+        if (seen.has(k)) continue;
+        if (muted.has(a.user_id)) continue;
+        if (a.book) {
+          const t = (a.book?.content_type ?? "book") as string;
+          if (!typeSet.has(t as any)) continue;
+        }
+        seen.add(k);
+        out.push({ kind: "activity", ts: a.created_at, id: a.id, activity: a });
+      }
+    }
+
+    out.sort((a, b) => (a.ts < b.ts ? 1 : a.ts > b.ts ? -1 : 0));
     return out;
-  }, [data, activeTypes]);
+  }, [data, actsData, activeTypes]);
 
   // IntersectionObserver — dispara fetch quando sentinela entra na viewport.
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const el = sentinelRef.current;
-    if (!el || !hasNextPage) return;
+    if (!el) return;
     const io = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !isFetchingNextPage) fetchNextPage();
+        if (!entries[0].isIntersecting) return;
+        if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+        if (hasMoreActs && !isFetchingActs) fetchActs();
       },
       { rootMargin: "400px 0px" },
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, hasMoreActs, isFetchingActs, fetchActs]);
 
   return (
     <AppShell>
@@ -131,14 +165,18 @@ export default function FeedPage() {
               </li>
             ))}
           </ul>
-        ) : reviews.length === 0 ? (
+        ) : rows.length === 0 ? (
           <EmptyFeed tab={tab} />
         ) : (
           <>
             <ul className="space-y-5">
-              {reviews.map((r) => (
-                <li key={r.id}>
-                  <ReviewFeedCard review={r} onToggleLike={handleToggleLike} />
+              {rows.map((row) => (
+                <li key={`${row.kind}:${row.id}`}>
+                  {row.kind === "review" ? (
+                    <ReviewFeedCard review={row.review} onToggleLike={handleToggleLike} />
+                  ) : (
+                    <ActivityCard activity={row.activity} onToggleLike={handleToggleActivityLike} />
+                  )}
                 </li>
               ))}
             </ul>
@@ -146,12 +184,12 @@ export default function FeedPage() {
             {/* Sentinela do IntersectionObserver */}
             <div ref={sentinelRef} className="h-10" aria-hidden />
 
-            {isFetchingNextPage && (
+            {(isFetchingNextPage || isFetchingActs) && (
               <div className="flex justify-center py-6">
                 <Loader2 className="w-5 h-5 animate-spin text-primary" />
               </div>
             )}
-            {!hasNextPage && reviews.length >= 20 && (
+            {!hasNextPage && !hasMoreActs && rows.length >= 20 && (
               <p className="text-center text-xs text-muted-foreground italic py-8">
                 Você chegou ao fim ✨
               </p>

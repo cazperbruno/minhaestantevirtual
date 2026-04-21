@@ -20,7 +20,18 @@ interface Comment {
   profile?: { display_name: string | null; username: string | null; avatar_url: string | null };
 }
 
-type Target = "review" | "recommendation";
+type Target = "review" | "recommendation" | "activity";
+
+const TABLE_BY_TARGET: Record<Target, string> = {
+  review: "review_comments",
+  recommendation: "recommendation_comments",
+  activity: "activity_comments",
+};
+const FK_BY_TARGET: Record<Target, string> = {
+  review: "review_id",
+  recommendation: "recommendation_id",
+  activity: "activity_id",
+};
 
 interface Props {
   /** Compat: id da resenha (modo legado). Use `targetId` + `target` para outros tipos. */
@@ -40,8 +51,8 @@ export function CommentsThread({ reviewId, targetId, target = "review", initialC
   const [count, setCount] = useState(initialCount);
 
   const id = (targetId ?? reviewId) as string;
-  const tableName = target === "recommendation" ? "recommendation_comments" : "review_comments";
-  const fkColumn = target === "recommendation" ? "recommendation_id" : "review_id";
+  const tableName = TABLE_BY_TARGET[target];
+  const fkColumn = FK_BY_TARGET[target];
 
   const load = async () => {
     setLoading(true);
