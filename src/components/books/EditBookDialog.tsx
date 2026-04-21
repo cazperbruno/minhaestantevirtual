@@ -14,9 +14,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { BookCover } from "./BookCover";
-import { Pencil, Trash2, Upload, Wand2, Loader2, X } from "lucide-react";
+import { Pencil, Trash2, Upload, Wand2, Loader2, X, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { resolveCover } from "@/lib/cover-fallback";
+import { refreshBookData } from "@/lib/refresh-book";
 import { useNavigate } from "react-router-dom";
 
 interface Props {
@@ -32,6 +33,7 @@ export function EditBookDialog({ book, onUpdated, trigger }: Props) {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [searchingCover, setSearchingCover] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const [form, setForm] = useState({
@@ -96,6 +98,42 @@ export function EditBookDialog({ book, onUpdated, trigger }: Props) {
       }
     } finally {
       setSearchingCover(false);
+    }
+  };
+
+  const refreshData = async () => {
+    setRefreshing(true);
+    try {
+      const result = await refreshBookData(book.id, form.cover_url || null);
+      if (!result.ok) {
+        toast.error("Não foi possível atualizar os dados");
+        return;
+      }
+      const patch: any = result.patch || {};
+      const filled = result.fields_filled || [];
+      if (filled.length === 0 && !result.cover_updated) {
+        toast.info("Os dados já estão completos e atualizados");
+        return;
+      }
+      setForm((p) => ({
+        ...p,
+        title: patch.title ?? p.title,
+        subtitle: patch.subtitle ?? p.subtitle,
+        authors: patch.authors ? (patch.authors as string[]).join(", ") : p.authors,
+        publisher: patch.publisher ?? p.publisher,
+        published_year: patch.published_year ?? p.published_year,
+        page_count: patch.page_count ?? p.page_count,
+        description: patch.description ?? p.description,
+        cover_url: patch.cover_url ?? p.cover_url,
+        categories: patch.categories ? (patch.categories as string[]).join(", ") : p.categories,
+      }));
+      toast.success(
+        filled.length > 0 ? `Atualizado: ${filled.join(", ")}` : "Capa atualizada",
+      );
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao atualizar dados");
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -207,6 +245,30 @@ export function EditBookDialog({ book, onUpdated, trigger }: Props) {
 
           {/* Fields */}
           <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-muted/40 border border-border/40">
+              <div className="min-w-0">
+                <p className="text-xs font-medium">Buscar dados atualizados</p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  {form.isbn_13 || form.isbn_10
+                    ? "Reprocessa pelo ISBN em fontes públicas"
+                    : "Tentaremos pelo título e autor"}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={refreshData}
+                disabled={refreshing}
+                className="gap-2 shrink-0"
+              >
+                {refreshing ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-3.5 h-3.5" />
+                )}
+                Atualizar
+              </Button>
+            </div>
             <Field label="Título *" value={form.title} onChange={(v) => set("title", v)} />
             <Field label="Subtítulo" value={form.subtitle} onChange={(v) => set("subtitle", v)} />
             <Field label="Autores (separe por vírgula)" value={form.authors} onChange={(v) => set("authors", v)} />
