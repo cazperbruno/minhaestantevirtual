@@ -84,9 +84,6 @@ export function ProfileHeader({ profile, email, publicHref, onEdit }: Props) {
               <ExternalLink className="w-3.5 h-3.5" /> Ver público
             </Link>
           </Button>
-          <Button asChild size="sm" variant="ghost" className="shrink-0">
-            <Link to="/desejos">Wishlist</Link>
-          </Button>
         </div>
       </div>
     </div>
