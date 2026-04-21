@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { CACHE } from "@/lib/query-client";
+import { CACHE, qk } from "@/lib/query-client";
 import type { Book } from "@/types/book";
 
 export interface FollowingReadItem {
@@ -20,7 +20,7 @@ export interface FollowingReadItem {
 export function useFollowingReads(limit = 18) {
   const { user } = useAuth();
   return useQuery<FollowingReadItem[]>({
-    queryKey: ["following-reads", user?.id, limit],
+    queryKey: [...qk.followingReads(user?.id), limit],
     enabled: !!user,
     ...CACHE.SOCIAL,
     queryFn: async () => {

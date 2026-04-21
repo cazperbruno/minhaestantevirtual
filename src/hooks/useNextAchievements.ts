@@ -99,7 +99,7 @@ async function fetchNext(userId: string, limit: number): Promise<NextAchievement
 export function useNextAchievements(limit = 2) {
   const { user } = useAuth();
   return useQuery<NextAchievement[]>({
-    queryKey: ["nextAchievements", user?.id || "anon", limit],
+    queryKey: [...qk.nextAchievements(user?.id), limit],
     queryFn: () => fetchNext(user!.id, limit),
     enabled: !!user,
     ...CACHE.PERSONAL,

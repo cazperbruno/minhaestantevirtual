@@ -25,7 +25,7 @@ export function useBook(id?: string) {
 export function useUserBook(bookId?: string) {
   const { user } = useAuth();
   return useQuery<UserBook | null>({
-    queryKey: ["user-book", user?.id || "anon", bookId || ""],
+    queryKey: qk.userBook(user?.id, bookId || ""),
     queryFn: async () => {
       if (!user || !bookId) return null;
       const { data } = await supabase
@@ -41,7 +41,7 @@ export function useUserBook(bookId?: string) {
 /** Upsert do user_book com optimistic update. */
 export function useCommitUserBook(book: Book | null | undefined) {
   const { user } = useAuth();
-  const key = ["user-book", user?.id || "anon", book?.id || ""];
+  const key = qk.userBook(user?.id, book?.id || "");
 
   return useMutation({
     mutationFn: async (patch: Partial<UserBook>) => {
