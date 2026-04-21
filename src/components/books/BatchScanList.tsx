@@ -118,9 +118,7 @@ export function BatchScanList({
     const set = new Set<string>();
     for (const it of items) {
       if (!it.title) continue;
-      if (groupCounts.get(groupKeyOf(it)) ?? 0 >= 2) {
-        if ((groupCounts.get(groupKeyOf(it)) ?? 0) >= 2) set.add(it.key);
-      }
+      if ((groupCounts.get(groupKeyOf(it)) ?? 0) >= 2) set.add(it.key);
     }
     return set;
   }, [items, groupCounts]);
