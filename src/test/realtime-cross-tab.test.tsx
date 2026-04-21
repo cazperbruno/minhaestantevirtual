@@ -57,7 +57,7 @@ vi.mock("@/hooks/useAuth", () => ({
 
 // Importa DEPOIS dos mocks
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
-import { qk } from "@/lib/query-client";
+import { qk, queryClient } from "@/lib/query-client";
 
 // ---- Helpers --------------------------------------------------------------
 function fire(table: string, event: "INSERT" | "UPDATE" | "DELETE", payload: any) {
@@ -70,9 +70,10 @@ function fire(table: string, event: "INSERT" | "UPDATE" | "DELETE", payload: any
 }
 
 function setupTabB() {
-  const qc = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: Infinity, staleTime: Infinity } },
-  });
+  // O hook usa o queryClient singleton de @/lib/query-client — usamos o mesmo
+  // para que invalidate.* afete o cache que verificamos.
+  const qc = queryClient;
+  qc.clear();
   const wrapper = ({ children }: { children: React.ReactNode }) =>
     React.createElement(QueryClientProvider, { client: qc }, children);
 
