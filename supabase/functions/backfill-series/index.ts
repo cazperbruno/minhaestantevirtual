@@ -327,7 +327,17 @@ Deno.serve(async (req) => {
           const hasMultipleDistinctVols = distinctVols.size >= 2;
           const allTitlesDistinct =
             distinctTitles.size >= 2 && distinctTitles.size === groupAll.length;
-          if (!hasMultipleDistinctVols && !allTitlesDistinct) {
+          // Heurística "série não-numerada":
+          // ≥3 cópias com MESMO título + MESMO primeiro autor + MESMO content_type
+          // são quase sempre volumes diferentes do mesmo mangá/HQ que o catálogo
+          // devolveu sem distinguir (caso Chainsaw Man). Trata como série e numera
+          // sequencialmente por created_at (ordem de inserção do usuário).
+          const isLikelyUnnumberedSeries =
+            !hasMultipleDistinctVols &&
+            !allTitlesDistinct &&
+            groupAll.length >= 3 &&
+            !noAuthor;
+          if (!hasMultipleDistinctVols && !allTitlesDistinct && !isLikelyUnnumberedSeries) {
             // são duplicatas do mesmo livro → NÃO é série, marca skipped permanente
             await supabase
               .from("series_backfill_queue")
