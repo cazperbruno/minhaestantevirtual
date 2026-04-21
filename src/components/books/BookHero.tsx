@@ -118,14 +118,14 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
               </div>
             )}
 
-            <div className="flex flex-wrap gap-2 pt-2 hero-stagger" style={{ animationDelay: "480ms" }}>
+            <div className="grid grid-cols-2 gap-2 pt-2 hero-stagger sm:flex sm:flex-wrap" style={{ animationDelay: "480ms" }}>
               {!ub ? (
                 <Button
                   variant="hero"
                   size="lg"
                   onClick={() => onStatusChange("not_read")}
                   disabled={saving}
-                  className="gap-2 min-w-[220px] shadow-glow"
+                  className="col-span-2 w-full sm:w-auto sm:min-w-[220px] shadow-glow"
                   title="Adiciona à sua biblioteca. Você decide quando começar a leitura."
                 >
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
@@ -133,7 +133,7 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
                 </Button>
               ) : (
                 <Select value={ub.status} onValueChange={(v) => onStatusChange(v as BookStatus)}>
-                  <SelectTrigger className="w-[220px] h-11 bg-card/80 backdrop-blur-sm border-primary/40 shadow-glow">
+                  <SelectTrigger className="col-span-2 h-11 w-full bg-card/80 backdrop-blur-sm border-primary/40 shadow-glow sm:w-[220px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -149,20 +149,19 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
                 size="lg"
                 onClick={onAddWishlist}
                 disabled={saving}
-                className="gap-2 hover:border-primary/60 hover:text-primary"
+                className="w-full sm:w-auto hover:border-primary/60 hover:text-primary"
                 aria-label="Adicionar aos desejos"
               >
                 <Heart className={`w-4 h-4 ${ub?.status === "wishlist" ? "fill-primary text-primary" : ""}`} />
                 <span className="hidden sm:inline">Desejo</span>
               </Button>
 
-              {/* Share + Instagram grouped side-by-side */}
-              <div className="inline-flex rounded-md overflow-hidden border border-border bg-card/50 backdrop-blur-sm">
+              <div className="col-span-2 inline-flex w-full overflow-hidden rounded-md border border-border bg-card/50 backdrop-blur-sm sm:w-auto">
                 <Button
                   variant="ghost"
                   size="lg"
                   onClick={onShare}
-                  className="gap-2 rounded-none hover:bg-primary/10 hover:text-primary border-0"
+                  className="min-w-0 flex-1 rounded-none border-0 hover:bg-primary/10 hover:text-primary sm:flex-none"
                   aria-label="Compartilhar"
                 >
                   <Share2 className="w-4 h-4" />
@@ -176,13 +175,15 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
                 />
               </div>
 
-              <BookChat bookId={book.id} bookTitle={book.title} />
+              <div className="col-span-2 sm:col-span-1">
+                <BookChat bookId={book.id} bookTitle={book.title} />
+              </div>
 
               <Button
                 variant="outline"
                 size="lg"
                 onClick={() => openAmazon(book)}
-                className="gap-2 hover:border-primary/60 hover:text-primary"
+                className="w-full sm:w-auto hover:border-primary/60 hover:text-primary"
                 aria-label="Comprar na Amazon"
               >
                 <ShoppingBag className="w-4 h-4" />
@@ -193,7 +194,7 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
                 book={book}
                 onUpdated={onBookUpdated}
                 trigger={
-                  <Button variant="outline" size="lg" className="gap-2 hover:border-primary/60 hover:text-primary" aria-label="Editar livro">
+                  <Button variant="outline" size="lg" className="w-full sm:w-auto hover:border-primary/60 hover:text-primary" aria-label="Editar livro">
                     <Pencil className="w-4 h-4" />
                     <span className="hidden sm:inline">Editar</span>
                   </Button>

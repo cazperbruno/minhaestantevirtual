@@ -79,12 +79,12 @@ export function MobileHeader() {
       className="md:hidden sticky top-0 z-40 glass border-b border-border"
       style={{ paddingTop: "env(safe-area-inset-top)" }}
     >
-      <div className="flex items-center justify-between px-4 h-14">
+      <div className="flex items-center justify-between gap-2 px-4 h-14 min-w-0">
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
             <button
               aria-label="Abrir menu"
-              className="h-10 w-10 -ml-2 inline-flex items-center justify-center rounded-lg hover:bg-accent/30 tap-scale"
+              className="h-10 w-10 shrink-0 -ml-2 inline-flex items-center justify-center rounded-lg hover:bg-accent/30 tap-scale"
             >
               <Menu className="h-5 w-5" />
             </button>
@@ -147,11 +147,13 @@ export function MobileHeader() {
           </SheetContent>
         </Sheet>
 
-        <NavLink to="/" className="flex items-center" aria-label="Readify">
-          <img src={readifyLogo} alt="Readify" className="h-8 max-w-[170px] w-auto select-none object-contain" draggable={false} />
+        <NavLink to="/" className="flex min-w-0 flex-1 items-center justify-center px-2" aria-label="Readify">
+          <img src={readifyLogo} alt="Readify" className="h-8 max-w-[140px] xs:max-w-[170px] w-auto select-none object-contain" draggable={false} />
         </NavLink>
 
-        <NotificationsBell compact />
+        <div className="shrink-0">
+          <NotificationsBell compact />
+        </div>
       </div>
     </header>
   );

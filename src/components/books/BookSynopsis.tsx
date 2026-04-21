@@ -44,7 +44,7 @@ export function BookSynopsis({ bookId, description, onDescriptionUpdated }: Prop
 
   return (
     <article>
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-display text-2xl md:text-3xl font-semibold">Sobre o livro</h2>
         {has && (
           <Button

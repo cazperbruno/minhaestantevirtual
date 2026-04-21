@@ -171,15 +171,15 @@ function FeedCard({
         {book.description && (
           <p className="text-xs text-muted-foreground/90 mt-2 line-clamp-2 sm:line-clamp-3">{book.description}</p>
         )}
-        <div className="flex items-center gap-1.5 mt-auto pt-3 flex-wrap">
-          <Button size="sm" variant="hero" onClick={onAdd} className="gap-1.5 h-8 px-2.5 text-xs sm:text-sm">
+        <div className="mt-auto grid grid-cols-2 gap-2 pt-3 sm:flex sm:flex-wrap sm:items-center sm:gap-1.5">
+          <Button size="sm" variant="hero" onClick={onAdd} className="col-span-1 h-8 w-full px-2.5 text-xs sm:w-auto sm:text-sm">
             <Plus className="w-3.5 h-3.5" /> <span className="hidden xs:inline">Lista de desejos</span><span className="xs:hidden">Quero</span>
           </Button>
           <Button
             size="sm"
             variant="ghost"
             onClick={onDismiss}
-            className="gap-1 h-8 px-2 text-xs sm:text-sm text-muted-foreground"
+            className="col-span-1 h-8 w-full px-2 text-xs text-muted-foreground sm:w-auto sm:text-sm"
             aria-label="Dispensar"
           >
             <X className="w-3.5 h-3.5" /> <span className="hidden xs:inline">Não, obrigado</span>
