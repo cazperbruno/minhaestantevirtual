@@ -10,6 +10,8 @@ import { RankingSkeleton } from "@/components/ui/skeletons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useRanking } from "@/hooks/useRanking";
 import { useWeeklyRankingInfinite, useAmbassadors } from "@/hooks/useWeeklyRanking";
+import { LeagueBadge } from "@/components/gamification/LeagueBadge";
+import { SeasonalChallengesCard } from "@/components/gamification/SeasonalChallengesCard";
 
 const TIER_LABEL: Record<string, string> = {
   legend: "Lenda 🔥",
@@ -31,6 +33,12 @@ export default function RankingPage() {
             Os leitores mais ativos da comunidade
           </p>
         </header>
+
+        {/* Liga semanal + missões sazonais */}
+        <div className="space-y-4 mb-8">
+          <LeagueBadge />
+          <SeasonalChallengesCard />
+        </div>
 
         <Tabs defaultValue="weekly" className="w-full">
           <TabsList className="grid grid-cols-3 w-full mb-6">
