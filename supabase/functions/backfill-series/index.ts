@@ -312,11 +312,27 @@ Deno.serve(async (req) => {
         // Se peer já tem série → linka nessa
         const peerWithSeries = matchingPeers.find((p) => p.series_id);
         if (peerWithSeries) {
+          let volToSet: number | null = norm.volume ?? b.volume_number ?? null;
+          if (volToSet == null) {
+            const { data: usedRows } = await supabase
+              .from("books")
+              .select("volume_number")
+              .eq("series_id", peerWithSeries.series_id)
+              .not("volume_number", "is", null);
+            const used = new Set(
+              (usedRows ?? [])
+                .map((r) => r.volume_number)
+                .filter((v): v is number => Number.isFinite(v as number)),
+            );
+            let candidate = 1;
+            while (used.has(candidate)) candidate++;
+            volToSet = candidate;
+          }
           await supabase
             .from("books")
             .update({
               series_id: peerWithSeries.series_id,
-              volume_number: norm.volume ?? b.volume_number ?? null,
+              volume_number: volToSet,
             })
             .eq("id", b.id);
 
