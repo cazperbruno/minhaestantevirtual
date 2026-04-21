@@ -17,6 +17,7 @@ import { fetchShelves, type Shelf } from "@/lib/recommend-api";
 import { trackRecsShown, recomputeUserWeights } from "@/lib/ai-tracking";
 import { useMySeries } from "@/hooks/useMySeries";
 import { NextAchievementsCard } from "@/components/gamification/NextAchievementsCard";
+import { StoriesBar } from "@/components/social/StoriesBar";
 
 export default function Discover() {
   const { user } = useAuth();
@@ -132,6 +133,11 @@ export default function Discover() {
 
           <ContentTypeFilter className="mt-5" />
         </header>
+
+        {/* Stories de leitura (24h) */}
+        <section className="mb-8 -mt-4">
+          <StoriesBar />
+        </section>
 
         {/* Featured */}
         {featured && !loading && (
