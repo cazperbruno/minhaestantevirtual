@@ -3,17 +3,19 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Mock supabase BEFORE importing track
 const insertMock = vi.fn().mockResolvedValue({ error: null });
 const fromMock = vi.fn(() => ({ insert: insertMock }));
+const getUserMock = vi.fn().mockResolvedValue({ data: { user: { id: "u1" } } });
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
-    auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: "u1" } } }) },
+    auth: { getUser: getUserMock },
     from: fromMock,
   },
 }));
 
-// jsdom needs sessionStorage stub
 beforeEach(() => {
   insertMock.mockClear();
   fromMock.mockClear();
+  getUserMock.mockReset();
+  getUserMock.mockResolvedValue({ data: { user: { id: "u1" } } });
 });
 
 describe("trackEvent", () => {
@@ -25,12 +27,11 @@ describe("trackEvent", () => {
   it("ignores empty event names", async () => {
     const { trackEvent } = await import("@/lib/track");
     trackEvent("");
-    // wait a tick for async path
     await new Promise((r) => setTimeout(r, 5));
     expect(fromMock).not.toHaveBeenCalled();
   });
 
-  it("inserts into app_events with session_id and props", async () => {
+  it("inserts into app_events with session_id and props for authenticated user", async () => {
     const { trackEvent } = await import("@/lib/track");
     trackEvent("search_executed", { query: "1984", results: 5 });
     await new Promise((r) => setTimeout(r, 10));
@@ -43,6 +44,15 @@ describe("trackEvent", () => {
         user_id: "u1",
       }),
     );
+  });
+
+  it("does NOT insert when user is anonymous (RLS hardened)", async () => {
+    getUserMock.mockResolvedValueOnce({ data: { user: null } });
+    const { trackEvent } = await import("@/lib/track");
+    trackEvent("search_executed", { query: "anon" });
+    await new Promise((r) => setTimeout(r, 10));
+    expect(fromMock).not.toHaveBeenCalled();
+    expect(insertMock).not.toHaveBeenCalled();
   });
 
   it("never throws even if supabase.from blows up", async () => {
