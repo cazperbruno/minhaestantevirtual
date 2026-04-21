@@ -41,7 +41,7 @@ export default function SettingsPage() {
   const updateProfile = async (patch: Record<string, any>, label: string) => {
     if (!user) return;
     setSavingFlag(label);
-    const { error } = await supabase.from("profiles").update(patch).eq("id", user.id);
+    const { error } = await supabase.from("profiles").update(patch as any).eq("id", user.id);
     if (error) {
       toast.error("Não foi possível salvar");
     } else {
