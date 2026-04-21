@@ -221,17 +221,23 @@ Deno.serve(async (req) => {
 
     // 4) aplica: cria/reusa série + linka livros
     for (const g of eligible) {
-      // procura série existente com mesmo author + título base normalizado
-      const { data: existingList } = await supabase
+      const noAuthor = g.author === "_noauthor_";
+      // procura série existente: por título base normalizado + content_type
+      // (ignora autor quando livros estão sem autor — ainda podemos casar pelo título)
+      let existingQ = supabase
         .from("series")
         .select("id,title,authors,content_type,total_volumes")
         .eq("content_type", g.content_type)
-        .contains("authors", [g.books[0]?.title ? capitalizeAuthor(g.author) : g.author])
-        .limit(20);
+        .limit(50);
+      if (!noAuthor) {
+        existingQ = existingQ.contains("authors", [capitalizeAuthor(g.author)]);
+      }
+      const { data: existingList } = await existingQ;
 
+      const targetKey = g.key.split("::")[2];
       const matched = (existingList ?? []).find((s: any) => {
         const sNorm = normalizeSeriesTitle(s.title).key;
-        return sNorm === g.key.split("::")[2];
+        return sNorm === targetKey;
       });
 
       let seriesId: string;
@@ -252,7 +258,7 @@ Deno.serve(async (req) => {
           .from("series")
           .insert({
             title: titleCase(g.base),
-            authors: [capitalizeAuthor(g.author)],
+            authors: noAuthor ? [] : [capitalizeAuthor(g.author)],
             content_type: g.content_type,
             total_volumes: totalVols,
             source: "consolidate-series",
