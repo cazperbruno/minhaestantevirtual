@@ -149,39 +149,40 @@ function FeedCard({
   useEffect(() => { track("view", book.id, { source: "feed_infinito" }); }, [book.id]);
 
   return (
-    <article className="glass rounded-2xl p-5 flex gap-4 animate-slide-up group hover:border-primary/40 transition-all">
-      <Link to={`/livro/${book.id}`} onClick={() => track("click", book.id, { source: "feed_infinito" })}>
-        <BookCover book={book} size="md" className="shrink-0 group-hover:scale-[1.03] transition-transform" />
+    <article className="glass rounded-2xl p-4 sm:p-5 flex gap-3 sm:gap-4 animate-slide-up group hover:border-primary/40 transition-all max-w-full overflow-hidden">
+      <Link to={`/livro/${book.id}`} onClick={() => track("click", book.id, { source: "feed_infinito" })} className="shrink-0">
+        <BookCover book={book} size="sm" className="shrink-0 sm:hidden group-hover:scale-[1.03] transition-transform" />
+        <BookCover book={book} size="md" className="shrink-0 hidden sm:block group-hover:scale-[1.03] transition-transform" />
       </Link>
       <div className="flex-1 min-w-0 flex flex-col">
         {book._reason && (
-          <p className="text-[10px] font-medium uppercase tracking-wider text-primary mb-1">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-primary mb-1 truncate">
             {book._reason}
           </p>
         )}
         <Link to={`/livro/${book.id}`} className="block" onClick={() => track("click", book.id, { source: "feed_infinito" })}>
-          <h3 className="font-display text-lg font-semibold leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+          <h3 className="font-display text-base sm:text-lg font-semibold leading-tight line-clamp-2 group-hover:text-primary transition-colors break-words">
             {book.title}
           </h3>
         </Link>
         {book.authors?.[0] && (
-          <p className="text-sm text-muted-foreground mt-0.5">{book.authors.slice(0, 2).join(", ")}</p>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 truncate">{book.authors.slice(0, 2).join(", ")}</p>
         )}
         {book.description && (
-          <p className="text-xs text-muted-foreground/90 mt-2 line-clamp-3">{book.description}</p>
+          <p className="text-xs text-muted-foreground/90 mt-2 line-clamp-2 sm:line-clamp-3">{book.description}</p>
         )}
-        <div className="flex items-center gap-2 mt-auto pt-3">
-          <Button size="sm" variant="hero" onClick={onAdd} className="gap-1.5 h-8">
-            <Plus className="w-3.5 h-3.5" /> Lista de desejos
+        <div className="flex items-center gap-1.5 mt-auto pt-3 flex-wrap">
+          <Button size="sm" variant="hero" onClick={onAdd} className="gap-1.5 h-8 px-2.5 text-xs sm:text-sm">
+            <Plus className="w-3.5 h-3.5" /> <span className="hidden xs:inline">Lista de desejos</span><span className="xs:hidden">Quero</span>
           </Button>
           <Button
             size="sm"
             variant="ghost"
             onClick={onDismiss}
-            className="gap-1.5 h-8 text-muted-foreground"
+            className="gap-1 h-8 px-2 text-xs sm:text-sm text-muted-foreground"
             aria-label="Dispensar"
           >
-            <X className="w-3.5 h-3.5" /> Não, obrigado
+            <X className="w-3.5 h-3.5" /> <span className="hidden xs:inline">Não, obrigado</span>
           </Button>
         </div>
       </div>

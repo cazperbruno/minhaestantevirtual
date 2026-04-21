@@ -6,6 +6,14 @@ export default {
   prefix: "",
   theme: {
     container: { center: true, padding: "1.25rem", screens: { "2xl": "1400px" } },
+    screens: {
+      xs: "400px",
+      sm: "640px",
+      md: "768px",
+      lg: "1024px",
+      xl: "1280px",
+      "2xl": "1536px",
+    },
     extend: {
       fontFamily: {
         display: ['Fraunces', 'Georgia', 'serif'],

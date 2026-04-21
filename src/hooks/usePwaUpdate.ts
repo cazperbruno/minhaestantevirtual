@@ -39,16 +39,23 @@ export function usePwaUpdate() {
       immediate: true,
       onNeedRefresh() {
         setNeedRefresh(true);
+        // Auto-aplica após 8s se o usuário não interagir — garante que
+        // ninguém fique preso em versão antiga por dias.
+        setTimeout(() => {
+          if (updateRef.current) {
+            void updateRef.current(true).catch(() => window.location.reload());
+          }
+        }, 8000);
       },
       onOfflineReady() {
         // Primeira instalação — app pronto para uso offline. Sem prompt.
       },
       onRegisteredSW(_swUrl, registration) {
         if (!registration) return;
-        // Polling agressivo: a cada 60s checa por nova versão
+        // Polling agressivo: a cada 30s checa por nova versão
         const interval = setInterval(() => {
           registration.update().catch(() => { /* offline ok */ });
-        }, 60 * 1000);
+        }, 30 * 1000);
         // Também checa quando o usuário volta à aba (PWA aberto após dias)
         const onVisible = () => {
           if (document.visibilityState === "visible") {
