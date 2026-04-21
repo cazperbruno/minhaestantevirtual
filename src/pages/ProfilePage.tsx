@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,17 +15,35 @@ import { toast } from "sonner";
 import {
   LogOut, Lock, Globe, Users, Instagram, Twitter, Music2, Eye, EyeOff,
   Library as LibraryIcon, BarChart3, Target, Settings as SettingsIcon, ArrowRight, Flame,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { ProfileStatsRow } from "@/components/profile/ProfileStatsRow";
-import { ProfileSocialTab } from "@/components/profile/ProfileSocialTab";
 import { AchievementsPanel } from "@/components/profile/AchievementsPanel";
 import { LatestAchievementBanner } from "@/components/profile/LatestAchievementBanner";
 import { InstallAppCard } from "@/components/pwa/InstallAppCard";
 import { PushNotificationsCard } from "@/components/pwa/PushNotificationsCard";
 import { VersionTag } from "@/components/pwa/VersionTag";
 import { useStreak } from "@/hooks/useStreak";
+
+// Lazy-load das abas pesadas — só carrega o bundle quando a aba é aberta.
+const ProfileLibraryTab = lazy(() =>
+  import("@/components/profile/ProfileLibraryTab").then((m) => ({ default: m.ProfileLibraryTab })),
+);
+const ProfileReportsTab = lazy(() =>
+  import("@/components/profile/ProfileReportsTab").then((m) => ({ default: m.ProfileReportsTab })),
+);
+const ProfileSocialTab = lazy(() =>
+  import("@/components/profile/ProfileSocialTab").then((m) => ({ default: m.ProfileSocialTab })),
+);
+
+const TabFallback = () => (
+  <div className="space-y-3 animate-fade-in">
+    <Skeleton className="h-32 rounded-2xl" />
+    <Skeleton className="h-32 rounded-2xl" />
+  </div>
+);
 
 type Visibility = "public" | "private";
 type LibVisibility = "public" | "followers" | "private";
