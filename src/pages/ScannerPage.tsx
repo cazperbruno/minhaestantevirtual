@@ -591,12 +591,28 @@ export default function ScannerPage() {
               <div className="relative aspect-[4/3] bg-black">
                 <video ref={videoRef} className="w-full h-full object-cover" muted playsInline autoPlay />
 
-                {!active && !busy && !foundBook && !notFoundIsbn && (
+                {!active && !busy && !foundBook && !notFoundIsbn && !cameraError && (
                   <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-transparent to-black/40">
                     <Button variant="hero" size="lg" onClick={startBarcode} className="gap-2 shadow-glow">
                       <Camera className="w-4 h-4" /> Ativar câmera
                     </Button>
                   </div>
+                )}
+
+                {cameraError && !active && (
+                  <CameraErrorOverlay
+                    error={cameraError}
+                    onRetry={() => { setCameraError(null); startBarcode(); }}
+                    onManual={() => {
+                      setCameraError(null);
+                      stop();
+                      // foca no input manual
+                      setTimeout(() => {
+                        document.querySelector<HTMLInputElement>('input[inputmode="numeric"]')?.focus();
+                      }, 50);
+                    }}
+                    onCover={() => { setCameraError(null); setMode("cover"); scanNext(); }}
+                  />
                 )}
 
                 {active && (
