@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Quote, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export interface BookQuotePayload {
   text: string;
@@ -119,5 +120,3 @@ export function QuoteBlock({ quote, compact = false }: BlockProps) {
     </blockquote>
   );
 }
-
-import { cn } from "@/lib/utils";
