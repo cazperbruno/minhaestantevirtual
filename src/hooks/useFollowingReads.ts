@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { CACHE, qk } from "@/lib/query-client";
+import { refineShelf } from "@/lib/shelf-quality";
 import type { Book } from "@/types/book";
 
 export interface FollowingReadItem {
@@ -16,6 +17,9 @@ export interface FollowingReadItem {
  * Prateleira "Lidos por quem você segue".
  * Combina follows + user_books pra mostrar livros que sua rede leu (e você ainda não tem).
  * Cada item traz até 5 avatares dos leitores recentes + contagem total.
+ *
+ * Refino: dedupe + qualidade (PT-BR + capa) + diversidade por autor.
+ * O score base é proporcional ao número de leitores (sinal social forte).
  */
 export function useFollowingReads(limit = 18) {
   const { user } = useAuth();
@@ -25,9 +29,10 @@ export function useFollowingReads(limit = 18) {
     ...CACHE.SOCIAL,
     queryFn: async () => {
       if (!user) return [];
+      // Pede 2x pra ter folga depois do refino.
       const { data: rows, error } = await supabase.rpc("books_read_by_following", {
         _user_id: user.id,
-        _limit: limit,
+        _limit: Math.max(limit * 2, 30),
       });
       if (error) throw error;
       const list = (rows ?? []) as Array<{
@@ -43,7 +48,7 @@ export function useFollowingReads(limit = 18) {
       const { data: books } = await supabase.from("books").select("*").in("id", ids);
       const bookMap = new Map((books ?? []).map((b: any) => [b.id, b as Book]));
 
-      return list
+      const enriched = list
         .map((r) => {
           const book = bookMap.get(r.book_id);
           if (!book) return null;
@@ -56,6 +61,13 @@ export function useFollowingReads(limit = 18) {
           } satisfies FollowingReadItem;
         })
         .filter(Boolean) as FollowingReadItem[];
+
+      const refined = refineShelf(enriched, (i) => i.book, {
+        baseScore: (i) => i.reader_count, // reader_count vira o ranking principal
+        maxPerAuthor: 2,
+      });
+
+      return refined.slice(0, limit);
     },
   });
 }
