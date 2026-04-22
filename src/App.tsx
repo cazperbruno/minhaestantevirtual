@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { LazyErrorBoundary } from "@/components/LazyErrorBoundary";
 import Auth from "./pages/Auth";
+import ScrollToTop from "./components/ScrollToTop";
 
 // Code-splitting: páginas carregadas sob demanda
 const Onboarding = lazy(() => import("./pages/Onboarding"));
@@ -56,6 +57,7 @@ const App = () => (
       <Toaster />
       <Sonner theme="dark" />
       <BrowserRouter>
+        <ScrollToTop />
         <LazyErrorBoundary>
         <Suspense fallback={<RouteFallback />}>
           <Routes>
