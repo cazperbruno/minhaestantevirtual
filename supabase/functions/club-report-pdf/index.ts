@@ -35,11 +35,33 @@ interface RankRow {
 
 interface Report {
   club: { id: string; name: string; description: string | null; members_count: number; created_at: string };
-  current_book: { id: string; title: string; authors: string[]; page_count: number | null } | null;
+  current_book: { id: string; title: string; authors: string[]; page_count: number | null; cover_url?: string | null } | null;
   progress: ProgressRow | null;
   weekly: { week_start: string; messages: number; active_users: number }[];
   ranking: RankRow[];
   generated_at: string;
+}
+
+/** Baixa uma imagem e converte para base64 (PNG/JPEG) para o jsPDF. */
+async function fetchImageAsBase64(url: string): Promise<{ data: string; format: "JPEG" | "PNG" } | null> {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 6000);
+    const r = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!r.ok) return null;
+    const ct = r.headers.get("content-type") || "";
+    const format: "JPEG" | "PNG" = ct.includes("png") ? "PNG" : "JPEG";
+    const buf = new Uint8Array(await r.arrayBuffer());
+    let bin = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < buf.length; i += chunk) {
+      bin += String.fromCharCode(...buf.subarray(i, i + chunk));
+    }
+    return { data: btoa(bin), format };
+  } catch {
+    return null;
+  }
 }
 
 Deno.serve(async (req) => {
@@ -146,12 +168,51 @@ Deno.serve(async (req) => {
 
     // Current book
     if (report.current_book) {
-      line("Livro do mês", { size: 13, bold: true });
-      line(report.current_book.title, { size: 12 });
+      // Tenta embutir a capa
+      const cover = report.current_book.cover_url
+        ? await fetchImageAsBase64(report.current_book.cover_url)
+        : null;
+
+      const coverW = 70;
+      const coverH = 100;
+      const startY = y;
+
+      if (cover) {
+        try {
+          ensureSpace(coverH + 8);
+          doc.addImage(`data:image/${cover.format.toLowerCase()};base64,${cover.data}`, cover.format, margin, y, coverW, coverH);
+        } catch (e) {
+          console.warn("cover embed failed", e);
+        }
+      }
+
+      const textX = cover ? margin + coverW + 14 : margin;
+      const savedMargin = margin;
+      // desenha texto ao lado da capa sem alterar margem global
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(33, 37, 41);
+      doc.text("Livro do mês", textX, y + 14);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      const titleLines = doc.splitTextToSize(report.current_book.title, pageWidth - textX - savedMargin);
+      doc.text(titleLines, textX, y + 32);
       const authors = (report.current_book.authors || []).join(", ");
-      if (authors) line(authors, { size: 10, color: [120, 120, 120] });
-      if (report.current_book.page_count) line(`${report.current_book.page_count} páginas`, { size: 10, color: [120, 120, 120] });
-      y += 8;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(120, 120, 120);
+      let textY = y + 32 + titleLines.length * 14;
+      if (authors) {
+        doc.text(authors, textX, textY);
+        textY += 14;
+      }
+      if (report.current_book.page_count) {
+        doc.text(`${report.current_book.page_count} páginas`, textX, textY);
+        textY += 14;
+      }
+      // avança y abaixo da capa ou do bloco de texto, o que for maior
+      y = Math.max(startY + (cover ? coverH : 0), textY) + 10;
+      doc.setTextColor(33, 37, 41);
     } else {
       line("Livro do mês: não definido", { size: 11, color: [120, 120, 120] });
       y += 8;
