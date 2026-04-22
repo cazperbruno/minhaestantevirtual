@@ -528,14 +528,48 @@ export default function ClubDetailPage() {
                               })}
                             </span>
                           </p>
+                          {/* Snippet do parent (thread) */}
+                          {m.parent_id &&
+                            (() => {
+                              const parent = messageMap.get(m.parent_id!);
+                              if (!parent) {
+                                return (
+                                  <div className="text-[10px] text-muted-foreground italic mb-1 inline-flex items-center gap-1">
+                                    <Reply className="w-2.5 h-2.5" /> mensagem original removida
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div className="mb-1 max-w-full rounded-lg border-l-2 border-primary/40 bg-muted/30 pl-2 pr-2 py-1 text-[11px] text-muted-foreground">
+                                  <span className="font-semibold text-foreground/80">
+                                    {parent.profile?.display_name || "Leitor"}
+                                  </span>
+                                  <span className="ml-1 line-clamp-1">
+                                    {parent.content.slice(0, 80)}
+                                    {parent.content.length > 80 ? "…" : ""}
+                                  </span>
+                                </div>
+                              );
+                            })()}
+
                           <div
                             className={cn(
                               "rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words",
                               mine ? "bg-primary text-primary-foreground" : "bg-muted",
                             )}
                           >
+                            {m.book_quote && <QuoteBlock quote={m.book_quote} />}
                             {m.content}
                           </div>
+
+                          <MessageReactions
+                            messageId={m.id}
+                            reactions={reactions.filter((r) => r.message_id === m.id)}
+                            currentUserId={user?.id ?? null}
+                            onToggle={toggleReaction}
+                            align={mine ? "end" : "start"}
+                          />
+
                           <div className="opacity-0 group-hover/msg:opacity-100 sm:opacity-0 sm:group-hover/msg:opacity-100 transition-opacity flex gap-1 mt-1">
                             <button
                               onClick={() => startReply(m)}
