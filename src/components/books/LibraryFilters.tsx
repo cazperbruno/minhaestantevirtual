@@ -286,7 +286,10 @@ export function applyLibraryFilters(items: UserBook[], f: LibraryFiltersValue): 
     });
   }
   if (f.author !== "all") r = r.filter((i) => i.book?.authors?.includes(f.author));
-  if (f.category !== "all") r = r.filter((i) => i.book?.categories?.includes(f.category));
+  if (f.category !== "all")
+    r = r.filter((i) =>
+      i.book?.categories?.some((c) => localizeCategory(c) === f.category),
+    );
   if (f.publisher !== "all") r = r.filter((i) => i.book?.publisher === f.publisher);
   if (f.year !== "all") r = r.filter((i) => String(i.book?.published_year ?? "") === f.year);
   if (f.minRating > 0) r = r.filter((i) => (i.rating ?? 0) >= f.minRating);
