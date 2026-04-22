@@ -5,11 +5,14 @@
  * (mesmas categorias, mesmo autor) que ele ainda não tem na biblioteca.
  *
  * Cache PERSONAL: muda quando o user finaliza uma leitura.
+ *
+ * Refino: aplica pipeline de qualidade (PT-BR + capa + diversidade).
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { CACHE } from "@/lib/query-client";
+import { refineShelf } from "@/lib/shelf-quality";
 import type { Book } from "@/types/book";
 
 export interface BecauseYouReadShelf {
@@ -53,8 +56,8 @@ export function useBecauseYouRead(limit = 12) {
       const cats = (seed.categories ?? []).filter(Boolean).slice(0, 3);
       const author = seed.authors?.[0];
 
-      // 3) busca por categorias OU mesmo autor (até 40 candidatos)
-      let query = supabase.from("books").select("*").neq("id", seed.id).limit(40);
+      // 3) busca por categorias OU mesmo autor (até 60 candidatos pra ter folga)
+      let query = supabase.from("books").select("*").neq("id", seed.id).limit(60);
       if (cats.length > 0) {
         query = query.overlaps("categories", cats);
       } else if (author) {
@@ -64,11 +67,20 @@ export function useBecauseYouRead(limit = 12) {
       }
 
       const { data: candidates } = await query;
-      const books = ((candidates as Book[]) ?? [])
-        .filter((b) => !owned.has(b.id))
-        .slice(0, limit);
+      const filtered = ((candidates as Book[]) ?? []).filter((b) => !owned.has(b.id));
 
-      return { seed, books };
+      // Score base: livros do MESMO autor recebem boost extra.
+      const refined = refineShelf(
+        filtered,
+        (b) => b,
+        {
+          baseScore: (b) =>
+            !!author && b.authors?.includes(author) ? 50 : 0,
+          maxPerAuthor: 3,
+        },
+      );
+
+      return { seed, books: refined.slice(0, limit) };
     },
   });
 }

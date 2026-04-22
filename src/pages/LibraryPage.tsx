@@ -3,6 +3,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { SmartShelfRow } from "@/components/books/SmartShelfRow";
 import { DiscoveryShelfRow } from "@/components/books/DiscoveryShelfRow";
 import { FollowingReadsShelfRow } from "@/components/books/FollowingReadsShelfRow";
+import { LazyShelf } from "@/components/books/LazyShelf";
 import { StreakFreezeButton } from "@/components/gamification/StreakFreezeButton";
 import { useSmartShelves } from "@/hooks/useSmartShelves";
 import { BookCard } from "@/components/books/BookCard";
@@ -172,8 +173,8 @@ export default function LibraryPage() {
                     )}
                     {shelfFilter.kind === "none" && (
                       <>
-                        <FollowingReadsShelfRow />
-                        <DiscoveryShelfRow />
+                        <LazyShelf><FollowingReadsShelfRow /></LazyShelf>
+                        <LazyShelf><DiscoveryShelfRow /></LazyShelf>
                       </>
                     )}
                   </div>

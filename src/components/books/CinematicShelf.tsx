@@ -18,14 +18,22 @@ interface Props {
   initialCount?: number;
   /** Tamanho do lote ao clicar em "Ver mais". Default: 12. */
   step?: number;
+  /**
+   * ID estável (opcional) — usado para PERSISTIR a posição de scroll horizontal
+   * entre navegações (sessionStorage). Permite voltar pra prateleira sem perder
+   * onde estava (estilo Netflix).
+   */
+  shelfId?: string;
 }
 
 /**
  * Prateleira horizontal estilo Netflix:
  *  - snap-scroll suave (scroll-snap-type: x mandatory)
  *  - setas no desktop, ocultas em mobile
- *  - fade gradient nas bordas (esquerda/direita) para sugerir mais conteúdo
+ *  - fade gradient nas bordas
+ *  - chip "N" opcional ao lado do título via children-count
  *  - GPU-accelerated; mantém 60fps mesmo com 30+ itens
+ *  - posição de scroll restaurada via sessionStorage (quando shelfId definido)
  */
 export function CinematicShelf({
   title,
@@ -35,6 +43,7 @@ export function CinematicShelf({
   className,
   initialCount = 12,
   step = 12,
+  shelfId,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [canLeft, setCanLeft] = useState(false);
@@ -64,18 +73,44 @@ export function CinematicShelf({
     setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 8);
   }, []);
 
+  // Restaura/persiste posição horizontal por shelfId (sessionStorage).
+  const storageKey = shelfId ? `shelf-scroll:${shelfId}` : null;
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !storageKey) return;
+    try {
+      const saved = sessionStorage.getItem(storageKey);
+      if (saved) {
+        const x = Number(saved);
+        if (Number.isFinite(x) && x > 0) el.scrollLeft = x;
+      }
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey, total]);
+
   useEffect(() => {
     update();
     const el = ref.current;
     if (!el) return;
-    el.addEventListener("scroll", update, { passive: true });
+    let saveT: ReturnType<typeof setTimeout> | null = null;
+    const onScroll = () => {
+      update();
+      if (storageKey) {
+        if (saveT) clearTimeout(saveT);
+        saveT = setTimeout(() => {
+          try { sessionStorage.setItem(storageKey, String(el.scrollLeft)); } catch { /* ignore */ }
+        }, 250);
+      }
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => {
-      el.removeEventListener("scroll", update);
+      el.removeEventListener("scroll", onScroll);
       ro.disconnect();
+      if (saveT) clearTimeout(saveT);
     };
-  }, [update]);
+  }, [update, storageKey]);
 
   const scrollBy = (dir: 1 | -1) => {
     const el = ref.current;
@@ -83,13 +118,28 @@ export function CinematicShelf({
     el.scrollBy({ left: dir * el.clientWidth * 0.85, behavior: "smooth" });
   };
 
+  // Suporte a navegação por teclado: ←/→ quando o scroller está focado.
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "ArrowRight") { e.preventDefault(); scrollBy(1); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); scrollBy(-1); }
+  };
+
   return (
     <section className={cn("group/shelf mb-10 animate-slide-up", className)}>
       {(title || action) && (
         <div className="flex items-end justify-between gap-4 mb-4 px-1">
-          <div>
-            {title && <h2 className="font-display text-xl md:text-2xl font-semibold leading-tight">{title}</h2>}
-            {subtitle && <p className="text-xs md:text-sm text-muted-foreground mt-0.5">{subtitle}</p>}
+          <div className="min-w-0">
+            {title && (
+              <h2 className="font-display text-xl md:text-2xl font-semibold leading-tight inline-flex items-center gap-2 flex-wrap">
+                <span>{title}</span>
+                {total > 0 && (
+                  <span className="inline-flex items-center justify-center text-[11px] font-semibold tabular-nums text-muted-foreground bg-muted/40 border border-border/40 rounded-full px-2 py-0.5">
+                    {total}
+                  </span>
+                )}
+              </h2>
+            )}
+            {subtitle && <p className="text-xs md:text-sm text-muted-foreground mt-0.5 line-clamp-1">{subtitle}</p>}
           </div>
           {action}
         </div>
@@ -144,9 +194,14 @@ export function CinematicShelf({
 
         <div
           ref={ref}
+          tabIndex={0}
+          onKeyDown={onKeyDown}
+          role="region"
+          aria-label={typeof title === "string" ? title : undefined}
           className={cn(
             "flex gap-4 md:gap-5 overflow-x-auto scrollbar-hide pb-3 -mx-5 px-5 md:mx-0 md:px-1",
             "scroll-smooth snap-x snap-mandatory gpu",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:rounded-md",
           )}
           style={{ scrollPaddingInline: "1rem" }}
         >

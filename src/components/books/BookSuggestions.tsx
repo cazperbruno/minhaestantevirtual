@@ -5,6 +5,7 @@ import { CACHE } from "@/lib/query-client";
 import { CinematicShelf, ShelfItem } from "./CinematicShelf";
 import { BookCover } from "./BookCover";
 import { dedupeByIsbn, bookDedupeKey } from "@/lib/dedupe";
+import { refineShelf } from "@/lib/shelf-quality";
 import type { Book } from "@/types/book";
 
 interface Props {
@@ -33,9 +34,11 @@ export function BookSuggestions({ book }: Props) {
       return !k || !exclude.has(k);
     });
 
+  // Refino por qualidade (PT-BR + capa + diversidade) em todas as 3 prateleiras.
+  // Para "mesma série", preserva a ordem por volume (sem reordenar).
   const seriesShelf = filterOut(sameSeries);
-  const authorShelf = filterOut(sameAuthor).slice(0, 18);
-  const similarShelf = filterOut(similar).slice(0, 18);
+  const authorShelf = refineShelf(filterOut(sameAuthor), (b) => b).slice(0, 18);
+  const similarShelf = refineShelf(filterOut(similar), (b) => b).slice(0, 18);
 
   if (seriesShelf.length === 0 && authorShelf.length === 0 && similarShelf.length === 0) {
     return null;
