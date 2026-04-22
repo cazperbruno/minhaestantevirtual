@@ -2509,6 +2509,26 @@ export type Database = {
           total_pages_read: number
         }[]
       }
+      club_leaderboard: {
+        Args: { _club_id: string }
+        Returns: {
+          achievements: string[]
+          avatar_url: string
+          display_name: string
+          finished_book: boolean
+          is_owner: boolean
+          level: number
+          messages_count: number
+          nominations_count: number
+          pages_read: number
+          reactions_given: number
+          reactions_received: number
+          total_points: number
+          user_id: string
+          username: string
+          votes_received: number
+        }[]
+      }
       club_online_count: { Args: { _club_id: string }; Returns: number }
       club_recent_activity: {
         Args: { _club_id: string; _limit?: number }
@@ -2519,6 +2539,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      club_report_data: { Args: { _club_id: string }; Returns: Json }
       clubs_categories_summary: {
         Args: never
         Returns: {
