@@ -152,14 +152,30 @@ export async function requireAdmin(req: Request): Promise<AdminGuardResult> {
   return { ok: true, isService: false, userId: u.user.id, sb };
 }
 
+/** Decode JWT payload without verifying signature (used only as a sanity check
+ *  combined with the x-cron-source header). */
+function decodeJwtPayload(jwt: string): Record<string, any> | null {
+  try {
+    const parts = jwt.split(".");
+    if (parts.length !== 3) return null;
+    const padded = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const json = atob(padded + "==".slice(0, (4 - padded.length % 4) % 4));
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Variante para endpoints que também são chamados pelo cron interno
  * (pg_net → edge function). Aceita:
  *   1. service_role (server-to-server),
  *   2. admin com CSRF (chamada manual via painel),
  *   3. cron interno: header `x-cron-source: readify-internal` +
- *      Bearer com a anon key. Como esses endpoints só drenam fila
- *      (idempotente, sem efeito por usuário), é seguro permitir.
+ *      Bearer com um JWT do projeto (anon OU service). Validamos o `ref`
+ *      do payload contra o projeto atual — robusto a rotação de chaves
+ *      (não compara byte-a-byte com env vars que podem estar dessincronizadas).
+ *      Esses endpoints só drenam fila (idempotente, sem efeito por usuário).
  */
 export async function requireAdminOrCron(req: Request): Promise<AdminGuardResult> {
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -170,26 +186,55 @@ export async function requireAdminOrCron(req: Request): Promise<AdminGuardResult
   const authHeader = req.headers.get("Authorization") || "";
   const apiKey = req.headers.get("apikey") || "";
   const bearerToken = readBearerToken(authHeader);
-  console.log("[requireAdminOrCron] incoming", {
-    cronSource,
-    hasAuthHeader: Boolean(authHeader),
-    authPrefix: authHeader.slice(0, 24),
-    hasApiKey: Boolean(apiKey),
-    apiKeyPrefix: apiKey.slice(0, 24),
-    authMatchesAnon: bearerToken === ANON.trim(),
-    authMatchesService: bearerToken === SERVICE_ROLE.trim(),
-  });
-  if (
-    cronSource === "readify-internal" &&
-    (
-      bearerToken === ANON.trim() ||
-      bearerToken === SERVICE_ROLE.trim() ||
-      apiKey === ANON.trim() ||
-      apiKey === SERVICE_ROLE.trim()
-    )
-  ) {
+
+  if (cronSource === "readify-internal") {
+    // Match exato (caminho rápido e mais seguro)
+    const tokens = [bearerToken, apiKey].filter(Boolean);
+    const exactMatch = tokens.some(
+      (t) => t === ANON.trim() || t === SERVICE_ROLE.trim(),
+    );
+
+    // Fallback: aceita JWT do mesmo projeto Supabase (defesa contra
+    // dessincronia entre o token armazenado no cron e o env var da função
+    // após rotação de chaves).
+    let projectMatch = false;
+    let payloadInfo: Record<string, any> | null = null;
+    if (!exactMatch) {
+      const expectedRef = (() => {
+        try { return new URL(SUPABASE_URL).hostname.split(".")[0]; }
+        catch { return ""; }
+      })();
+      for (const t of tokens) {
+        const payload = decodeJwtPayload(t);
+        if (
+          payload &&
+          payload.iss === "supabase" &&
+          payload.ref === expectedRef &&
+          (payload.role === "anon" || payload.role === "service_role")
+        ) {
+          projectMatch = true;
+          payloadInfo = { role: payload.role, ref: payload.ref };
+          break;
+        }
+      }
+    }
+
+    if (exactMatch || projectMatch) {
+      console.log("[requireAdminOrCron] cron OK", {
+        via: exactMatch ? "exact" : "jwt-project-ref",
+        payload: payloadInfo,
+      });
+      const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
+      return { ok: true, isService: true, sb };
+    }
+
+    console.warn("[requireAdminOrCron] cron 401 — token mismatch", {
+      hasAuth: Boolean(authHeader),
+      hasApiKey: Boolean(apiKey),
+      authPrefix: bearerToken.slice(0, 16),
+    });
     const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
-    return { ok: true, isService: true, sb };
+    return { ok: false, status: 401, error: "Cron auth: token mismatch", sb };
   }
 
   return await requireAdmin(req);

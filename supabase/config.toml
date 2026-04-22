@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.process-normalization-queue]
 verify_jwt = false
+
+[functions.enrich-book]
+verify_jwt = false
+
+[functions.normalize-book-meta]
+verify_jwt = false
