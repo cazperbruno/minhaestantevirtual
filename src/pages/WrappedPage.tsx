@@ -990,3 +990,26 @@ function YearSwitcher({ year, setYear }: { year: number; setYear: (y: number) =>
     </div>
   );
 }
+
+function FirstLastCard({
+  label, book, accent,
+}: {
+  label: string;
+  book: { title: string; authors: string[]; date: string };
+  accent: string;
+}) {
+  const d = new Date(book.date);
+  const dateLabel = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long" });
+  return (
+    <div className={cn("rounded-2xl p-4 border border-border bg-gradient-to-br relative overflow-hidden", accent)}>
+      <p className="text-[11px] uppercase tracking-widest text-muted-foreground mb-1.5 font-semibold">
+        {label} · {dateLabel}
+      </p>
+      <p className="font-display text-xl md:text-2xl font-bold leading-tight line-clamp-2">{book.title}</p>
+      {book.authors?.[0] && (
+        <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{book.authors.join(", ")}</p>
+      )}
+    </div>
+  );
+}
+
