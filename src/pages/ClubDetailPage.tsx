@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { ClubBookOfTheMonth } from "@/components/clubs/ClubBookOfTheMonth";
 import { ClubAdminPanel } from "@/components/clubs/ClubAdminPanel";
+import { ClubActivityPanel } from "@/components/clubs/ClubActivityPanel";
 import { useMyJoinRequest, useRequestJoin } from "@/hooks/useClubAccess";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -357,6 +358,10 @@ export default function ClubDetailPage() {
           <div className="mb-4">
             <ClubAdminPanel clubId={id!} ownerId={user!.id} />
           </div>
+        )}
+
+        {isMember && id && (
+          <ClubActivityPanel clubId={id} isMember={isMember} />
         )}
       </div>
 
