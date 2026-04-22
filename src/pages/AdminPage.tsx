@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CatalogQualityPanel } from "@/components/reports/CatalogQualityPanel";
 import { EnrichmentProgressPanel } from "@/components/reports/EnrichmentProgressPanel";
+import { IsbnQuickLookup } from "@/components/admin/IsbnQuickLookup";
 import {
   Shield, Users, BookOpen, Activity, Loader2, Database, Download,
   ListChecks, BarChart3, RefreshCw, FileSearch, ShieldCheck, ShieldAlert,
@@ -241,6 +242,9 @@ export default function AdminPage() {
 
         {/* Progresso em tempo real da fila de enriquecimento */}
         <EnrichmentProgressPanel />
+
+        {/* Busca rápida 1-clique por ISBN com preview */}
+        <IsbnQuickLookup onImported={loadStats} />
 
         {/* Importação por ISBN */}
         <Card className="p-6 space-y-4">
