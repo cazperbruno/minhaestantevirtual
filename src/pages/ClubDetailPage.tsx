@@ -32,6 +32,7 @@ import { useClubReactions } from "@/hooks/useClubReactions";
 import { ClubLeaderboard } from "@/components/clubs/ClubLeaderboard";
 import { MentionInput } from "@/components/clubs/MentionInput";
 import { MessageContent } from "@/components/clubs/MessageContent";
+import { ReadingSprintPanel } from "@/components/clubs/ReadingSprintPanel";
 
 interface Profile {
   id: string;
@@ -466,6 +467,15 @@ export default function ClubDetailPage() {
 
             {/* TAB: CHAT */}
             <TabsContent value="chat" className="mt-4 space-y-3">
+              {/* Sprint de leitura */}
+              {id && (
+                <ReadingSprintPanel
+                  clubId={id}
+                  currentUserId={user?.id ?? null}
+                  isOwner={isOwner}
+                />
+              )}
+
               {/* Mini-progresso do livro do mês */}
               {club.current_book && id && (
                 <ClubBookProgress clubId={id} compact bookTitle={club.current_book.title} />
