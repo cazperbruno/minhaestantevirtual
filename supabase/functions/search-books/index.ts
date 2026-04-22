@@ -8,6 +8,7 @@ import {
   mergeBest,
   findDuplicateByTitleAuthor,
   aiFallbackInferBook,
+  rerankByPortuguese,
 } from "../_shared/isbn-intelligence.ts";
 
 const corsHeaders = {
@@ -623,8 +624,9 @@ async function lookupIsbnCascade(
 // 5) Search (text query)
 // ============================================================
 async function searchOpenLibrary(query: string, lang = "por"): Promise<NormalizedBook[]> {
-  const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&language=${lang}&limit=20`;
-  const { res } = await fetchWithRetry(url, { label: `OL-search:${query}` });
+  const langPart = lang ? `&language=${lang}` : "";
+  const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}${langPart}&limit=20`;
+  const { res } = await fetchWithRetry(url, { label: `OL-search:${query}${lang ? `:${lang}` : ""}` });
   if (!res || !res.ok) return [];
   try {
     const j = await res.json();
@@ -639,8 +641,9 @@ async function searchGoogleBooks(query: string, lang = "pt"): Promise<Normalized
     console.log(`[Google-search] breaker OPEN, skipping query "${query}"`);
     return [];
   }
-  const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&langRestrict=${lang}&maxResults=20`;
-  const { res } = await fetchWithRetry(url, { label: `Google-search:${query}` });
+  const langPart = lang ? `&langRestrict=${lang}` : "";
+  const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}${langPart}&maxResults=20`;
+  const { res } = await fetchWithRetry(url, { label: `Google-search:${query}${lang ? `:${lang}` : ""}` });
   if (!res) return [];
   if (res.status === 429 || res.status === 503) {
     tripBreaker("google-books", 90_000);
@@ -922,18 +925,33 @@ Deno.serve(async (req) => {
         });
       }
 
-      const [ol, gb] = await Promise.all([searchOpenLibrary(q, "por"), searchGoogleBooks(q, "pt")]);
-      const results = [...ol, ...gb];
+      // Busca em paralelo: sempre OL em PT + Google em PT.
+      // Se ainda houver espaço, complementa com OL/GB sem filtro de idioma.
+      const [olPt, gbPt] = await Promise.all([
+        searchOpenLibrary(q, "por"),
+        searchGoogleBooks(q, "pt"),
+      ]);
+      let combined: NormalizedBook[] = [...olPt, ...gbPt];
+      // Se as fontes PT trouxeram pouco (<8), adiciona buscas globais como complemento
+      if (combined.length < 8) {
+        const [olAny, gbAny] = await Promise.all([
+          searchOpenLibrary(q, ""),
+          searchGoogleBooks(q, ""),
+        ]);
+        combined = [...combined, ...olAny, ...gbAny];
+      }
+      // Dedupe por título+autor
       const seen = new Set<string>();
       const dedup: NormalizedBook[] = [];
-      for (const r of results) {
-        const key = `${r.title.toLowerCase()}|${(r.authors[0] || "").toLowerCase()}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          dedup.push(r);
-        }
+      for (const r of combined) {
+        const key = `${(r.title || "").toLowerCase()}|${(r.authors[0] || "").toLowerCase()}`;
+        if (!key.trim() || seen.has(key)) continue;
+        seen.add(key);
+        dedup.push(r);
       }
-      return new Response(JSON.stringify({ results: dedup.slice(0, 30) }), {
+      // Rerank: PT-BR primeiro, desempate por quality_score
+      const ranked = rerankByPortuguese(dedup, computeQualityScore);
+      return new Response(JSON.stringify({ results: ranked.slice(0, 30) }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

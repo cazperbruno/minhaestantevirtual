@@ -109,14 +109,21 @@ Deno.serve(async (req) => {
     const b = book as BookRow;
     const patch: Partial<BookRow> = {};
 
-    // 1) Google Books — prioridade ISBN-13, fallback título+autor
+    // 1) Google Books — prioridade ISBN-13, fallback título+autor.
+    //    SEMPRE tenta primeiro com langRestrict=pt para preferir edição BR.
+    //    Só cai pra busca global se a busca PT vier vazia.
     let googleQ: string | null = null;
     if (b.isbn_13) googleQ = `isbn:${b.isbn_13}`;
     else if (b.isbn_10) googleQ = `isbn:${b.isbn_10}`;
     else if (b.title) googleQ = `intitle:${b.title}${b.authors?.[0] ? `+inauthor:${b.authors[0]}` : ""}`;
 
     if (googleQ) {
-      const j = await fetchJson(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(googleQ)}&maxResults=1`);
+      const ptUrl = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(googleQ)}&langRestrict=pt&maxResults=1`;
+      let j = await fetchJson(ptUrl);
+      if (!j?.items?.length) {
+        const anyUrl = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(googleQ)}&maxResults=1`;
+        j = await fetchJson(anyUrl);
+      }
       if (j?.items) Object.assign(patch, pickGoogle(b, j.items));
     }
 
@@ -127,6 +134,18 @@ Deno.serve(async (req) => {
       if (j?.works?.[0]?.key) {
         const work = await fetchJson(`https://openlibrary.org${j.works[0].key}.json`);
         Object.assign(patch, pickOpenLibrary(b, work));
+      }
+    }
+
+    // 3) Garantia: se descobrimos publisher BR ou texto em PT mas language está null,
+    //    marca language="pt" para que o livro seja priorizado em buscas futuras.
+    if (!b.language && !patch.language) {
+      const merged = { ...b, ...patch } as BookRow;
+      const text = `${merged.title || ""} ${merged.description || ""}`;
+      const ptPublishers = /\b(companhia das letras|record|rocco|sextante|intrínseca|intrinseca|nova fronteira|globo livros|planeta|martins fontes|saraiva|moderna|fundamento|panini|jbc|nemo|zahar|leya|ftd|ática|atica|aleph|todavia|alfaguara|harper(collins)? brasil|harpercollins brasil|valentina|melhoramentos|cosac naify|verus)\b/i;
+      const accentHits = (text.match(/[ãõçáàâéêíóôú]/g) || []).length;
+      if ((merged.publisher && ptPublishers.test(merged.publisher)) || accentHits >= 3) {
+        patch.language = "pt";
       }
     }
 
