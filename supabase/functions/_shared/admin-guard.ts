@@ -23,6 +23,10 @@ export interface AdminGuardResult {
   sb: SupabaseClient;
 }
 
+function readBearerToken(authHeader: string | null): string {
+  return (authHeader || "").replace(/^Bearer\s+/i, "").trim();
+}
+
 const TRUSTED_ORIGIN_SUFFIXES = [
   ".lovable.app",
   ".lovableproject.com",
@@ -76,8 +80,9 @@ export async function requireAdmin(req: Request): Promise<AdminGuardResult> {
 
   const authHeader = req.headers.get("Authorization") || "";
   const apiKey = req.headers.get("apikey") || "";
+  const bearerToken = readBearerToken(authHeader);
   const isService =
-    authHeader === `Bearer ${SERVICE_ROLE}` || apiKey === SERVICE_ROLE;
+    bearerToken === SERVICE_ROLE.trim() || apiKey === SERVICE_ROLE.trim();
 
   // Service role: chamadas server-to-server (cron, fan-out interno).
   // Não passa por CSRF nem por Origin (não há browser envolvido).
@@ -164,20 +169,23 @@ export async function requireAdminOrCron(req: Request): Promise<AdminGuardResult
   const cronSource = req.headers.get("x-cron-source");
   const authHeader = req.headers.get("Authorization") || "";
   const apiKey = req.headers.get("apikey") || "";
+  const bearerToken = readBearerToken(authHeader);
   console.log("[requireAdminOrCron] incoming", {
     cronSource,
     hasAuthHeader: Boolean(authHeader),
     authPrefix: authHeader.slice(0, 24),
     hasApiKey: Boolean(apiKey),
     apiKeyPrefix: apiKey.slice(0, 24),
+    authMatchesAnon: bearerToken === ANON.trim(),
+    authMatchesService: bearerToken === SERVICE_ROLE.trim(),
   });
   if (
     cronSource === "readify-internal" &&
     (
-      authHeader === `Bearer ${ANON}` ||
-      authHeader === `Bearer ${SERVICE_ROLE}` ||
-      apiKey === ANON ||
-      apiKey === SERVICE_ROLE
+      bearerToken === ANON.trim() ||
+      bearerToken === SERVICE_ROLE.trim() ||
+      apiKey === ANON.trim() ||
+      apiKey === SERVICE_ROLE.trim()
     )
   ) {
     const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
