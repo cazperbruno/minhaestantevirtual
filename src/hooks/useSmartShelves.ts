@@ -330,6 +330,151 @@ export function useSmartShelves(items: UserBook[]): SmartShelf[] {
       });
     }
 
+    // ─── 15. Séries em andamento (mesmo series_id, com volume não-lido) ──
+    // Mostra o PRÓXIMO volume não-lido de séries que você já começou.
+    const seriesMap = new Map<string, UserBook[]>();
+    for (const i of items) {
+      const sid = i.book?.series_id;
+      if (!sid) continue;
+      const list = seriesMap.get(sid) ?? [];
+      list.push(i);
+      seriesMap.set(sid, list);
+    }
+    const ongoingSeries: UserBook[] = [];
+    for (const [, list] of seriesMap) {
+      if (list.length < 2) continue;
+      const hasUnread = list.some((i) => i.status !== "read");
+      const hasRead = list.some((i) => i.status === "read");
+      if (hasUnread && hasRead) {
+        const next = list
+          .filter((i) => i.status !== "read")
+          .sort(
+            (a, b) =>
+              (a.book?.volume_number ?? 999) - (b.book?.volume_number ?? 999),
+          )[0];
+        if (next) ongoingSeries.push(next);
+      }
+    }
+    if (ongoingSeries.length >= 3) {
+      ongoingSeries.slice(0, 8).forEach((i) => topUsed.add(i.id));
+      shelves.push({
+        id: "series-ongoing",
+        emoji: "📚",
+        title: "Continue suas séries",
+        subtitle: "Próximos volumes esperando",
+        items: ongoingSeries.slice(0, 20),
+        priority: 8,
+      });
+    }
+
+    // ─── 16. Cinco estrelas (suas obras-primas) ──────────────
+    const fiveStars = read
+      .filter((i) => (i.rating ?? 0) === 5)
+      .sort(
+        (a, b) =>
+          ts(b.finished_at ?? b.updated_at) -
+          ts(a.finished_at ?? a.updated_at),
+      );
+    if (fiveStars.length >= 3) {
+      shelves.push({
+        id: "five-stars",
+        emoji: "🌟",
+        title: "Cinco estrelas",
+        subtitle: "Suas obras-primas pessoais",
+        items: fiveStars.slice(0, 20),
+        priority: 6,
+      });
+    }
+
+    // ─── 17. Leitura rápida (< 200 páginas, não lidos) ───────
+    const quickReads = without(items)
+      .filter((i) => {
+        const p = i.book?.page_count;
+        return p && p > 0 && p < 200 && i.status !== "read";
+      })
+      .sort((a, b) => (a.book?.page_count ?? 0) - (b.book?.page_count ?? 0));
+    if (quickReads.length >= 4) {
+      shelves.push({
+        id: "quick-reads",
+        emoji: "⚡",
+        title: "Leitura rápida",
+        subtitle: "Menos de 200 páginas — perfeitos pra um fim de semana",
+        items: quickReads.slice(0, 20),
+        priority: 35,
+      });
+    }
+
+    // ─── 18. Para uma maratona (400-700 páginas, não lidos) ──
+    const longReads = without(items)
+      .filter((i) => {
+        const p = i.book?.page_count;
+        return p && p >= 400 && p <= 700 && i.status !== "read";
+      })
+      .sort((a, b) => (b.book?.page_count ?? 0) - (a.book?.page_count ?? 0));
+    if (longReads.length >= 4) {
+      shelves.push({
+        id: "long-reads",
+        emoji: "📖",
+        title: "Para uma maratona",
+        subtitle: "Tomos generosos pra mergulhar fundo",
+        items: longReads.slice(0, 20),
+        priority: 36,
+      });
+    }
+
+    // ─── 19. Edições em português (PT-BR) ────────────────────
+    const ptBooks = without(items).filter((i) => {
+      const lang = (i.book?.language ?? "").toLowerCase();
+      return lang.startsWith("pt");
+    });
+    if (ptBooks.length >= 6) {
+      shelves.push({
+        id: "pt-br",
+        emoji: "🇧🇷",
+        title: "Edições em português",
+        subtitle: `${ptBooks.length} títulos do nosso idioma`,
+        items: ptBooks.slice(0, 20),
+        priority: 37,
+      });
+    }
+
+    // ─── 20. Descobertas deste ano (adicionados em ${ano}) ───
+    const thisYear = new Date().getFullYear();
+    const yearAdds = items
+      .filter((i) => new Date(i.created_at).getFullYear() === thisYear)
+      .sort((a, b) => ts(b.created_at) - ts(a.created_at));
+    if (yearAdds.length >= 6) {
+      shelves.push({
+        id: `year-${thisYear}`,
+        emoji: "🗓️",
+        title: `Descobertas de ${thisYear}`,
+        subtitle: `${yearAdds.length} livros entraram pra coleção este ano`,
+        items: yearAdds.slice(0, 20),
+        priority: 42,
+      });
+    }
+
+    // ─── 21. Para começar agora (acervo bem avaliado por outros) ──
+    // Heurística: livros no acervo com page_count razoável e capa, que você
+    // ainda não começou. Empurra os "bons" prontos pra abrir.
+    const readyToStart = without(acquired).filter((i) => {
+      const b = i.book;
+      if (!b) return false;
+      const hasCover = !!b.cover_url;
+      const okPages = (b.page_count ?? 0) >= 100;
+      return hasCover && okPages;
+    });
+    if (readyToStart.length >= 4 && acquired.length >= 6) {
+      shelves.push({
+        id: "ready-to-start",
+        emoji: "🚀",
+        title: "Pronto pra começar",
+        subtitle: "Do seu acervo — escolha um e abra hoje",
+        items: readyToStart.slice(0, 20),
+        priority: 9,
+      });
+    }
+
     // ─── 15. Porque você leu X (último 4-5★) ─────────────────
     // Threshold subido pra ≥4 candidatos pra evitar prateleira fraca.
     const lastFav = read
