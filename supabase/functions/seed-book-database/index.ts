@@ -17,7 +17,8 @@
  * Auth: admin OU service_role (cron). Idempotente: rodar 100x não duplica.
  */
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import { requireAdmin } from "../_shared/admin-guard.ts";
+import { requireAdminOrCron } from "../_shared/admin-guard.ts";
+import { startRun, finishRun } from "../_shared/automation-runs.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -157,7 +158,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const guard = await requireAdmin(req);
+    const guard = await requireAdminOrCron(req);
     if (!guard.ok) return jsonResponse({ error: guard.error }, guard.status ?? 403);
     const sb = guard.sb;
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -166,6 +167,12 @@ Deno.serve(async (req) => {
     const body: Body = await req.json().catch(() => ({}));
     const mode = body.mode || "mixed";
     const limit = Math.min(Math.max(body.limit ?? 200, 50), 500);
+
+    const run = await startRun(sb, {
+      job_type: `seed-${mode}`,
+      source: guard.isService ? "cron" : "admin",
+      triggered_by: guard.userId ?? null,
+    });
 
     const summary = {
       mode,
