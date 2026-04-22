@@ -26,6 +26,7 @@ export function ClubInviteLinkPanel({ clubId, clubName }: Props) {
   const link = useClubInviteLink(clubId, true);
   const create = useCreateInviteLink(clubId);
   const revoke = useRevokeInviteLink(clubId);
+  const redemptions = useClubInviteRedemptions(clubId, true);
 
   const [expires, setExpires] = useState<string>("7");
   const [maxUses, setMaxUses] = useState<string>("");
