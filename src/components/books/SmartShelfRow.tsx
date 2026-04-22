@@ -39,7 +39,7 @@ export function SmartShelfRow({ id, title, subtitle, items, emoji }: Props) {
   );
 
   return (
-    <CinematicShelf title={displayTitle as unknown as string} subtitle={subtitle}>
+    <CinematicShelf title={displayTitle as unknown as string} subtitle={subtitle} shelfId={id}>
       {items.map((ub) => (
         <ShelfItem key={`${id}-${ub.id}`} width="wide">
           <SmartShelfCard shelfId={id} shelfTitle={title} ub={ub} />
