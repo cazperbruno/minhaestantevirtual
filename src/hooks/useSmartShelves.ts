@@ -15,7 +15,7 @@ export interface SmartShelf {
 const RECENT_DAYS = 30;
 const REDISCOVER_DAYS = 180; // ~6 meses
 const STALLED_DAYS = 21;     // sem mexer no progresso há 3 semanas
-const MAX_SHELVES = 10;      // teto duro pra evitar feed-spam
+const MAX_SHELVES = 14;      // teto duro pra evitar feed-spam
 
 const daysAgo = (n: number) => Date.now() - n * 24 * 60 * 60 * 1000;
 const ts = (s?: string | null) => (s ? new Date(s).getTime() : 0);
