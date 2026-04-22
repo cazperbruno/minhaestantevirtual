@@ -24,9 +24,10 @@ import { UsersTab } from "@/components/admin/dashboard/UsersTab";
 import { SystemTab } from "@/components/admin/dashboard/SystemTab";
 import { FeedTab } from "@/components/admin/dashboard/FeedTab";
 import { LogsTab } from "@/components/admin/dashboard/LogsTab";
+import { AutomationTab } from "@/components/admin/dashboard/AutomationTab";
 import {
   Shield, Loader2, Download, RefreshCw, ShieldCheck, ShieldAlert,
-  LayoutDashboard, Users, Server, Activity, FileSearch, Database, Wrench,
+  LayoutDashboard, Users, Server, Activity, FileSearch, Database, Wrench, Zap,
 } from "lucide-react";
 
 interface AuditRow {
@@ -258,7 +259,7 @@ export default function AdminPage() {
         </header>
 
         <Tabs value={tab} onValueChange={setTab} className="w-full">
-          <TabsList className="grid grid-cols-3 md:grid-cols-6 w-full h-auto gap-1 bg-muted/30 p-1">
+          <TabsList className="grid grid-cols-4 md:grid-cols-7 w-full h-auto gap-1 bg-muted/30 p-1">
             <TabsTrigger value="overview" className="gap-1.5 text-xs">
               <LayoutDashboard className="w-3.5 h-3.5" /> Visão geral
             </TabsTrigger>
@@ -267,6 +268,9 @@ export default function AdminPage() {
             </TabsTrigger>
             <TabsTrigger value="content" className="gap-1.5 text-xs">
               <Database className="w-3.5 h-3.5" /> Conteúdo
+            </TabsTrigger>
+            <TabsTrigger value="automation" className="gap-1.5 text-xs">
+              <Zap className="w-3.5 h-3.5" /> Automação
             </TabsTrigger>
             <TabsTrigger value="feed" className="gap-1.5 text-xs">
               <Activity className="w-3.5 h-3.5" /> Feed
@@ -491,6 +495,10 @@ export default function AdminPage() {
                 </div>
               )}
             </Card>
+          </TabsContent>
+
+          <TabsContent value="automation" className="mt-4">
+            <AutomationTab />
           </TabsContent>
 
           <TabsContent value="feed" className="mt-4">
