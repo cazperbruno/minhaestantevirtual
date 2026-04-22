@@ -851,16 +851,45 @@ Deno.serve(async (req) => {
         });
       }
 
-      const { book, sourcesTried } = await lookupIsbnCascade(variants);
+      const { book, sourcesTried, score, usedAi } = await lookupIsbnCascade(variants);
       if (!book) {
+        await supabase.from("book_audit_log").insert({
+          process: "search-books-isbn",
+          action: "not-found",
+          fields_changed: [],
+          details: {
+            isbn_13: variants.isbn13,
+            isbn_10: variants.isbn10,
+            sources_tried: sourcesTried,
+            ai_attempted: sourcesTried.includes("ai-fallback"),
+          },
+        });
         return new Response(
-          JSON.stringify({ book: null, notFound: true, sourcesTried, error: "Livro não encontrado em nenhuma fonte." }),
+          JSON.stringify({
+            book: null,
+            notFound: true,
+            sourcesTried,
+            score: 0,
+            error: "Livro não encontrado em nenhuma fonte.",
+          }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
       const saved = await persistBook(supabase, book);
+      if (saved && (score ?? 0) < 60) {
+        try {
+          await supabase.from("enrichment_queue").insert({ book_id: saved.id });
+        } catch { /* idempotente */ }
+      }
       return new Response(
-        JSON.stringify({ book: saved, cached: false, source: book.source, sourcesTried }),
+        JSON.stringify({
+          book: saved,
+          cached: false,
+          source: book.source,
+          sourcesTried,
+          score,
+          usedAi,
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
