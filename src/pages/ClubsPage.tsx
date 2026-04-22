@@ -15,14 +15,16 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Users, Plus, Loader2, Lock, Globe2, Mail, Check, X, Sparkles, BookOpen, Search,
+  Users, Plus, Loader2, Lock, Globe2, Mail, Check, X, Sparkles, BookOpen, Search, Flame, ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { BookCover } from "@/components/books/BookCover";
 import { useMyInvitations, useAcceptInvitation, useDeclineInvitation } from "@/hooks/useClubAccess";
 import { useClubCategoriesSummary } from "@/hooks/useClubCategories";
+import { useFeaturedClub, useRecommendedClubs, useClubsMembers, type RecommendedClub } from "@/hooks/useClubDiscovery";
+import { ClubMembersStack } from "@/components/clubs/ClubMembersStack";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { CLUB_CATEGORIES, type ClubCategory } from "@/lib/club-categories";
+import { CLUB_CATEGORIES, getCategoryMeta, type ClubCategory } from "@/lib/club-categories";
 import { cn } from "@/lib/utils";
 
 interface MineRow {
