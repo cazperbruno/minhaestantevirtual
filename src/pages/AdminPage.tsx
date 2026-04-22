@@ -405,3 +405,61 @@ function ResultPill({
     </div>
   );
 }
+
+function CsrfBadge({
+  token, expiresAt, loading, error, onRotate,
+}: {
+  token: string | null;
+  expiresAt: number | null;
+  loading: boolean;
+  error: string | null;
+  onRotate: () => void;
+}) {
+  const now = Date.now();
+  const valid = !!token && !!expiresAt && expiresAt > now;
+  const minsLeft = expiresAt ? Math.max(0, Math.round((expiresAt - now) / 60000)) : 0;
+
+  return (
+    <div
+      className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs ${
+        error
+          ? "border-destructive/40 bg-destructive/10 text-destructive"
+          : valid
+            ? "border-success/40 bg-success/10 text-success"
+            : "border-warning/40 bg-warning/10 text-warning"
+      }`}
+      title={
+        error
+          ? `Erro: ${error}`
+          : valid
+            ? `Token CSRF ativo · expira em ~${minsLeft} min`
+            : "Sem token CSRF — operações bloqueadas"
+      }
+    >
+      {error ? (
+        <ShieldAlert className="w-3.5 h-3.5" />
+      ) : valid ? (
+        <ShieldCheck className="w-3.5 h-3.5" />
+      ) : (
+        <Shield className="w-3.5 h-3.5" />
+      )}
+      <span className="font-medium">
+        {loading
+          ? "Token CSRF…"
+          : error
+            ? "CSRF falhou"
+            : valid
+              ? `CSRF ativo (${minsLeft}m)`
+              : "CSRF inativo"}
+      </span>
+      <button
+        type="button"
+        onClick={onRotate}
+        className="opacity-70 hover:opacity-100 underline"
+        disabled={loading}
+      >
+        rotacionar
+      </button>
+    </div>
+  );
+}
