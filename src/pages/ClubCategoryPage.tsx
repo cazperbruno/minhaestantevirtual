@@ -267,9 +267,9 @@ export default function ClubCategoryPage() {
             title="Nenhum clube nesta categoria"
             description="Seja o primeiro a criar um clube aqui."
             action={
-              <Link to="/clubes">
-                <Button variant="hero">Criar clube</Button>
-              </Link>
+              <Button variant="hero" className="gap-2" onClick={() => setOpen(true)}>
+                <Plus className="w-4 h-4" /> Criar em {meta.label}
+              </Button>
             }
           />
         ) : filtered.length === 0 ? (
