@@ -10,12 +10,14 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { BookCover } from "@/components/books/BookCover";
 import {
   ArrowLeft, Send, Loader2, Users, LogOut, Lock, Globe2, Clock, Crown, X, Reply,
-  MessageSquare, BookOpen, Activity,
+  MessageSquare, BookOpen, Activity, Quote,
 } from "lucide-react";
 import { ClubBookOfTheMonth } from "@/components/clubs/ClubBookOfTheMonth";
 import { ClubAdminPanel } from "@/components/clubs/ClubAdminPanel";
 import { ClubActivityPanel } from "@/components/clubs/ClubActivityPanel";
 import { ClubBookProgress } from "@/components/clubs/ClubBookProgress";
+import { MessageReactions } from "@/components/clubs/MessageReactions";
+import { QuoteAttachDialog, QuoteBlock, type BookQuotePayload } from "@/components/clubs/QuoteAttachDialog";
 import { useMyJoinRequest, useRequestJoin } from "@/hooks/useClubAccess";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -26,6 +28,7 @@ import { profilePath } from "@/lib/profile-path";
 import { cn } from "@/lib/utils";
 import { useClubPresence } from "@/hooks/useClubPresence";
 import { useClubChatPresence } from "@/hooks/useClubChatPresence";
+import { useClubReactions } from "@/hooks/useClubReactions";
 
 interface Profile {
   id: string;
@@ -39,6 +42,8 @@ interface Message {
   user_id: string;
   content: string;
   created_at: string;
+  parent_id?: string | null;
+  book_quote?: BookQuotePayload | null;
   profile?: Profile;
 }
 
@@ -67,6 +72,7 @@ export default function ClubDetailPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [pendingQuote, setPendingQuote] = useState<BookQuotePayload | null>(null);
   const [tab, setTab] = useState<string>("chat");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -100,7 +106,13 @@ export default function ClubDetailPage() {
       : { data: [] as Profile[] };
     const profMap = new Map((profs || []).map((p) => [p.id, p as Profile]));
     setMembers((ms || []).map((m) => ({ ...m, profile: profMap.get(m.user_id) })));
-    setMessages((msgs || []).map((m) => ({ ...m, profile: profMap.get(m.user_id) })) as Message[]);
+    setMessages(
+      ((msgs || []) as any[]).map((m) => ({
+        ...m,
+        book_quote: (m.book_quote as BookQuotePayload | null) ?? null,
+        profile: profMap.get(m.user_id),
+      })) as Message[],
+    );
     setLoading(false);
     setTimeout(
       () => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }),
@@ -117,7 +129,11 @@ export default function ClubDetailPage() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "club_messages", filter: `club_id=eq.${id}` },
         async (payload) => {
-          const msg = payload.new as Message;
+          const raw = payload.new as any;
+          const msg: Message = {
+            ...raw,
+            book_quote: (raw.book_quote as BookQuotePayload | null) ?? null,
+          };
           const { data: p } = await supabase
             .from("profiles")
             .select("id,display_name,username,avatar_url")
@@ -179,22 +195,38 @@ export default function ClubDetailPage() {
       : null,
   );
 
+  // Map id -> mensagem para resolver parent (thread snippet)
+  const messageMap = new Map(messages.map((m) => [m.id, m]));
+
+  // Reactions em tempo real
+  const messageIds = messages.map((m) => m.id);
+  const { reactions, toggle: toggleReaction } = useClubReactions(
+    isMember ? id : undefined,
+    messageIds,
+  );
+
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !input.trim() || !id) return;
     setSending(true);
-    const replyPrefix = replyTo
-      ? `> @${replyTo.profile?.display_name || "leitor"}: ${replyTo.content.slice(0, 80)}${replyTo.content.length > 80 ? "…" : ""}\n\n`
-      : "";
-    const text = `${replyPrefix}${input.trim()}`;
+    const text = input.trim();
+    const quoteToSend = pendingQuote;
+    const parentToSend = replyTo;
     setInput("");
     setReplyTo(null);
-    const { error } = await supabase
-      .from("club_messages")
-      .insert({ club_id: id, user_id: user.id, content: text });
+    setPendingQuote(null);
+    const { error } = await supabase.from("club_messages").insert({
+      club_id: id,
+      user_id: user.id,
+      content: text,
+      parent_id: parentToSend?.id ?? null,
+      book_quote: (quoteToSend as any) ?? null,
+    } as any);
     if (error) {
       toast.error("Mensagem não enviada", { description: "Verifique sua conexão." });
-      setInput(input);
+      setInput(text);
+      setReplyTo(parentToSend);
+      setPendingQuote(quoteToSend);
     } else {
       void awardXp(user.id, "club_message", { silent: true });
     }
@@ -496,14 +528,48 @@ export default function ClubDetailPage() {
                               })}
                             </span>
                           </p>
+                          {/* Snippet do parent (thread) */}
+                          {m.parent_id &&
+                            (() => {
+                              const parent = messageMap.get(m.parent_id!);
+                              if (!parent) {
+                                return (
+                                  <div className="text-[10px] text-muted-foreground italic mb-1 inline-flex items-center gap-1">
+                                    <Reply className="w-2.5 h-2.5" /> mensagem original removida
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div className="mb-1 max-w-full rounded-lg border-l-2 border-primary/40 bg-muted/30 pl-2 pr-2 py-1 text-[11px] text-muted-foreground">
+                                  <span className="font-semibold text-foreground/80">
+                                    {parent.profile?.display_name || "Leitor"}
+                                  </span>
+                                  <span className="ml-1 line-clamp-1">
+                                    {parent.content.slice(0, 80)}
+                                    {parent.content.length > 80 ? "…" : ""}
+                                  </span>
+                                </div>
+                              );
+                            })()}
+
                           <div
                             className={cn(
                               "rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words",
                               mine ? "bg-primary text-primary-foreground" : "bg-muted",
                             )}
                           >
+                            {m.book_quote && <QuoteBlock quote={m.book_quote} />}
                             {m.content}
                           </div>
+
+                          <MessageReactions
+                            messageId={m.id}
+                            reactions={reactions.filter((r) => r.message_id === m.id)}
+                            currentUserId={user?.id ?? null}
+                            onToggle={toggleReaction}
+                            align={mine ? "end" : "start"}
+                          />
+
                           <div className="opacity-0 group-hover/msg:opacity-100 sm:opacity-0 sm:group-hover/msg:opacity-100 transition-opacity flex gap-1 mt-1">
                             <button
                               onClick={() => startReply(m)}
@@ -562,7 +628,37 @@ export default function ClubDetailPage() {
                 </div>
               )}
 
+              {pendingQuote && (
+                <div className="rounded-xl bg-primary/5 border border-primary/30 px-3 py-2 text-xs">
+                  <div className="flex items-start gap-2">
+                    <Quote className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-primary mb-0.5">
+                        Citação anexada
+                        {pendingQuote.book_title && ` · ${pendingQuote.book_title}`}
+                        {pendingQuote.page && ` (p. ${pendingQuote.page})`}
+                      </p>
+                      <p className="italic text-muted-foreground line-clamp-2">
+                        "{pendingQuote.text}"
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPendingQuote(null)}
+                      className="text-muted-foreground hover:text-foreground shrink-0"
+                      aria-label="Remover citação"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <form onSubmit={send} className="flex gap-2">
+                <QuoteAttachDialog
+                  currentBook={club.current_book ? { id: club.current_book.id, title: club.current_book.title } : null}
+                  onAttach={(q) => setPendingQuote(q)}
+                />
                 <Input
                   ref={inputRef}
                   value={input}
@@ -570,7 +666,7 @@ export default function ClubDetailPage() {
                     setInput(e.target.value);
                     sendTypingRef.current?.();
                   }}
-                  placeholder={replyTo ? "Sua resposta..." : "Mensagem..."}
+                  placeholder={replyTo ? "Sua resposta..." : pendingQuote ? "Comente a citação..." : "Mensagem..."}
                   disabled={sending}
                   maxLength={2000}
                 />
