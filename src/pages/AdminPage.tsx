@@ -375,9 +375,35 @@ export default function AdminPage() {
           )}
 
           {importResult && (
-            <div className="rounded-xl border border-border/50 bg-muted/30 p-4 space-y-2">
-              <p className="text-sm font-semibold">Resultado da importação</p>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+            <div className="rounded-xl border border-border/50 bg-muted/30 p-4 space-y-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <p className="text-sm font-semibold">Resultado da importação</p>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  {importResult.batches > 0 && (
+                    <Badge variant="outline" className="font-normal">
+                      {importResult.batches} lote{importResult.batches > 1 ? "s" : ""}
+                    </Badge>
+                  )}
+                  {importResult.duration_ms > 0 && (
+                    <Badge variant="outline" className="font-normal">
+                      {(importResult.duration_ms / 1000).toFixed(1)}s
+                    </Badge>
+                  )}
+                  {importResult.received > 0 && (
+                    <Badge
+                      variant="outline"
+                      className={`font-normal ${
+                        ((importResult.inserted + importResult.already_existed) / importResult.received) >= 0.8
+                          ? "text-success border-success/40"
+                          : "text-warning border-warning/40"
+                      }`}
+                    >
+                      {Math.round(((importResult.inserted + importResult.already_existed) / Math.max(1, importResult.received)) * 100)}% sucesso
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                 <ResultPill label="Recebidos" value={importResult.received} />
                 <ResultPill label="Inválidos" value={importResult.invalid} variant="warn" />
                 <ResultPill label="Já existiam" value={importResult.already_existed} variant="muted" />
@@ -397,7 +423,7 @@ export default function AdminPage() {
                     {importResult.sample.length} amostras inseridas
                   </summary>
                   <ul className="mt-2 space-y-1">
-                    {importResult.sample.map((s: any, i: number) => (
+                    {importResult.sample.slice(0, 20).map((s: any, i: number) => (
                       <li key={i} className="flex items-center justify-between gap-2">
                         <span className="truncate">{s.title}</span>
                         <span className="shrink-0 text-muted-foreground">
