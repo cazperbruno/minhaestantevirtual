@@ -129,7 +129,7 @@ export default function ClubCategoryPage() {
     return () => {
       cancelled = true;
     };
-  }, [slug, isValidCategory, user?.id]);
+  }, [slug, isValidCategory, user?.id, reloadKey]);
 
   const filtered = useMemo(() => {
     const q = debouncedQuery.trim().toLowerCase();
