@@ -90,9 +90,11 @@ export function HomeMode({ items }: Props) {
       });
     } else if (group === "category") {
       filtered.forEach((ub) => {
-        const cats = ub.book?.categories ?? [];
+        const cats = (ub.book?.categories ?? [])
+          .map((c) => localizeCategory(c))
+          .filter((c) => c && c !== "Outros");
         if (cats.length === 0) push("Sem categoria", ub);
-        else cats.slice(0, 1).forEach((c) => push(c || "Sem categoria", ub));
+        else push(cats[0], ub);
       });
     } else if (group === "status") {
       filtered.forEach((ub) => push(STATUS_LABEL[ub.status] || ub.status, ub));
