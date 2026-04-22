@@ -79,6 +79,9 @@ export function ClubAdminPanel({ clubId, ownerId }: Props) {
       {/* GERENCIAR LIVROS */}
       <ClubBooksAdmin clubId={clubId} />
 
+      {/* LINK DE CONVITE */}
+      <ClubInviteLinkPanel clubId={clubId} />
+
       {/* CATEGORIA */}
       <section>
         <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 font-semibold flex items-center gap-1.5">
