@@ -296,12 +296,12 @@ export default function ClubDetailPage() {
   const join = async () => {
     if (!user || !id || !club) return;
     if (club.is_public) {
-      const { error } = await supabase
-        .from("club_members")
-        .insert({ club_id: id, user_id: user.id });
-      if (error) toast.error("Não conseguimos entrar no clube agora");
-      else {
-        toast.success("Bem-vindo ao clube!");
+      const { data, error } = await supabase.rpc("join_public_club", { _club_id: id });
+      const row = (data as any[])?.[0];
+      if (error || !row?.success) {
+        toast.error("Não conseguimos entrar no clube agora");
+      } else {
+        toast.success(row.message === "already_member" ? "Você já é membro" : "Bem-vindo ao clube!");
         load();
       }
     }
