@@ -435,7 +435,7 @@ function StatCard({
 
 function ResultPill({
   label, value, variant,
-}: { label: string; value: number; variant?: "success" | "warn" | "muted" }) {
+}: { label: string; value: number | string; variant?: "success" | "warn" | "muted" }) {
   const cls =
     variant === "success" ? "text-success" :
     variant === "warn" ? "text-warning" :
