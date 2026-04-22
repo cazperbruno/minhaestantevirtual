@@ -25,19 +25,9 @@ import { SystemTab } from "@/components/admin/dashboard/SystemTab";
 import { FeedTab } from "@/components/admin/dashboard/FeedTab";
 import { LogsTab } from "@/components/admin/dashboard/LogsTab";
 import {
-  Shield, Users, BookOpen, Activity, Loader2, Download,
-  RefreshCw, ShieldCheck, ShieldAlert,
-  LayoutDashboard, Server, FileSearch,
+  Shield, Loader2, Download, RefreshCw, ShieldCheck, ShieldAlert,
+  LayoutDashboard, Users, Server, Activity, FileSearch, Database, Wrench,
 } from "lucide-react";
-
-interface Stats {
-  users: number;
-  books: number;
-  activities: number;
-  books_last_24h: number;
-  books_last_7d: number;
-  enrichment_pending: number;
-}
 
 interface AuditRow {
   id: string;
