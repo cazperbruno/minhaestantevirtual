@@ -50,10 +50,17 @@ export function HomeMode({ items }: Props) {
     return Array.from(s).sort();
   }, [items]);
 
+  // Gêneros únicos já normalizados em PT-BR (sem duplicar Fiction/Ficção, etc.)
   const genres = useMemo(() => {
     const s = new Set<string>();
-    items.forEach((i) => i.book?.categories?.forEach((c) => c && s.add(c)));
-    return Array.from(s).sort();
+    items.forEach((i) =>
+      i.book?.categories?.forEach((c) => {
+        if (!c) return;
+        const loc = localizeCategory(c);
+        if (loc && loc !== "Outros") s.add(loc);
+      }),
+    );
+    return Array.from(s).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [items]);
 
   const filtered = useMemo(() => {
@@ -61,7 +68,11 @@ export function HomeMode({ items }: Props) {
     if (readFilter === "read") r = r.filter((i) => i.status === "read");
     else if (readFilter === "unread") r = r.filter((i) => i.status !== "read");
     if (author !== "all") r = r.filter((i) => i.book?.authors?.includes(author));
-    if (genre !== "all") r = r.filter((i) => i.book?.categories?.includes(genre));
+    if (genre !== "all") {
+      r = r.filter((i) =>
+        i.book?.categories?.some((c) => localizeCategory(c) === genre),
+      );
+    }
     return r;
   }, [items, readFilter, author, genre]);
 
