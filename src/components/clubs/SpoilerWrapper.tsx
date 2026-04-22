@@ -40,13 +40,13 @@ export function SpoilerWrapper({ spoilerPage, readerPage, children, className }:
         onClick={() => setRevealed(true)}
         className={cn(
           "relative w-full text-left rounded-2xl px-3 py-2 text-sm overflow-hidden",
-          "bg-muted/60 border border-dashed border-amber-500/40 hover:border-amber-500/70 transition-colors",
+          "bg-muted/60 border border-dashed border-primary/40 hover:border-primary/70 transition-colors",
           className,
         )}
         aria-label={`Revelar spoiler da página ${spoilerPage}`}
       >
         <div className="absolute inset-0 backdrop-blur-md bg-background/40 flex items-center justify-center gap-2 pointer-events-none">
-          <EyeOff className="w-4 h-4 text-amber-500" />
+          <EyeOff className="w-4 h-4 text-primary" />
           <span className="text-xs font-semibold text-foreground/90">
             Spoiler · pág. {spoilerPage} · toque para revelar
           </span>
@@ -61,7 +61,7 @@ export function SpoilerWrapper({ spoilerPage, readerPage, children, className }:
   return (
     <div className={cn("relative", className)}>
       {hasSpoiler && (
-        <div className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 mb-1 font-semibold uppercase tracking-wider">
+        <div className="flex items-center gap-1 text-[10px] text-primary mb-1 font-semibold uppercase tracking-wider">
           <Eye className="w-2.5 h-2.5" /> spoiler · pág. {spoilerPage}
         </div>
       )}
