@@ -8,7 +8,7 @@ import { goldenBurst } from "@/lib/confetti";
 export type XpSource =
   | "add_book" | "finish_book" | "rate_book" | "scan_book"
   | "write_review" | "like_review" | "comment_review"
-  | "follow" | "club_message" | "loan_book"
+  | "follow" | "club_message" | "club_reaction_received" | "club_mention" | "loan_book"
   | "open_app" | "challenge" | "streak_milestone" | "invite_signup" | "invite_welcome" | "misc";
 
 const XP_TABLE: Partial<Record<XpSource, number>> = {
