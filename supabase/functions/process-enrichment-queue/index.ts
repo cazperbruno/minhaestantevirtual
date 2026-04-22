@@ -89,7 +89,12 @@ Deno.serve(async (req) => {
     try {
       const r = await fetch(`${SUPABASE_URL}/functions/v1/enrich-book`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_ROLE}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SERVICE_ROLE}`,
+          // O Supabase Gateway exige `apikey` ou rejeita 401 antes da função executar
+          apikey: SERVICE_ROLE,
+        },
         body: JSON.stringify({ book_id: job.book_id }),
       });
       httpStatus = r.status;
