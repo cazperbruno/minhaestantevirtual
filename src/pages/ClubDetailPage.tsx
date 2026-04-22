@@ -20,6 +20,7 @@ import { awardXp } from "@/lib/xp";
 import { TypingIndicator } from "@/components/social/TypingIndicator";
 import { profilePath } from "@/lib/profile-path";
 import { cn } from "@/lib/utils";
+import { useClubPresence } from "@/hooks/useClubPresence";
 
 interface Profile {
   id: string;
@@ -155,6 +156,9 @@ export default function ClubDetailPage() {
   const isOwner = !!user && club?.owner_id === user.id;
   const { data: myRequest } = useMyJoinRequest(user?.id, id);
   const requestJoin = useRequestJoin(id || "", user?.id);
+
+  // Heartbeat de presença — registra "online agora" para a categoria do clube
+  useClubPresence(id, isMember);
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
