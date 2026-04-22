@@ -75,6 +75,12 @@ Deno.serve(async (req) => {
     });
   }
 
+  const run = await startRun(sb, {
+    job_type: "enrich-queue",
+    source: guard.isService ? "cron" : "admin",
+    triggered_by: guard.userId ?? null,
+  });
+
   // Marca como processing (otimistic — uma rodada por vez via cron 5min, sem race)
   await sb
     .from("enrichment_queue")
