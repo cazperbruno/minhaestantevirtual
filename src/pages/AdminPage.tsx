@@ -497,6 +497,10 @@ export default function AdminPage() {
             </Card>
           </TabsContent>
 
+          <TabsContent value="automation" className="mt-4">
+            <AutomationTab />
+          </TabsContent>
+
           <TabsContent value="feed" className="mt-4">
             <FeedTab />
           </TabsContent>
