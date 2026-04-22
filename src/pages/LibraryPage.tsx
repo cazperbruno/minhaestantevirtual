@@ -197,6 +197,7 @@ export default function LibraryPage() {
           </>
         )}
       </div>
+      </PullToRefresh>
     </AppShell>
   );
 }
