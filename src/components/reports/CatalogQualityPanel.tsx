@@ -26,6 +26,13 @@ interface QueueStat {
   count: number;
 }
 
+interface QueueDrainResult {
+  processed?: number;
+  success?: number;
+  skipped?: number;
+  failed?: number;
+}
+
 export function CatalogQualityPanel() {
   const csrf = useAdminCsrfToken();
   const [quality, setQuality] = useState<Quality | null>(null);
@@ -65,7 +72,7 @@ export function CatalogQualityPanel() {
       const csrfToken = await csrf.ensureToken();
       if (!csrfToken) throw new Error("Token de segurança ausente. Recarregue a página do painel.");
       const fn = kind === "enrich" ? "process-enrichment-queue" : "process-normalization-queue";
-      const { data, error } = await invokeAdmin(fn, { csrfToken, body: {} });
+      const { data, error } = await invokeAdmin<QueueDrainResult>(fn, { csrfToken, body: {} });
       if (error) throw error;
       toast.success(`Processados ${data?.processed ?? 0} (${data?.success ?? 0} OK, ${data?.skipped ?? 0} pulados, ${data?.failed ?? 0} falhas)`);
       await load();
