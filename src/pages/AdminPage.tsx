@@ -302,8 +302,8 @@ export default function AdminPage() {
                 Importar livros por lista de ISBN
               </h3>
               <p className="text-sm text-muted-foreground mt-1">
-                Cole ISBNs (10 ou 13 dígitos), um por linha ou separados por vírgula. Processa em lotes de 50.
-                Verifica banco interno antes de chamar APIs externas.
+                Cole ISBNs (10 ou 13 dígitos), um por linha ou separados por vírgula. Processa em <strong>lotes de 100</strong> com 2 lotes paralelos.
+                Cascade: BrasilAPI → OpenLibrary → Google Books → IA fallback.
               </p>
             </div>
           </div>
@@ -319,9 +319,27 @@ export default function AdminPage() {
                 className="font-mono text-sm"
                 disabled={importing}
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                {parseIsbns(isbnInput).length} ISBNs válidos detectados
-              </p>
+              {(() => {
+                const d = parseIsbnDetail(isbnInput);
+                const batches = Math.ceil(d.valid.length / 100);
+                return (
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5 text-xs">
+                    <Badge variant="secondary" className="font-normal">
+                      {d.valid.length} válidos
+                    </Badge>
+                    {d.invalid.length > 0 && (
+                      <Badge variant="outline" className="font-normal text-warning border-warning/40">
+                        {d.invalid.length} inválidos (ignorados)
+                      </Badge>
+                    )}
+                    {batches > 0 && (
+                      <span className="text-muted-foreground">
+                        · {batches} lote{batches > 1 ? "s" : ""} de até 100
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             <div className="space-y-3">
               <div>
