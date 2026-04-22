@@ -21,6 +21,8 @@ const SOURCE_META: Record<string, { label: string; icon: any; tint: string }> = 
   comment_review:  { label: "Comentário no feed",   icon: MessageCircle,tint: "text-violet-400" },
   follow:          { label: "Novo leitor seguido",  icon: UserPlus,     tint: "text-cyan-400" },
   club_message:    { label: "Mensagem em clube",    icon: Users2,       tint: "text-indigo-400" },
+  club_reaction_received: { label: "Reação recebida no clube", icon: Smile, tint: "text-rose-400" },
+  club_mention:    { label: "Mencionado no clube",   icon: AtSign,       tint: "text-fuchsia-400" },
   loan_book:       { label: "Empréstimo registrado",icon: Library,      tint: "text-amber-300" },
   open_app:        { label: "Visita diária",        icon: Sunrise,      tint: "text-orange-300" },
   challenge:       { label: "Desafio completado",   icon: Trophy,       tint: "text-primary" },
