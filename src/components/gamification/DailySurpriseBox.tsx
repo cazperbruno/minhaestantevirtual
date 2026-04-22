@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Gift, Sparkles, Loader2, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { useOpenSurpriseBox, useSurpriseStatus, type SurpriseRarity } from "@/hooks/useSurpriseBox";
+import { useOpenSurpriseBox, useSurpriseStatus, type SurpriseClaim, type SurpriseRarity } from "@/hooks/useSurpriseBox";
 import { useEpicSaturday } from "@/hooks/useEpicSaturday";
 import { supabase } from "@/integrations/supabase/client";
 import { BookCover } from "@/components/books/BookCover";
@@ -31,22 +31,44 @@ export function DailySurpriseBox() {
   const open = useOpenSurpriseBox(user?.id);
   const [revealedBook, setRevealedBook] = useState<Book | null>(null);
   const [shaking, setShaking] = useState(false);
-  const [opened, setOpened] = useState(false);
+  const [localClaim, setLocalClaim] = useState<SurpriseClaim | null>(null);
 
-  // Quando já abriu hoje, marca como aberto mesmo se livro não for encontrado
-  useEffect(() => {
+  const effectiveClaim = useMemo<SurpriseClaim | null>(() => {
+    if (localClaim) return localClaim;
     if (status?.available === false) {
-      setOpened(true);
+      return {
+        already_claimed: true,
+        bonus_xp: status.last_bonus_xp ?? 0,
+        book_id: status.last_book_id ?? null,
+        claim_date: new Date().toISOString().slice(0, 10),
+        rarity: ((status.last_rarity ?? "common") as SurpriseRarity),
+      };
     }
-    if (!status?.last_book_id) return;
+    return null;
+  }, [localClaim, status]);
+
+  // Busca o livro revelado a partir do claim efetivo (local imediato ou status persistido).
+  useEffect(() => {
+    const bookId = effectiveClaim?.book_id;
+    if (!bookId) {
+      setRevealedBook(null);
+      return;
+    }
+
     let cancelled = false;
     (async () => {
       const { data } = await supabase
-        .from("books").select("*").eq("id", status.last_book_id!).maybeSingle();
-      if (!cancelled && data) setRevealedBook(data as Book);
+        .from("books")
+        .select("*")
+        .eq("id", bookId)
+        .maybeSingle();
+      if (!cancelled) setRevealedBook((data as Book) ?? null);
     })();
-    return () => { cancelled = true; };
-  }, [status?.last_book_id, status?.available]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveClaim?.book_id]);
 
   if (!user || isLoading) return null;
 
@@ -56,13 +78,8 @@ export function DailySurpriseBox() {
     setShaking(true);
     try {
       const claim = await open.mutateAsync();
+      setLocalClaim(claim);
       setShaking(false);
-      if (claim.book_id) {
-        const { data } = await supabase
-          .from("books").select("*").eq("id", claim.book_id).maybeSingle();
-        if (data) setRevealedBook(data as Book);
-      }
-      setOpened(true);
       // Telemetria de profundidade — Fase 3
       trackEvent("surprise_box_opened", {
         rarity: claim.rarity,
@@ -80,8 +97,8 @@ export function DailySurpriseBox() {
   };
 
   // Estado: já abriu hoje (com ou sem livro disponível)
-  if (opened) {
-    const rarity = (status?.last_rarity ?? "common") as SurpriseRarity;
+  if (effectiveClaim) {
+    const rarity = (effectiveClaim.rarity ?? "common") as SurpriseRarity;
     const style = rarityStyles[rarity];
     return (
       <div
@@ -117,7 +134,7 @@ export function DailySurpriseBox() {
               </p>
             )}
             <p className="text-xs mt-1.5 font-semibold text-primary">
-              +{status?.last_bonus_xp ?? 0} XP recebido
+              +{effectiveClaim.bonus_xp ?? 0} XP recebido
             </p>
           </div>
         </div>
