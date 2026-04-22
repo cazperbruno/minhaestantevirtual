@@ -40,9 +40,9 @@ interface AuditRow {
 export default function AdminPage() {
   const { isAdmin, loading: adminLoading } = useIsAdmin();
   const csrf = useAdminCsrfToken();
-  const [stats, setStats] = useState<Stats | null>(null);
   const [logs, setLogs] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("overview");
 
   // Import-by-ISBN state
   const [isbnInput, setIsbnInput] = useState("");
@@ -54,28 +54,14 @@ export default function AdminPage() {
   const loadStats = async () => {
     setLoading(true);
     try {
-      const since24h = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-      const since7d = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
-      const [usersR, booksR, actsR, b24R, b7R, enrichR, logsR] = await Promise.all([
-        supabase.from("profiles").select("id", { count: "exact", head: true }),
-        supabase.from("books").select("id", { count: "exact", head: true }),
-        supabase.from("activities").select("id", { count: "exact", head: true }),
-        supabase.from("books").select("id", { count: "exact", head: true }).gte("created_at", since24h),
-        supabase.from("books").select("id", { count: "exact", head: true }).gte("created_at", since7d),
-        supabase.from("enrichment_queue").select("id", { count: "exact", head: true }).eq("status", "pending"),
-        supabase.from("book_audit_log").select("id, process, action, created_at, details").order("created_at", { ascending: false }).limit(10),
-      ]);
-      setStats({
-        users: usersR.count ?? 0,
-        books: booksR.count ?? 0,
-        activities: actsR.count ?? 0,
-        books_last_24h: b24R.count ?? 0,
-        books_last_7d: b7R.count ?? 0,
-        enrichment_pending: enrichR.count ?? 0,
-      });
+      const logsR = await supabase
+        .from("book_audit_log")
+        .select("id, process, action, created_at, details")
+        .order("created_at", { ascending: false })
+        .limit(10);
       setLogs((logsR.data as AuditRow[]) || []);
     } catch (e: any) {
-      toast.error(e?.message ?? "Falha ao carregar estatísticas");
+      toast.error(e?.message ?? "Falha ao carregar logs");
     } finally {
       setLoading(false);
     }
