@@ -1,5 +1,5 @@
-import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Children, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -10,6 +10,14 @@ interface Props {
   /** Mostra ação à direita do header (ex.: "Ver tudo"). */
   action?: ReactNode;
   className?: string;
+  /**
+   * Carregamento incremental: número inicial de itens renderizados.
+   * Demais aparecem ao clicar em "Ver mais" (em lotes de `step`).
+   * Default: 12 (suficiente para preencher 1–2 páginas horizontais).
+   */
+  initialCount?: number;
+  /** Tamanho do lote ao clicar em "Ver mais". Default: 12. */
+  step?: number;
 }
 
 /**
