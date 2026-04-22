@@ -46,7 +46,9 @@ export function useCreateInviteLink(clubId: string) {
         _max_uses: opts.max_uses ?? null,
       });
       if (error) throw error;
-      return data as { token: string };
+      const row = (data as Array<{ token: string }>)?.[0];
+      if (!row?.token) throw new Error("Token não retornado");
+      return row;
     },
     onSuccess: () => {
       toast.success("Link de convite criado");
