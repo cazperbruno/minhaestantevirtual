@@ -103,6 +103,31 @@ function aggregate(rows: RawRow[], year: number): WrappedData {
 
   pagesRanking.sort((a, b) => b.pages - a.pages);
 
+  // Mês a mês — array completo de 12 posições
+  const monthly = Array.from({ length: 12 }, (_, m) => ({
+    month: m,
+    count: monthMap.get(m) || 0,
+  }));
+
+  // Primeira e última leitura do ano (ordenadas por data)
+  const sortedByDate = [...finished].sort(
+    (a, b) => new Date(a.finished_at!).getTime() - new Date(b.finished_at!).getTime(),
+  );
+  const firstBook = sortedByDate[0]
+    ? {
+        title: sortedByDate[0].book!.title,
+        authors: sortedByDate[0].book!.authors,
+        date: sortedByDate[0].finished_at!,
+      }
+    : null;
+  const lastBook = sortedByDate.length > 1
+    ? {
+        title: sortedByDate[sortedByDate.length - 1].book!.title,
+        authors: sortedByDate[sortedByDate.length - 1].book!.authors,
+        date: sortedByDate[sortedByDate.length - 1].finished_at!,
+      }
+    : null;
+
   return {
     year,
     totalBooks,
@@ -115,7 +140,12 @@ function aggregate(rows: RawRow[], year: number): WrappedData {
     finishedBooks: finished.slice(0, 12).map((r) => ({
       title: r.book!.title,
       authors: r.book!.authors,
+      cover_url: r.book!.cover_url ?? null,
+      finished_at: r.finished_at!,
     })),
+    monthly,
+    firstBook,
+    lastBook,
   };
 }
 
