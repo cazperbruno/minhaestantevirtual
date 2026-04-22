@@ -163,7 +163,9 @@ export default function WrappedPage() {
   const [year, setYear] = useState(defaultYear);
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<RawRow[]>([]);
+  const [friends, setFriends] = useState<FriendStat[]>([]);
   const [slide, setSlide] = useState(0);
+  const [savingStory, setSavingStory] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const startX = useRef<number | null>(null);
 
@@ -174,7 +176,7 @@ export default function WrappedPage() {
       setLoading(true);
       const { data } = await supabase
         .from("user_books")
-        .select("status, finished_at, current_page, book:books(title, authors, categories, page_count)")
+        .select("status, finished_at, current_page, book:books(title, authors, categories, page_count, cover_url)")
         .eq("user_id", user.id);
       if (!cancelled) {
         setRows((data as unknown as RawRow[]) || []);
@@ -185,6 +187,74 @@ export default function WrappedPage() {
       cancelled = true;
     };
   }, [user]);
+
+  // Buscar ranking entre quem você segue (e você mesmo) — leituras concluídas no ano
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const { data: f } = await supabase
+        .from("follows")
+        .select("following_id")
+        .eq("follower_id", user.id);
+      const ids = [user.id, ...((f || []).map((x) => x.following_id) as string[])];
+      if (ids.length === 0) {
+        setFriends([]);
+        return;
+      }
+
+      const start = `${year}-01-01`;
+      const end = `${year + 1}-01-01`;
+      const [{ data: ub }, { data: profs }] = await Promise.all([
+        supabase
+          .from("user_books")
+          .select("user_id, current_page, book:books(page_count)")
+          .in("user_id", ids)
+          .eq("status", "read")
+          .gte("finished_at", start)
+          .lt("finished_at", end),
+        supabase
+          .from("profiles")
+          .select("id, display_name, username, avatar_url")
+          .in("id", ids),
+      ]);
+
+      const profMap = new Map<string, { display_name: string | null; username: string | null; avatar_url: string | null }>();
+      for (const p of (profs as any[]) || []) {
+        profMap.set(p.id, { display_name: p.display_name, username: p.username, avatar_url: p.avatar_url });
+      }
+
+      const agg = new Map<string, { count: number; pages: number }>();
+      for (const r of (ub as any[]) || []) {
+        const k = r.user_id as string;
+        const cur = agg.get(k) || { count: 0, pages: 0 };
+        cur.count += 1;
+        cur.pages += (r.current_page ?? r.book?.page_count ?? 0);
+        agg.set(k, cur);
+      }
+
+      const stats: FriendStat[] = ids.map((id) => {
+        const a = agg.get(id) || { count: 0, pages: 0 };
+        const p = profMap.get(id) || { display_name: null, username: null, avatar_url: null };
+        return {
+          user_id: id,
+          display_name: p.display_name,
+          username: p.username,
+          avatar_url: p.avatar_url,
+          count: a.count,
+          pages: a.pages,
+          isMe: id === user.id,
+        };
+      })
+        .filter((s) => s.count > 0 || s.isMe)
+        .sort((a, b) => b.count - a.count || b.pages - a.pages);
+
+      if (!cancelled) setFriends(stats);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, year]);
 
   const data = useMemo(() => aggregate(rows, year), [rows, year]);
 
