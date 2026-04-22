@@ -66,7 +66,7 @@ export default function AdminPage() {
         supabase.from("books").select("id", { count: "exact", head: true }).gte("created_at", since24h),
         supabase.from("books").select("id", { count: "exact", head: true }).gte("created_at", since7d),
         supabase.from("enrichment_queue").select("id", { count: "exact", head: true }).eq("status", "pending"),
-        supabase.from("book_audit_log").select("id, process, action, created_at, details").order("created_at", { ascending: false }).limit(20),
+        supabase.from("book_audit_log").select("id, process, action, created_at, details").order("created_at", { ascending: false }).limit(10),
       ]);
       setStats({
         users: usersR.count ?? 0,
