@@ -115,6 +115,7 @@ export default function BookDetail() {
           <BookSuggestions book={book} />
         </div>
       </ShelfNavigator>
+      <ScrollToTopButton />
     </AppShell>
   );
 }
