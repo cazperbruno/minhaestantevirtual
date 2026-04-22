@@ -19,6 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CLUB_CATEGORIES, type ClubCategory } from "@/lib/club-categories";
 import { ClubBooksAdmin } from "@/components/clubs/ClubBooksAdmin";
 import { ExportClubReportButton } from "@/components/clubs/ExportClubReportButton";
+import { ClubInviteLinkPanel } from "@/components/clubs/ClubInviteLinkPanel";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 

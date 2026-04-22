@@ -29,6 +29,7 @@ const ClubsPage = lazy(() => import("./pages/ClubsPage"));
 const ClubCategoryPage = lazy(() => import("./pages/ClubCategoryPage"));
 const ClubDetailPage = lazy(() => import("./pages/ClubDetailPage"));
 const ClubMembersPage = lazy(() => import("./pages/ClubMembersPage"));
+const ClubInviteAcceptPage = lazy(() => import("./pages/ClubInviteAcceptPage"));
 const PublicProfile = lazy(() => import("./pages/PublicProfile"));
 const PublicWishlistPage = lazy(() => import("./pages/PublicWishlistPage"));
 const ReadersPage = lazy(() => import("./pages/ReadersPage"));
@@ -77,6 +78,7 @@ const App = () => (
             <Route path="/estatisticas" element={<ProtectedRoute><StatsPage /></ProtectedRoute>} />
             <Route path="/clubes" element={<ProtectedRoute><ClubsPage /></ProtectedRoute>} />
             <Route path="/clubes/categoria/:slug" element={<ProtectedRoute><ClubCategoryPage /></ProtectedRoute>} />
+            <Route path="/clubes/convite/:token" element={<ClubInviteAcceptPage />} />
             <Route path="/clubes/:id" element={<ProtectedRoute><ClubDetailPage /></ProtectedRoute>} />
             <Route path="/clubes/:id/membros" element={<ProtectedRoute><ClubMembersPage /></ProtectedRoute>} />
             <Route path="/u/:username" element={<ProtectedRoute><PublicProfile /></ProtectedRoute>} />
