@@ -286,6 +286,11 @@ export default function ClubsPage() {
           </section>
         ) : (
           <>
+            {/* HERO — Clube em destaque */}
+            {featured.data && (
+              <FeaturedClubHero club={featured.data} />
+            )}
+
             {/* MEUS CLUBES — atalho rápido */}
             {!loadingMine && mine.length > 0 && (
               <section className="mb-8">
@@ -293,25 +298,53 @@ export default function ClubsPage() {
                   <Sparkles className="w-4 h-4 text-primary" /> Continue no clube
                 </h2>
                 <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-5 md:-mx-10 px-5 md:px-10 pb-2">
-                  {mine.map((c) => (
-                    <Link key={c.id} to={`/clubes/${c.id}`} className="snap-start shrink-0 w-64 glass rounded-2xl p-4 hover:border-primary/40 transition-colors">
-                      <div className="flex items-start gap-3">
-                        {c.current_book ? (
-                          <BookCover book={c.current_book} size="sm" />
-                        ) : (
-                          <div className="w-12 h-16 rounded-md bg-muted/40 flex items-center justify-center">
-                            <BookOpen className="w-5 h-5 text-muted-foreground" />
+                  {mine.map((c) => {
+                    const members = (membersByClub.data || {})[c.id] || [];
+                    const onlineNow = members.filter((m) => m.is_online).length;
+                    return (
+                      <Link key={c.id} to={`/clubes/${c.id}`} className="snap-start shrink-0 w-64 glass rounded-2xl p-4 hover:border-primary/40 transition-colors">
+                        <div className="flex items-start gap-3">
+                          {c.current_book ? (
+                            <BookCover book={c.current_book} size="sm" />
+                          ) : (
+                            <div className="w-12 h-16 rounded-md bg-muted/40 flex items-center justify-center">
+                              <BookOpen className="w-5 h-5 text-muted-foreground" />
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs uppercase tracking-wider text-primary font-semibold">
+                              {CLUB_CATEGORIES.find((x) => x.slug === c.category)?.emoji} {CLUB_CATEGORIES.find((x) => x.slug === c.category)?.label}
+                            </p>
+                            <p className="font-semibold text-sm leading-tight line-clamp-2 mt-0.5">{c.name}</p>
                           </div>
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs uppercase tracking-wider text-primary font-semibold">
-                            {CLUB_CATEGORIES.find((x) => x.slug === c.category)?.emoji} {CLUB_CATEGORIES.find((x) => x.slug === c.category)?.label}
-                          </p>
-                          <p className="font-semibold text-sm leading-tight line-clamp-2 mt-0.5">{c.name}</p>
                         </div>
-                      </div>
-                    </Link>
-                  ))}
+                        <div className="mt-3 flex items-center justify-between gap-2">
+                          <ClubMembersStack members={members} total={members.length} max={3} />
+                          {onlineNow > 0 && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-400/30">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                              {onlineNow}
+                            </span>
+                          )}
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* RECOMENDADOS PRA VOCÊ */}
+            {(recommended.data || []).length > 0 && (
+              <section className="mb-8">
+                <h2 className="font-display text-xl font-bold mb-3 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary" /> Recomendados pra você
+                </h2>
+                <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-5 md:-mx-10 px-5 md:px-10 pb-2">
+                  {(recommended.data || []).map((c) => {
+                    const members = (membersByClub.data || {})[c.id] || [];
+                    return <RecommendedCard key={c.id} club={c} members={members} />;
+                  })}
                 </div>
               </section>
             )}
