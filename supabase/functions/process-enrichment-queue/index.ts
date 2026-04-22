@@ -179,7 +179,7 @@ Deno.serve(async (req) => {
     console.error("[process-enrichment-queue] ALL jobs failed with auth — verifique config de auth de enrich-book");
   }
 
-  return new Response(JSON.stringify({
+  const result = {
     ok: !allAuthFailed,
     processed: jobs.length,
     success: okCount,
@@ -187,7 +187,15 @@ Deno.serve(async (req) => {
     failed: failCount,
     auth_failed: authFailCount,
     recovered: stuck?.length ?? 0,
-  }), {
+  };
+
+  await finishRun(sb, run, {
+    status: allAuthFailed ? "error" : "success",
+    result,
+    error: allAuthFailed ? "all jobs failed with auth" : null,
+  });
+
+  return new Response(JSON.stringify(result), {
     status: allAuthFailed ? 502 : 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
