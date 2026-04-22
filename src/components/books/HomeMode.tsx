@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Home as HomeIcon, ArrowDownAZ, BookOpen, Tag, User } from "lucide-react";
+import { localizeCategory } from "@/lib/category-i18n";
 
 type Group = "author" | "category" | "status" | "az";
 type ReadFilter = "all" | "read" | "unread";
