@@ -243,21 +243,25 @@ export default function ClubDetailPage() {
     const text = input.trim();
     const quoteToSend = pendingQuote;
     const parentToSend = replyTo;
+    const spoilerToSend = pendingSpoilerPage;
     setInput("");
     setReplyTo(null);
     setPendingQuote(null);
+    setPendingSpoilerPage(null);
     const { error } = await supabase.from("club_messages").insert({
       club_id: id,
       user_id: user.id,
       content: text,
       parent_id: parentToSend?.id ?? null,
       book_quote: (quoteToSend as any) ?? null,
+      spoiler_page: spoilerToSend ?? null,
     } as any);
     if (error) {
       toast.error("Mensagem não enviada", { description: "Verifique sua conexão." });
       setInput(text);
       setReplyTo(parentToSend);
       setPendingQuote(quoteToSend);
+      setPendingSpoilerPage(spoilerToSend);
     } else {
       void awardXp(user.id, "club_message", { silent: true });
     }
