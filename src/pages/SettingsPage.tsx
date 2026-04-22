@@ -216,10 +216,43 @@ export default function SettingsPage() {
           </div>
           <p className="text-xs text-muted-foreground mb-3">
             Reveja a apresentação cinemática de boas-vindas a qualquer momento.
+            {(profile?.tutorial_last_step ?? 0) > 0 && !profile?.tutorial_completed_at && (
+              <span className="block text-primary mt-1">
+                Você parou na tela {(profile.tutorial_last_step ?? 0) + 1} de 6.
+              </span>
+            )}
           </p>
-          <Button variant="outline" size="sm" className="w-full gap-2" onClick={openTutorial}>
-            <Sparkles className="w-3.5 h-3.5" /> Reabrir tutorial
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2">
+            {(profile?.tutorial_last_step ?? 0) > 0 ? (
+              <>
+                <Button
+                  variant="hero"
+                  size="sm"
+                  className="flex-1 gap-2"
+                  onClick={() => openTutorial({ resume: true })}
+                >
+                  <Sparkles className="w-3.5 h-3.5" /> Continuar de onde parei
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 gap-2"
+                  onClick={() => openTutorial({ startAt: 0 })}
+                >
+                  Reiniciar do começo
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-2"
+                onClick={() => openTutorial({ startAt: 0 })}
+              >
+                <Sparkles className="w-3.5 h-3.5" /> Reabrir tutorial
+              </Button>
+            )}
+          </div>
         </section>
 
         {/* Conta */}
