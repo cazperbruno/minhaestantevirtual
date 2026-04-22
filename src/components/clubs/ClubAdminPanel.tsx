@@ -13,10 +13,13 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { Check, X, UserPlus, Loader2, Search, Mail, Inbox, Tag } from "lucide-react";
+import { Check, X, UserPlus, Loader2, Search, Mail, Inbox, Tag, Users } from "lucide-react";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useQuery } from "@tanstack/react-query";
 import { CLUB_CATEGORIES, type ClubCategory } from "@/lib/club-categories";
+import { ClubBooksAdmin } from "@/components/clubs/ClubBooksAdmin";
+import { ExportClubReportButton } from "@/components/clubs/ExportClubReportButton";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 interface Props {
@@ -59,10 +62,21 @@ export function ClubAdminPanel({ clubId, ownerId }: Props) {
     <div className="glass rounded-2xl p-5 border border-primary/30 mb-4 space-y-5 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="font-display text-lg font-bold flex items-center gap-2">
-          <Inbox className="w-5 h-5 text-primary" /> Gerenciar acessos
+          <Inbox className="w-5 h-5 text-primary" /> Painel do admin
         </h3>
-        <InviteUserDialog clubId={clubId} invitedBy={ownerId} />
+        <div className="flex items-center gap-2 flex-wrap">
+          <ExportClubReportButton clubId={clubId} />
+          <Button asChild size="sm" variant="outline" className="gap-1.5 h-8">
+            <Link to={`/clubes/${clubId}/membros`}>
+              <Users className="w-3.5 h-3.5" /> Membros
+            </Link>
+          </Button>
+          <InviteUserDialog clubId={clubId} invitedBy={ownerId} />
+        </div>
       </div>
+
+      {/* GERENCIAR LIVROS */}
+      <ClubBooksAdmin clubId={clubId} />
 
       {/* CATEGORIA */}
       <section>
