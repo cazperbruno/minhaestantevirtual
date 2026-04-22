@@ -129,7 +129,11 @@ export default function ClubDetailPage() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "club_messages", filter: `club_id=eq.${id}` },
         async (payload) => {
-          const msg = payload.new as Message;
+          const raw = payload.new as any;
+          const msg: Message = {
+            ...raw,
+            book_quote: (raw.book_quote as BookQuotePayload | null) ?? null,
+          };
           const { data: p } = await supabase
             .from("profiles")
             .select("id,display_name,username,avatar_url")
@@ -195,18 +199,24 @@ export default function ClubDetailPage() {
     e.preventDefault();
     if (!user || !input.trim() || !id) return;
     setSending(true);
-    const replyPrefix = replyTo
-      ? `> @${replyTo.profile?.display_name || "leitor"}: ${replyTo.content.slice(0, 80)}${replyTo.content.length > 80 ? "…" : ""}\n\n`
-      : "";
-    const text = `${replyPrefix}${input.trim()}`;
+    const text = input.trim();
+    const quoteToSend = pendingQuote;
+    const parentToSend = replyTo;
     setInput("");
     setReplyTo(null);
-    const { error } = await supabase
-      .from("club_messages")
-      .insert({ club_id: id, user_id: user.id, content: text });
+    setPendingQuote(null);
+    const { error } = await supabase.from("club_messages").insert({
+      club_id: id,
+      user_id: user.id,
+      content: text,
+      parent_id: parentToSend?.id ?? null,
+      book_quote: (quoteToSend as any) ?? null,
+    } as any);
     if (error) {
       toast.error("Mensagem não enviada", { description: "Verifique sua conexão." });
-      setInput(input);
+      setInput(text);
+      setReplyTo(parentToSend);
+      setPendingQuote(quoteToSend);
     } else {
       void awardXp(user.id, "club_message", { silent: true });
     }
