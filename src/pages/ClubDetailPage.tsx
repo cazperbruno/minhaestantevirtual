@@ -517,6 +517,29 @@ export default function ClubDetailPage() {
                 <ClubBookProgress clubId={id} compact bookTitle={club.current_book.title} />
               )}
 
+              {/* Toggle: Modo sem spoiler — só aparece quando há mensagens marcadas */}
+              {hasAnySpoilerMsg && (
+                <button
+                  type="button"
+                  onClick={toggleSpoilerFree}
+                  aria-pressed={spoilerFree}
+                  className={cn(
+                    "w-full flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs transition-colors",
+                    spoilerFree
+                      ? "bg-primary/10 border-primary/40 text-primary"
+                      : "bg-card/40 border-border/40 text-muted-foreground hover:border-primary/30 hover:text-foreground",
+                  )}
+                >
+                  <span className="inline-flex items-center gap-1.5 font-semibold">
+                    {spoilerFree ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    Modo sem spoiler {spoilerFree ? "ligado" : "desligado"}
+                  </span>
+                  <span className="text-[10px] uppercase tracking-wider opacity-80">
+                    {spoilerFree ? "Toque para ver tudo" : "Toque para esconder"}
+                  </span>
+                </button>
+              )}
+
               <div
                 ref={scrollRef}
                 className="glass rounded-2xl p-4 h-[55vh] overflow-y-auto space-y-3"
@@ -610,6 +633,7 @@ export default function ClubDetailPage() {
                           <SpoilerWrapper
                             spoilerPage={m.spoiler_page ?? null}
                             readerPage={mine ? Number.MAX_SAFE_INTEGER : myCurrentPage}
+                            forceHide={spoilerFree && !mine}
                           >
                             <div
                               className={cn(
