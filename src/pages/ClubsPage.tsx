@@ -454,3 +454,104 @@ function CompactClubCard({ club }: { club: MineRow }) {
     </Link>
   );
 }
+
+function FeaturedClubHero({ club }: { club: ReturnType<typeof useFeaturedClub>["data"] & object }) {
+  if (!club) return null;
+  const meta = getCategoryMeta(club.category);
+  return (
+    <Link
+      to={`/clubes/${club.id}`}
+      className={cn(
+        "block relative overflow-hidden rounded-3xl border border-primary/30 mb-8 group",
+        "bg-gradient-to-br hover:scale-[1.005] transition-transform",
+        meta.gradient,
+      )}
+    >
+      <div className="relative z-10 p-5 md:p-7 flex items-start gap-4 md:gap-6">
+        <div className="text-5xl md:text-6xl drop-shadow shrink-0" aria-hidden>{meta.emoji}</div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-200 border border-amber-300/30">
+              <Flame className="w-3 h-3" /> Em alta
+            </span>
+            <span className={cn("text-[11px] uppercase tracking-wider font-semibold", meta.accent)}>
+              {meta.label}
+            </span>
+          </div>
+          <h2 className="font-display text-xl md:text-3xl font-bold leading-tight line-clamp-2">
+            {club.name}
+          </h2>
+          {club.description && (
+            <p className="text-sm md:text-base text-foreground/80 mt-1 line-clamp-2 max-w-2xl">
+              {club.description}
+            </p>
+          )}
+          <div className="mt-3 flex items-center gap-4 text-xs text-foreground/85">
+            <span className="inline-flex items-center gap-1">
+              <Users className="w-3.5 h-3.5" /> {club.member_count} {club.member_count === 1 ? "leitor" : "leitores"}
+            </span>
+            {club.online_count > 0 && (
+              <span className="inline-flex items-center gap-1 text-emerald-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                {club.online_count} online
+              </span>
+            )}
+            <span className="ml-auto inline-flex items-center gap-1 text-primary font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
+              Visitar <ArrowRight className="w-3.5 h-3.5" />
+            </span>
+          </div>
+        </div>
+        {club.current_book && (
+          <div className="hidden md:block shrink-0">
+            <BookCover book={club.current_book} size="md" />
+          </div>
+        )}
+      </div>
+    </Link>
+  );
+}
+
+function RecommendedCard({
+  club,
+  members,
+}: {
+  club: RecommendedClub;
+  members: ReturnType<typeof useClubsMembers>["data"] extends Record<string, infer V> ? V : never;
+}) {
+  const meta = getCategoryMeta(club.category);
+  const onlineNow = (members || []).filter((m) => m.is_online).length;
+  return (
+    <Link
+      to={`/clubes/${club.id}`}
+      className="snap-start shrink-0 w-72 glass rounded-2xl p-4 hover:border-primary/40 transition-all"
+    >
+      <div className="flex items-start gap-3">
+        {club.current_book ? (
+          <BookCover book={club.current_book} size="sm" />
+        ) : (
+          <div className="w-12 h-16 rounded-md bg-muted/40 flex items-center justify-center shrink-0">
+            <BookOpen className="w-5 h-5 text-muted-foreground" />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className={cn("text-[10px] uppercase tracking-wider font-semibold", meta.accent)}>
+            {meta.emoji} {meta.label}
+          </p>
+          <p className="font-semibold text-sm leading-tight line-clamp-2 mt-0.5">{club.name}</p>
+          {club.description && (
+            <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">{club.description}</p>
+          )}
+        </div>
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <ClubMembersStack members={members || []} total={club.member_count} max={3} />
+        {onlineNow > 0 && (
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-400/30">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            {onlineNow}
+          </span>
+        )}
+      </div>
+    </Link>
+  );
+}
