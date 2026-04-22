@@ -22,6 +22,7 @@ interface RawRow {
     authors: string[];
     categories: string[] | null;
     page_count: number | null;
+    cover_url: string | null;
   } | null;
 }
 
@@ -34,7 +35,20 @@ interface WrappedData {
   longestBook: { title: string; pages: number } | null;
   monthlyTop: { month: string; count: number } | null;
   pagesRanking: Array<{ title: string; pages: number }>;
-  finishedBooks: Array<{ title: string; authors: string[] }>;
+  finishedBooks: Array<{ title: string; authors: string[]; cover_url: string | null; finished_at: string }>;
+  monthly: Array<{ month: number; count: number }>;
+  firstBook: { title: string; authors: string[]; date: string } | null;
+  lastBook: { title: string; authors: string[]; date: string } | null;
+}
+
+interface FriendStat {
+  user_id: string;
+  display_name: string | null;
+  username: string | null;
+  avatar_url: string | null;
+  count: number;
+  pages: number;
+  isMe?: boolean;
 }
 
 const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
