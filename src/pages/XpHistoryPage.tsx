@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   Sparkles, ArrowLeft, BookPlus, BookCheck, Star, ScanLine, MessageCircle,
-  Heart, UserPlus, Users2, Library, Sunrise, Trophy, Flame, Gift, Award,
+  Heart, UserPlus, Users2, Library, Sunrise, Trophy, Flame, Gift, Award, AtSign, Smile,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
