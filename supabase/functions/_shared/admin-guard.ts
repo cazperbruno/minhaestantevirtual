@@ -147,6 +147,33 @@ export async function requireAdmin(req: Request): Promise<AdminGuardResult> {
   return { ok: true, isService: false, userId: u.user.id, sb };
 }
 
+/**
+ * Variante para endpoints que também são chamados pelo cron interno
+ * (pg_net → edge function). Aceita:
+ *   1. service_role (server-to-server),
+ *   2. admin com CSRF (chamada manual via painel),
+ *   3. cron interno: header `x-cron-source: readify-internal` +
+ *      Bearer com a anon key. Como esses endpoints só drenam fila
+ *      (idempotente, sem efeito por usuário), é seguro permitir.
+ */
+export async function requireAdminOrCron(req: Request): Promise<AdminGuardResult> {
+  const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+  const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+  const cronSource = req.headers.get("x-cron-source");
+  const authHeader = req.headers.get("Authorization") || "";
+  if (
+    cronSource === "readify-internal" &&
+    (authHeader === `Bearer ${ANON}` || authHeader === `Bearer ${SERVICE_ROLE}`)
+  ) {
+    const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
+    return { ok: true, isService: true, sb };
+  }
+
+  return await requireAdmin(req);
+}
+
 /** Helper para shape padronizado de resposta JSON com CORS. */
 export function jsonError(
   message: string,
