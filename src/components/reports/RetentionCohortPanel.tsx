@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, TrendingUp, Activity, Calendar } from "lucide-react";
+import { Users, TrendingUp, Activity, Calendar, Layers } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -23,6 +23,23 @@ interface EngagementSnapshot {
   mau: number;
   sticky_pct: number | null;
 }
+
+interface DepthRow {
+  event: string;
+  unique_users: number;
+  total_events: number;
+  avg_per_user: number | null;
+}
+
+const DEPTH_LABELS: Record<string, string> = {
+  book_opened: "Livro aberto",
+  reading_session_logged: "Sessão de leitura",
+  review_shared: "Resenha compartilhada",
+  feed_scrolled_deep: "Feed explorado",
+  shelf_explored: "Prateleira aberta",
+  surprise_box_opened: "Caixa surpresa aberta",
+  league_viewed: "Liga visualizada",
+};
 
 /** Cor da célula segundo a % de retenção. */
 function pctColor(pct: number | null) {
@@ -49,6 +66,15 @@ export function RetentionCohortPanel() {
       const { data } = await supabase.rpc("engagement_snapshot");
       const row = (data as any[])?.[0];
       return row ?? { dau: 0, wau: 0, mau: 0, sticky_pct: null };
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  const { data: depth, isLoading: ld } = useQuery<DepthRow[]>({
+    queryKey: ["engagement-depth", 14],
+    queryFn: async () => {
+      const { data } = await supabase.rpc("engagement_depth_summary", { _days: 14 });
+      return (data as DepthRow[]) || [];
     },
     staleTime: 5 * 60_000,
   });
@@ -124,6 +150,49 @@ export function RetentionCohortPanel() {
             <p className="text-[11px] text-muted-foreground mt-2">
               Retenção = % de usuários que voltaram a interagir com livros após o cadastro.
             </p>
+          </div>
+        )}
+      </div>
+
+      {/* Profundidade de uso — eventos críticos últimos 14 dias */}
+      <div>
+        <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2 flex items-center gap-1.5">
+          <Layers className="w-3 h-3" /> Profundidade de uso · últimos 14 dias
+        </p>
+        {ld ? (
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-9 w-full" />
+            ))}
+          </div>
+        ) : !depth || depth.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">
+            Nenhum evento de profundidade registrado ainda.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-xs uppercase tracking-wider text-muted-foreground">
+                <tr className="border-b border-border/60">
+                  <th className="text-left py-2 px-2 font-medium">Evento</th>
+                  <th className="text-right py-2 px-2 font-medium">Usuários</th>
+                  <th className="text-right py-2 px-2 font-medium">Total</th>
+                  <th className="text-right py-2 px-2 font-medium">Média/usuário</th>
+                </tr>
+              </thead>
+              <tbody>
+                {depth.map((d) => (
+                  <tr key={d.event} className="border-b border-border/30">
+                    <td className="py-2 px-2 font-medium">{DEPTH_LABELS[d.event] ?? d.event}</td>
+                    <td className="py-2 px-2 text-right tabular-nums">{d.unique_users}</td>
+                    <td className="py-2 px-2 text-right tabular-nums">{d.total_events}</td>
+                    <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">
+                      {d.avg_per_user != null ? d.avg_per_user.toFixed(1) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

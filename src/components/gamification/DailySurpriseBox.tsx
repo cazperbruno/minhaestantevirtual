@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Gift, Sparkles, Loader2 } from "lucide-react";
+import { Gift, Sparkles, Loader2, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useOpenSurpriseBox, useSurpriseStatus, type SurpriseRarity } from "@/hooks/useSurpriseBox";
+import { useEpicSaturday } from "@/hooks/useEpicSaturday";
 import { supabase } from "@/integrations/supabase/client";
 import { BookCover } from "@/components/books/BookCover";
 import { goldenBurst } from "@/lib/confetti";
 import { haptic } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
+import { trackEvent } from "@/lib/track";
 import type { Book } from "@/types/book";
 
 const rarityStyles: Record<SurpriseRarity, { label: string; gradient: string; glow: string }> = {
@@ -25,6 +27,7 @@ const rarityStyles: Record<SurpriseRarity, { label: string; gradient: string; gl
 export function DailySurpriseBox() {
   const { user } = useAuth();
   const { data: status, isLoading } = useSurpriseStatus(user?.id);
+  const { data: isEpicSaturday } = useEpicSaturday();
   const open = useOpenSurpriseBox(user?.id);
   const [revealedBook, setRevealedBook] = useState<Book | null>(null);
   const [shaking, setShaking] = useState(false);
@@ -59,6 +62,12 @@ export function DailySurpriseBox() {
         if (data) setRevealedBook(data as Book);
       }
       setOpened(true);
+      // Telemetria de profundidade — Fase 3
+      trackEvent("surprise_box_opened", {
+        rarity: claim.rarity,
+        bonus_xp: claim.bonus_xp,
+        epic_saturday: !!isEpicSaturday,
+      });
       if (claim.rarity === "epic" || claim.rarity === "legendary") {
         haptic("success");
         goldenBurst();
@@ -114,7 +123,19 @@ export function DailySurpriseBox() {
 
   // Estado: pode abrir
   return (
-    <div className="relative mb-4 rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/15 via-amber-500/5 to-transparent p-4 overflow-hidden">
+    <div
+      className={cn(
+        "relative mb-4 rounded-2xl border p-4 overflow-hidden",
+        isEpicSaturday
+          ? "border-amber-400/60 bg-gradient-to-br from-amber-500/25 via-fuchsia-500/10 to-transparent shadow-[0_0_40px_-12px_rgba(251,191,36,0.6)]"
+          : "border-primary/30 bg-gradient-to-br from-primary/15 via-amber-500/5 to-transparent",
+      )}
+    >
+      {isEpicSaturday && (
+        <div className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-amber-500/90 text-amber-950 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
+          <Star className="w-3 h-3 fill-current" /> Sábado épico
+        </div>
+      )}
       <div className="flex items-center gap-4">
         <button
           onClick={handleOpen}
@@ -140,10 +161,12 @@ export function DailySurpriseBox() {
             Caixa Surpresa
           </p>
           <p className="font-display font-bold text-base leading-tight">
-            Sua recompensa diária está esperando
+            {isEpicSaturday ? "Hoje as chances de lendário sobem 🌟" : "Sua recompensa diária está esperando"}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            1 livro + XP bônus. Pode ser <span className="text-amber-500 font-semibold">lendário</span>!
+            1 livro + XP bônus. {isEpicSaturday
+              ? <>Hoje pode chegar a <span className="text-amber-500 font-semibold">+150 XP</span>!</>
+              : <>Pode ser <span className="text-amber-500 font-semibold">lendário</span>!</>}
           </p>
         </div>
         <Button

@@ -2472,6 +2472,7 @@ export type Database = {
         }
         Returns: number
       }
+      create_league_finale_notifications: { Args: never; Returns: number }
       create_streak_risk_notifications: { Args: never; Returns: number }
       daily_surprise_status: {
         Args: never
@@ -2497,6 +2498,15 @@ export type Database = {
         }[]
       }
       division_from_xp: { Args: { _xp: number }; Returns: string }
+      engagement_depth_summary: {
+        Args: { _days?: number }
+        Returns: {
+          avg_per_user: number
+          event: string
+          total_events: number
+          unique_users: number
+        }[]
+      }
       engagement_snapshot: {
         Args: never
         Returns: {
@@ -2645,6 +2655,7 @@ export type Database = {
         Args: { _club: string; _user: string }
         Returns: boolean
       }
+      is_epic_saturday: { Args: never; Returns: boolean }
       is_following: {
         Args: { _follower: string; _following: string }
         Returns: boolean

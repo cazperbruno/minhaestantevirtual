@@ -16,6 +16,7 @@ import { useBook, useUserBook, useCommitUserBook } from "@/hooks/useBookDetail";
 import { useShelfNavigation } from "@/hooks/useShelfNavigation";
 import { Book, UserBook } from "@/types/book";
 import { trackBookView } from "@/lib/ai-tracking";
+import { trackEvent } from "@/lib/track";
 
 export default function BookDetail() {
   const { id } = useParams();
@@ -23,8 +24,12 @@ export default function BookDetail() {
   const { data: book, isLoading: loadingBook } = useBook(id);
 
   // AI: registra view (deduplicada por hora no servidor) — sinal de interesse implícito
+  // + telemetria de profundidade (Fase 3): livro aberto
   useEffect(() => {
-    if (book?.id && user) trackBookView(book.id);
+    if (book?.id && user) {
+      trackBookView(book.id);
+      trackEvent("book_opened", { book_id: book.id });
+    }
   }, [book?.id, user]);
   const { data: ub } = useUserBook(book?.id);
   const commit = useCommitUserBook(book);
