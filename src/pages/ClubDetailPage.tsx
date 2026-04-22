@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { BookCover } from "@/components/books/BookCover";
 import {
   ArrowLeft, Send, Loader2, Users, LogOut, Lock, Globe2, Clock, Crown, X, Reply,
-  MessageSquare, BookOpen, Activity, Quote,
+  MessageSquare, BookOpen, Activity, Quote, EyeOff, Eye,
 } from "lucide-react";
 import { ClubBookOfTheMonth } from "@/components/clubs/ClubBookOfTheMonth";
 import { ClubAdminPanel } from "@/components/clubs/ClubAdminPanel";
@@ -35,6 +35,7 @@ import { MessageContent } from "@/components/clubs/MessageContent";
 import { ReadingSprintPanel } from "@/components/clubs/ReadingSprintPanel";
 import { SpoilerWrapper } from "@/components/clubs/SpoilerWrapper";
 import { SpoilerComposeButton } from "@/components/clubs/SpoilerComposeButton";
+import { useSpoilerFreeMode } from "@/hooks/useSpoilerFreeMode";
 
 interface Profile {
   id: string;
