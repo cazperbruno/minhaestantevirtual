@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import {
   Activity, AlertTriangle, CheckCircle2, Loader2, Pause, Play, RefreshCw, Sparkles,
 } from "lucide-react";
@@ -48,8 +49,10 @@ export function EnrichmentProgressPanel() {
   const [recent, setRecent] = useState<RecentBook[]>([]);
   const [failures, setFailures] = useState<FailedJob[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [live, setLive] = useState(true);
   const [lastTick, setLastTick] = useState<Date | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Baseline captured on mount: total queued at start, so the bar reflects
   // *this session's* progress instead of all-time.
@@ -63,56 +66,69 @@ export function EnrichmentProgressPanel() {
     return c;
   };
 
-  const load = async () => {
-    const [statusR, recentR, failR] = await Promise.all([
-      supabase.from("enrichment_queue").select("status"),
-      supabase
-        .from("enrichment_queue")
-        .select("id, book_id, fields_filled, processed_at, book:books(title, cover_url)")
-        .eq("status", "done")
-        .order("processed_at", { ascending: false })
-        .limit(8),
-      supabase
-        .from("enrichment_queue")
-        .select("id, book_id, attempts, last_error, next_attempt_at, book:books(title)")
-        .in("status", ["failed", "pending"])
-        .not("last_error", "is", null)
-        .order("next_attempt_at", { ascending: false })
-        .limit(5),
-    ]);
+  const load = async (opts?: { silent?: boolean; manual?: boolean }) => {
+    if (opts?.manual) setRefreshing(true);
+    try {
+      const [statusR, recentR, failR] = await Promise.all([
+        supabase.from("enrichment_queue").select("status"),
+        supabase
+          .from("enrichment_queue")
+          .select("id, book_id, fields_filled, processed_at, book:books(title, cover_url)")
+          .eq("status", "done")
+          .order("processed_at", { ascending: false })
+          .limit(8),
+        supabase
+          .from("enrichment_queue")
+          .select("id, book_id, attempts, last_error, next_attempt_at, book:books(title)")
+          .in("status", ["failed", "pending"])
+          .not("last_error", "is", null)
+          .order("next_attempt_at", { ascending: false })
+          .limit(5),
+      ]);
 
-    const c = aggregate(statusR.data as any);
-    setCounts(c);
-    if (!baselineRef.current) {
-      baselineRef.current = { pending: c.pending, processing: c.processing };
+      const firstError = statusR.error || recentR.error || failR.error;
+      if (firstError) throw firstError;
+
+      const c = aggregate(statusR.data as any);
+      setCounts(c);
+      if (!baselineRef.current) {
+        baselineRef.current = { pending: c.pending, processing: c.processing };
+      }
+      setRecent(
+        (recentR.data || []).map((r: any) => ({
+          id: r.id,
+          title: r.book?.title || "Sem título",
+          cover_url: r.book?.cover_url ?? null,
+          fields_filled: r.fields_filled,
+          processed_at: r.processed_at,
+        })),
+      );
+      setFailures(
+        (failR.data || []).map((r: any) => ({
+          id: r.id,
+          book_id: r.book_id,
+          attempts: r.attempts,
+          last_error: r.last_error,
+          next_attempt_at: r.next_attempt_at,
+          book: r.book,
+        })),
+      );
+      setLoadError(null);
+      setLastTick(new Date());
+    } catch (e: any) {
+      const message = e?.message ?? "Falha ao atualizar progresso";
+      setLoadError(message);
+      if (!opts?.silent) toast.error(message);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    setRecent(
-      (recentR.data || []).map((r: any) => ({
-        id: r.id,
-        title: r.book?.title || "Sem título",
-        cover_url: r.book?.cover_url ?? null,
-        fields_filled: r.fields_filled,
-        processed_at: r.processed_at,
-      })),
-    );
-    setFailures(
-      (failR.data || []).map((r: any) => ({
-        id: r.id,
-        book_id: r.book_id,
-        attempts: r.attempts,
-        last_error: r.last_error,
-        next_attempt_at: r.next_attempt_at,
-        book: r.book,
-      })),
-    );
-    setLastTick(new Date());
-    setLoading(false);
   };
 
   useEffect(() => {
-    void load();
+    void load({ silent: true });
     if (!live) return;
-    const t = setInterval(load, POLL_MS);
+    const t = setInterval(() => { void load({ silent: true }); }, POLL_MS);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [live]);
@@ -135,6 +151,18 @@ export function EnrichmentProgressPanel() {
     if (!counts) return;
     baselineRef.current = { pending: counts.pending, processing: counts.processing };
     setCounts({ ...counts });
+    toast.success("Barra recalibrada com os valores atuais da fila.");
+  };
+
+  const toggleLive = async () => {
+    const next = !live;
+    setLive(next);
+    if (next) {
+      toast.success("Atualização automática retomada.");
+      await load({ silent: true });
+    } else {
+      toast.message("Atualização automática pausada.");
+    }
   };
 
   if (loading) {
@@ -165,19 +193,20 @@ export function EnrichmentProgressPanel() {
               </span>
             )}
           </p>
+          {loadError && <p className="text-xs text-destructive mt-1">{loadError}</p>}
         </div>
         <div className="flex items-center gap-2">
           <Button
             size="sm"
             variant={live ? "default" : "outline"}
-            onClick={() => setLive((v) => !v)}
+            onClick={() => void toggleLive()}
             className="gap-2"
           >
             {live ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
             {live ? "Pausar" : "Retomar"}
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => void load()} aria-label="Atualizar agora">
-            <RefreshCw className="w-4 h-4" />
+          <Button size="sm" variant="ghost" onClick={() => void load({ manual: true })} aria-label="Atualizar agora" disabled={refreshing}>
+            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
           </Button>
           <Button size="sm" variant="ghost" onClick={resetBaseline} title="Reinicia a barra usando os valores atuais como ponto zero">
             Zerar barra
