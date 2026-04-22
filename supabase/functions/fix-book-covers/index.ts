@@ -25,11 +25,12 @@
 // ============================================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { requireAdmin } from "../_shared/admin-guard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "authorization, x-client-info, apikey, content-type, x-csrf-token, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface Body {
@@ -170,15 +171,19 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const guard = await requireAdmin(req);
+    if (!guard.ok) {
+      return new Response(JSON.stringify({ error: guard.error }), {
+        status: guard.status ?? 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const supabase = guard.sb;
+
     const body: Body = await req.json().catch(() => ({}));
     const mode = body.mode ?? "auto";
     const limit = Math.min(body.limit ?? 25, 100);
     const noAi = body.noAi ?? true; // default: batch jobs skip AI
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
 
     // ---- Pick batch ----
     let books: BookRow[] = [];
