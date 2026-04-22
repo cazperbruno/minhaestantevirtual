@@ -5,9 +5,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { ArrowLeft, Users, Search, Globe2, Lock, BookOpen, Sparkles } from "lucide-react";
+import { ArrowLeft, Users, Search, Globe2, Lock, BookOpen, Sparkles, Plus, Loader2 } from "lucide-react";
 import { BookCover } from "@/components/books/BookCover";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { CLUB_CATEGORIES, getCategoryMeta, type ClubCategory } from "@/lib/club-categories";
@@ -42,6 +46,40 @@ export default function ClubCategoryPage() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 200);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  // Criar clube nesta categoria
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [desc, setDesc] = useState("");
+  const [isPublic, setIsPublic] = useState(true);
+  const [creating, setCreating] = useState(false);
+
+  const create = async () => {
+    if (!user || !isValidCategory || name.trim().length < 2) return;
+    setCreating(true);
+    const { data, error } = await supabase
+      .from("book_clubs")
+      .insert({
+        owner_id: user.id,
+        name: name.trim(),
+        description: desc.trim() || null,
+        is_public: isPublic,
+        category: slug as ClubCategory,
+      })
+      .select("id")
+      .single();
+    setCreating(false);
+    if (error || !data) {
+      toast.error("Erro ao criar clube");
+      return;
+    }
+    toast.success(isPublic ? "Clube público criado!" : "Clube privado criado!");
+    setOpen(false);
+    setName(""); setDesc(""); setIsPublic(true);
+    setReloadKey((k) => k + 1);
+    navigate(`/clubes/${data.id}`);
+  };
 
   useEffect(() => {
     if (!isValidCategory) return;
@@ -91,7 +129,7 @@ export default function ClubCategoryPage() {
     return () => {
       cancelled = true;
     };
-  }, [slug, isValidCategory, user?.id]);
+  }, [slug, isValidCategory, user?.id, reloadKey]);
 
   const filtered = useMemo(() => {
     const q = debouncedQuery.trim().toLowerCase();
@@ -156,12 +194,55 @@ export default function ClubCategoryPage() {
             meta.gradient,
           )}
         >
-          <div className="relative z-10 flex items-center gap-4">
-            <span className="text-5xl md:text-6xl drop-shadow-lg" aria-hidden>{meta.emoji}</span>
-            <div className="min-w-0">
-              <h1 className="font-display text-3xl md:text-4xl font-bold leading-tight">{meta.label}</h1>
-              <p className={cn("text-sm md:text-base mt-1", meta.accent)}>{meta.description}</p>
+          <div className="relative z-10 flex items-start justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-4 min-w-0">
+              <span className="text-5xl md:text-6xl drop-shadow-lg" aria-hidden>{meta.emoji}</span>
+              <div className="min-w-0">
+                <h1 className="font-display text-3xl md:text-4xl font-bold leading-tight">{meta.label}</h1>
+                <p className={cn("text-sm md:text-base mt-1", meta.accent)}>{meta.description}</p>
+              </div>
             </div>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button variant="hero" size="sm" className="gap-2 shrink-0">
+                  <Plus className="w-4 h-4" /> Criar em {meta.label}
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Novo clube em {meta.label} {meta.emoji}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="cat-name">Nome</Label>
+                    <Input id="cat-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} placeholder={`Ex: Clube de ${meta.label.toLowerCase()}`} />
+                  </div>
+                  <div>
+                    <Label htmlFor="cat-desc">Descrição</Label>
+                    <Textarea id="cat-desc" value={desc} onChange={(e) => setDesc(e.target.value)} rows={3} maxLength={500} placeholder="Sobre o que vocês discutem?" />
+                  </div>
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-card/40 border border-border/40">
+                    <div className="mt-0.5">
+                      {isPublic ? <Globe2 className="w-5 h-5 text-primary" /> : <Lock className="w-5 h-5 text-primary" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label htmlFor="cat-pub" className="font-semibold cursor-pointer">
+                          {isPublic ? "Público" : "Privado"}
+                        </Label>
+                        <Switch id="cat-pub" checked={isPublic} onCheckedChange={setIsPublic} />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {isPublic ? "Qualquer leitor pode encontrar e entrar." : "Acesso só por convite ou aprovação."}
+                      </p>
+                    </div>
+                  </div>
+                  <Button variant="hero" onClick={create} disabled={creating || name.trim().length < 2} className="w-full">
+                    {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Criar clube"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </header>
 
@@ -186,9 +267,9 @@ export default function ClubCategoryPage() {
             title="Nenhum clube nesta categoria"
             description="Seja o primeiro a criar um clube aqui."
             action={
-              <Link to="/clubes">
-                <Button variant="hero">Criar clube</Button>
-              </Link>
+              <Button variant="hero" className="gap-2" onClick={() => setOpen(true)}>
+                <Plus className="w-4 h-4" /> Criar em {meta.label}
+              </Button>
             }
           />
         ) : filtered.length === 0 ? (
