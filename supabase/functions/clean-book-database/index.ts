@@ -50,7 +50,11 @@ interface BookRow {
   categories: string[] | null;
   series_id: string | null;
   quality_score: number;
+  last_enriched_at: string | null;
 }
+
+// Livros enriquecidos nos últimos N dias NÃO voltam para a fila de enrich
+const ENRICH_COOLDOWN_DAYS = 14;
 
 function jsonResponse(body: any, status = 200) {
   return new Response(JSON.stringify(body), {
