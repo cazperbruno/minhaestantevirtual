@@ -2449,6 +2449,15 @@ export type Database = {
       }
       cleanup_expired_admin_csrf_tokens: { Args: never; Returns: number }
       club_online_count: { Args: { _club_id: string }; Returns: number }
+      club_recent_activity: {
+        Args: { _club_id: string; _limit?: number }
+        Returns: {
+          at: string
+          kind: string
+          payload: Json
+          user_id: string
+        }[]
+      }
       clubs_categories_summary: {
         Args: never
         Returns: {
@@ -2572,6 +2581,19 @@ export type Database = {
       }
       ensure_invite: { Args: { _user_id: string }; Returns: string }
       extract_volume_number: { Args: { title: string }; Returns: number }
+      featured_club: {
+        Args: never
+        Returns: {
+          activity_score: number
+          category: Database["public"]["Enums"]["club_category"]
+          current_book_id: string
+          description: string
+          id: string
+          member_count: number
+          name: string
+          online_count: number
+        }[]
+      }
       find_duplicate_book: {
         Args: {
           _author: string
@@ -2734,6 +2756,18 @@ export type Database = {
           popularity: number
           reason: string
           score: number
+        }[]
+      }
+      recommended_clubs: {
+        Args: { _limit?: number }
+        Returns: {
+          category: Database["public"]["Enums"]["club_category"]
+          current_book_id: string
+          description: string
+          id: string
+          member_count: number
+          name: string
+          online_count: number
         }[]
       }
       recompute_all_book_signals: { Args: { _limit?: number }; Returns: number }
