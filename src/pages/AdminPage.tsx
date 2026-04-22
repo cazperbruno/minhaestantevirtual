@@ -503,6 +503,48 @@ export default function AdminPage() {
   );
 }
 
+/** Linha individual do log de auditoria — formata detalhes específicos por tipo. */
+function AuditLogRow({ log }: { log: AuditRow }) {
+  const d = log.details ?? {};
+  const isImport = log.process === "import-books-by-isbn" && log.action === "import";
+  const isNotFound = log.action === "not-found";
+  const summary = (() => {
+    if (isImport) {
+      const parts: string[] = [];
+      if (d.inserted != null) parts.push(`${d.inserted} novos`);
+      if (d.already_existed != null) parts.push(`${d.already_existed} existiam`);
+      if (d.not_found_external) parts.push(`${d.not_found_external} não encontrados`);
+      if (d.invalid) parts.push(`${d.invalid} inválidos`);
+      if (d.avg_quality_score) parts.push(`qualidade ${d.avg_quality_score}/100`);
+      return parts.join(" · ");
+    }
+    if (isNotFound && d.isbn) {
+      return `ISBN ${d.isbn} · fontes: ${(d.sources_tried || []).join(", ")}`;
+    }
+    return JSON.stringify(d).slice(0, 180);
+  })();
+  const tone =
+    isNotFound ? "text-warning border-warning/40" :
+    isImport && d.inserted > 0 ? "text-success border-success/40" :
+    "";
+  return (
+    <div className="py-2.5 flex items-start justify-between gap-3 text-sm">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge variant="outline" className={`text-[10px] ${tone}`}>{log.process}</Badge>
+          <span className="text-muted-foreground text-xs">{log.action}</span>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{summary}</p>
+      </div>
+      <span className="text-[11px] text-muted-foreground shrink-0 whitespace-nowrap">
+        {new Date(log.created_at).toLocaleString("pt-BR", {
+          day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+        })}
+      </span>
+    </div>
+  );
+}
+
 function StatCard({
   icon, label, value, loading, highlight,
 }: { icon: React.ReactNode; label: string; value?: number; loading: boolean; highlight?: boolean }) {
