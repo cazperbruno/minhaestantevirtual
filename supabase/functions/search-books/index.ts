@@ -624,8 +624,9 @@ async function lookupIsbnCascade(
 // 5) Search (text query)
 // ============================================================
 async function searchOpenLibrary(query: string, lang = "por"): Promise<NormalizedBook[]> {
-  const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&language=${lang}&limit=20`;
-  const { res } = await fetchWithRetry(url, { label: `OL-search:${query}` });
+  const langPart = lang ? `&language=${lang}` : "";
+  const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}${langPart}&limit=20`;
+  const { res } = await fetchWithRetry(url, { label: `OL-search:${query}${lang ? `:${lang}` : ""}` });
   if (!res || !res.ok) return [];
   try {
     const j = await res.json();
@@ -640,8 +641,9 @@ async function searchGoogleBooks(query: string, lang = "pt"): Promise<Normalized
     console.log(`[Google-search] breaker OPEN, skipping query "${query}"`);
     return [];
   }
-  const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&langRestrict=${lang}&maxResults=20`;
-  const { res } = await fetchWithRetry(url, { label: `Google-search:${query}` });
+  const langPart = lang ? `&langRestrict=${lang}` : "";
+  const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}${langPart}&maxResults=20`;
+  const { res } = await fetchWithRetry(url, { label: `Google-search:${query}${lang ? `:${lang}` : ""}` });
   if (!res) return [];
   if (res.status === 429 || res.status === 503) {
     tripBreaker("google-books", 90_000);
