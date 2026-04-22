@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, TrendingUp, Activity, Calendar } from "lucide-react";
+import { Users, TrendingUp, Activity, Calendar, Layers } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -23,6 +23,23 @@ interface EngagementSnapshot {
   mau: number;
   sticky_pct: number | null;
 }
+
+interface DepthRow {
+  event: string;
+  unique_users: number;
+  total_events: number;
+  avg_per_user: number | null;
+}
+
+const DEPTH_LABELS: Record<string, string> = {
+  book_opened: "Livro aberto",
+  reading_session_logged: "Sessão de leitura",
+  review_shared: "Resenha compartilhada",
+  feed_scrolled_deep: "Feed explorado",
+  shelf_explored: "Prateleira aberta",
+  surprise_box_opened: "Caixa surpresa aberta",
+  league_viewed: "Liga visualizada",
+};
 
 /** Cor da célula segundo a % de retenção. */
 function pctColor(pct: number | null) {
@@ -49,6 +66,15 @@ export function RetentionCohortPanel() {
       const { data } = await supabase.rpc("engagement_snapshot");
       const row = (data as any[])?.[0];
       return row ?? { dau: 0, wau: 0, mau: 0, sticky_pct: null };
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  const { data: depth, isLoading: ld } = useQuery<DepthRow[]>({
+    queryKey: ["engagement-depth", 14],
+    queryFn: async () => {
+      const { data } = await supabase.rpc("engagement_depth_summary", { _days: 14 });
+      return (data as DepthRow[]) || [];
     },
     staleTime: 5 * 60_000,
   });
