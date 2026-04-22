@@ -274,7 +274,11 @@ Deno.serve(async (req) => {
       }
 
       if (looksDirty(b)) dirtyIds.push(b.id);
-      if (missingFields(b).length >= 2) incompleteIds.push(b.id);
+      // Cooldown: pula livros enriquecidos com sucesso recentemente
+      const enrichedRecently =
+        b.last_enriched_at &&
+        Date.now() - new Date(b.last_enriched_at).getTime() < ENRICH_COOLDOWN_DAYS * 86400_000;
+      if (!enrichedRecently && missingFields(b).length >= 2) incompleteIds.push(b.id);
     }
 
     // 3) enfileira normalização IA — só p/ os realmente sujos
