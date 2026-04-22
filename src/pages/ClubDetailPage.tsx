@@ -721,6 +721,13 @@ export default function ClubDetailPage() {
 
             {/* TAB: ATIVIDADE / MEMBROS */}
             <TabsContent value="members" className="mt-4 space-y-4">
+              {id && (
+                <ClubLeaderboard
+                  clubId={id}
+                  isMember={isMember}
+                  currentUserId={user?.id ?? null}
+                />
+              )}
               {id && <ClubActivityPanel clubId={id} isMember={isMember} />}
 
               <div className="glass rounded-2xl p-4">
