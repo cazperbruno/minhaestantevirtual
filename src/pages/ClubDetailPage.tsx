@@ -6,13 +6,16 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { BookCover } from "@/components/books/BookCover";
 import {
   ArrowLeft, Send, Loader2, Users, LogOut, Lock, Globe2, Clock, Crown, X, Reply,
+  MessageSquare, BookOpen, Activity,
 } from "lucide-react";
 import { ClubBookOfTheMonth } from "@/components/clubs/ClubBookOfTheMonth";
 import { ClubAdminPanel } from "@/components/clubs/ClubAdminPanel";
 import { ClubActivityPanel } from "@/components/clubs/ClubActivityPanel";
+import { ClubBookProgress } from "@/components/clubs/ClubBookProgress";
 import { useMyJoinRequest, useRequestJoin } from "@/hooks/useClubAccess";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -22,6 +25,7 @@ import { TypingIndicator } from "@/components/social/TypingIndicator";
 import { profilePath } from "@/lib/profile-path";
 import { cn } from "@/lib/utils";
 import { useClubPresence } from "@/hooks/useClubPresence";
+import { useClubChatPresence } from "@/hooks/useClubChatPresence";
 
 interface Profile {
   id: string;
@@ -63,6 +67,7 @@ export default function ClubDetailPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [tab, setTab] = useState<string>("chat");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const sendTypingRef = useRef<(() => void) | null>(null);
@@ -158,8 +163,21 @@ export default function ClubDetailPage() {
   const { data: myRequest } = useMyJoinRequest(user?.id, id);
   const requestJoin = useRequestJoin(id || "", user?.id);
 
-  // Heartbeat de presença — registra "online agora" para a categoria do clube
+  // Heartbeat de presença para "online agora" na categoria
   useClubPresence(id, isMember);
+
+  // Realtime presence: quem está vendo o clube agora
+  const onlineNow = useClubChatPresence(
+    isMember ? id : undefined,
+    user
+      ? {
+          id: user.id,
+          display_name:
+            user.user_metadata?.display_name || user.email?.split("@")[0] || "Leitor",
+          avatar_url: user.user_metadata?.avatar_url ?? null,
+        }
+      : null,
+  );
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -244,7 +262,7 @@ export default function ClubDetailPage() {
 
   return (
     <AppShell>
-      <div className="px-5 md:px-10 pt-6 pb-6 max-w-4xl mx-auto">
+      <div className="px-5 md:px-10 pt-6 max-w-4xl mx-auto">
         <Link
           to="/clubes"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary mb-4"
@@ -252,7 +270,7 @@ export default function ClubDetailPage() {
           <ArrowLeft className="w-4 h-4" /> Clubes
         </Link>
 
-        {/* HEADER reorganizado: empilha em mobile, livro como bloco discreto */}
+        {/* HEADER compacto */}
         <div className="glass rounded-2xl p-5 mb-4">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="flex-1 min-w-0">
@@ -271,15 +289,26 @@ export default function ClubDetailPage() {
                 </span>
               </div>
               {club.description && (
-                <p className="text-sm text-muted-foreground mt-1">{club.description}</p>
+                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{club.description}</p>
               )}
-              <Link
-                to={`/clubes/${id}/membros`}
-                className="text-xs text-muted-foreground hover:text-primary mt-2 inline-flex items-center gap-1 transition-colors"
-              >
-                <Users className="w-3 h-3" /> {members.length}{" "}
-                {members.length === 1 ? "membro" : "membros"}
-              </Link>
+              <div className="mt-2 flex items-center gap-3 flex-wrap">
+                <Link
+                  to={`/clubes/${id}/membros`}
+                  className="text-xs text-muted-foreground hover:text-primary inline-flex items-center gap-1 transition-colors"
+                >
+                  <Users className="w-3 h-3" /> {members.length}{" "}
+                  {members.length === 1 ? "membro" : "membros"}
+                </Link>
+                {isMember && onlineNow.length > 0 && (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-500">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                    </span>
+                    {onlineNow.length} {onlineNow.length === 1 ? "online" : "online"}
+                  </span>
+                )}
+              </div>
             </div>
 
             {isMember && club.owner_id !== user?.id && (
@@ -289,82 +318,52 @@ export default function ClubDetailPage() {
             )}
           </div>
 
-          {club.current_book && (
-            <Link
-              to={`/livro/${club.current_book.id}`}
-              className="mt-4 flex gap-3 items-center group rounded-xl bg-card/40 border border-border/40 p-3 hover:border-primary/40 transition-all"
-            >
-              <BookCover book={club.current_book} size="sm" />
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-wider text-primary font-semibold">
-                  Lendo agora
-                </p>
-                <p className="font-semibold text-sm group-hover:text-primary transition-colors truncate">
-                  {club.current_book.title}
-                </p>
-                {club.current_book.authors?.[0] && (
-                  <p className="text-xs text-muted-foreground truncate">
-                    {club.current_book.authors.join(", ")}
-                  </p>
-                )}
-              </div>
-            </Link>
-          )}
-
-          {/* Avatares dos primeiros membros — sentido de comunidade */}
+          {/* Avatares dos primeiros membros (com destaque para online) */}
           {members.length > 0 && (
             <div className="mt-4 flex items-center gap-2">
               <div className="flex -space-x-2">
-                {members.slice(0, 5).map((m) => (
-                  <Link
-                    key={m.user_id}
-                    to={profilePath({
-                      username: m.profile?.username,
-                      id: m.user_id,
-                    })}
-                    title={m.profile?.display_name || "Leitor"}
-                  >
-                    <Avatar className="w-7 h-7 border-2 border-background hover:scale-110 transition-transform">
-                      <AvatarImage src={m.profile?.avatar_url || undefined} />
-                      <AvatarFallback className="text-[10px] bg-gradient-gold text-primary-foreground">
-                        {(m.profile?.display_name || "?").charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Link>
-                ))}
+                {members.slice(0, 6).map((m) => {
+                  const isOnline = onlineNow.some((p) => p.user_id === m.user_id);
+                  return (
+                    <Link
+                      key={m.user_id}
+                      to={profilePath({
+                        username: m.profile?.username,
+                        id: m.user_id,
+                      })}
+                      title={`${m.profile?.display_name || "Leitor"}${isOnline ? " · online" : ""}`}
+                      className="relative"
+                    >
+                      <Avatar className="w-7 h-7 border-2 border-background hover:scale-110 transition-transform">
+                        <AvatarImage src={m.profile?.avatar_url || undefined} />
+                        <AvatarFallback className="text-[10px] bg-gradient-gold text-primary-foreground">
+                          {(m.profile?.display_name || "?").charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      {isOnline && (
+                        <span
+                          aria-hidden
+                          className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-background"
+                        />
+                      )}
+                    </Link>
+                  );
+                })}
               </div>
-              {members.length > 5 && (
+              {members.length > 6 && (
                 <Link
                   to={`/clubes/${id}/membros`}
                   className="text-xs text-muted-foreground hover:text-primary transition-colors"
                 >
-                  +{members.length - 5}
+                  +{members.length - 6}
                 </Link>
               )}
             </div>
           )}
         </div>
-
-        <div className="mb-4">
-          <ClubBookOfTheMonth
-            clubId={id!}
-            isOwner={isOwner}
-            isMember={isMember}
-            onCrown={() => load()}
-          />
-        </div>
-
-        {isOwner && (
-          <div className="mb-4">
-            <ClubAdminPanel clubId={id!} ownerId={user!.id} />
-          </div>
-        )}
-
-        {isMember && id && (
-          <ClubActivityPanel clubId={id} isMember={isMember} />
-        )}
       </div>
 
+      {/* CONTEÚDO: tabs ou estado de não-membro */}
       <div className="px-5 md:px-10 max-w-4xl mx-auto pb-24">
         {!isMember ? (
           <div className="glass rounded-2xl p-8 text-center">
@@ -414,150 +413,277 @@ export default function ClubDetailPage() {
             )}
           </div>
         ) : (
-          <>
-            <div
-              ref={scrollRef}
-              className="glass rounded-2xl p-4 h-[55vh] overflow-y-auto space-y-3 mb-3"
-            >
-              {messages.length === 0 ? (
-                <p className="text-center text-sm text-muted-foreground py-10">
-                  Nenhuma mensagem ainda. Comece a conversa!
-                </p>
-              ) : (
-                messages.map((m) => {
-                  const mine = m.user_id === user?.id;
-                  const isOwnerMsg = m.user_id === club.owner_id;
-                  const link = profilePath({
-                    username: m.profile?.username,
-                    id: m.user_id,
-                  });
-                  return (
-                    <div
-                      key={m.id}
-                      className={cn("flex gap-2 group/msg", mine ? "flex-row-reverse" : "")}
-                    >
-                      <Link to={link} className="shrink-0">
-                        <Avatar className="w-8 h-8 hover:ring-2 hover:ring-primary/40 transition-all">
-                          <AvatarImage src={m.profile?.avatar_url || undefined} />
-                          <AvatarFallback className="text-xs bg-gradient-gold text-primary-foreground">
-                            {(m.profile?.display_name || "?").charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                      </Link>
+          <Tabs value={tab} onValueChange={setTab} className="w-full">
+            <TabsList className="grid grid-cols-3 w-full h-11 bg-muted/40">
+              <TabsTrigger value="chat" className="gap-1.5 data-[state=active]:bg-background">
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Chat</span>
+              </TabsTrigger>
+              <TabsTrigger value="book" className="gap-1.5 data-[state=active]:bg-background">
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>Livro</span>
+              </TabsTrigger>
+              <TabsTrigger value="members" className="gap-1.5 data-[state=active]:bg-background">
+                <Activity className="w-3.5 h-3.5" />
+                <span>Atividade</span>
+              </TabsTrigger>
+            </TabsList>
+
+            {/* TAB: CHAT */}
+            <TabsContent value="chat" className="mt-4 space-y-3">
+              {/* Mini-progresso do livro do mês */}
+              {club.current_book && id && (
+                <ClubBookProgress clubId={id} compact bookTitle={club.current_book.title} />
+              )}
+
+              <div
+                ref={scrollRef}
+                className="glass rounded-2xl p-4 h-[55vh] overflow-y-auto space-y-3"
+              >
+                {messages.length === 0 ? (
+                  <p className="text-center text-sm text-muted-foreground py-10">
+                    Nenhuma mensagem ainda. Comece a conversa!
+                  </p>
+                ) : (
+                  messages.map((m) => {
+                    const mine = m.user_id === user?.id;
+                    const isOwnerMsg = m.user_id === club.owner_id;
+                    const isOnline = onlineNow.some((p) => p.user_id === m.user_id);
+                    const link = profilePath({
+                      username: m.profile?.username,
+                      id: m.user_id,
+                    });
+                    return (
                       <div
-                        className={cn(
-                          "max-w-[75%] flex flex-col",
-                          mine ? "items-end" : "items-start",
-                        )}
+                        key={m.id}
+                        className={cn("flex gap-2 group/msg", mine ? "flex-row-reverse" : "")}
                       >
-                        <p className="text-xs text-muted-foreground mb-0.5 inline-flex items-center gap-1">
-                          <Link
-                            to={link}
-                            className="hover:text-primary transition-colors truncate max-w-[140px]"
-                          >
-                            {m.profile?.display_name || "Leitor"}
-                          </Link>
-                          {isOwnerMsg && (
-                            <Crown className="w-3 h-3 text-primary shrink-0" aria-label="Dono do clube" />
+                        <Link to={link} className="shrink-0 relative">
+                          <Avatar className="w-8 h-8 hover:ring-2 hover:ring-primary/40 transition-all">
+                            <AvatarImage src={m.profile?.avatar_url || undefined} />
+                            <AvatarFallback className="text-xs bg-gradient-gold text-primary-foreground">
+                              {(m.profile?.display_name || "?").charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          {isOnline && (
+                            <span
+                              aria-hidden
+                              className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-background"
+                            />
                           )}
-                          <span>·</span>
-                          <span>
-                            {formatDistanceToNow(new Date(m.created_at), {
-                              addSuffix: true,
-                              locale: ptBR,
-                            })}
-                          </span>
-                        </p>
+                        </Link>
                         <div
                           className={cn(
-                            "rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words",
-                            mine ? "bg-primary text-primary-foreground" : "bg-muted",
+                            "max-w-[75%] flex flex-col",
+                            mine ? "items-end" : "items-start",
                           )}
                         >
-                          {m.content}
-                        </div>
-                        {/* Ações da mensagem — aparecem em hover (desktop) ou sempre (mobile) */}
-                        <div className="opacity-0 group-hover/msg:opacity-100 sm:opacity-0 sm:group-hover/msg:opacity-100 transition-opacity flex gap-1 mt-1">
-                          <button
-                            onClick={() => startReply(m)}
-                            className="text-[10px] text-muted-foreground hover:text-primary inline-flex items-center gap-1"
-                            aria-label="Responder mensagem"
-                          >
-                            <Reply className="w-3 h-3" /> Responder
-                          </button>
-                          {mine && (
-                            <button
-                              onClick={() => deleteMessage(m)}
-                              className="text-[10px] text-muted-foreground hover:text-destructive inline-flex items-center gap-1"
-                              aria-label="Apagar mensagem"
+                          <p className="text-xs text-muted-foreground mb-0.5 inline-flex items-center gap-1">
+                            <Link
+                              to={link}
+                              className="hover:text-primary transition-colors truncate max-w-[140px]"
                             >
-                              <X className="w-3 h-3" /> Apagar
+                              {m.profile?.display_name || "Leitor"}
+                            </Link>
+                            {isOwnerMsg && (
+                              <Crown className="w-3 h-3 text-primary shrink-0" aria-label="Dono do clube" />
+                            )}
+                            <span>·</span>
+                            <span>
+                              {formatDistanceToNow(new Date(m.created_at), {
+                                addSuffix: true,
+                                locale: ptBR,
+                              })}
+                            </span>
+                          </p>
+                          <div
+                            className={cn(
+                              "rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words",
+                              mine ? "bg-primary text-primary-foreground" : "bg-muted",
+                            )}
+                          >
+                            {m.content}
+                          </div>
+                          <div className="opacity-0 group-hover/msg:opacity-100 sm:opacity-0 sm:group-hover/msg:opacity-100 transition-opacity flex gap-1 mt-1">
+                            <button
+                              onClick={() => startReply(m)}
+                              className="text-[10px] text-muted-foreground hover:text-primary inline-flex items-center gap-1"
+                              aria-label="Responder mensagem"
+                            >
+                              <Reply className="w-3 h-3" /> Responder
                             </button>
-                          )}
+                            {mine && (
+                              <button
+                                onClick={() => deleteMessage(m)}
+                                className="text-[10px] text-muted-foreground hover:text-destructive inline-flex items-center gap-1"
+                                aria-label="Apagar mensagem"
+                              >
+                                <X className="w-3 h-3" /> Apagar
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-            <div className="mb-2 min-h-[28px]">
-              <TypingIndicator
-                channelKey={`club-${id}`}
-                displayName={user?.user_metadata?.display_name || user?.email?.split("@")[0]}
-                registerSendTyping={(fn) => {
-                  sendTypingRef.current = fn;
-                }}
-              />
-            </div>
-
-            {/* Banner de "respondendo a..." */}
-            {replyTo && (
-              <div className="mb-2 flex items-center gap-2 rounded-xl bg-muted/50 border border-border/40 px-3 py-2 text-xs">
-                <Reply className="w-3 h-3 text-primary shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <span className="text-muted-foreground">Respondendo </span>
-                  <span className="font-semibold">
-                    {replyTo.profile?.display_name || "leitor"}:
-                  </span>{" "}
-                  <span className="text-muted-foreground truncate">
-                    {replyTo.content.slice(0, 60)}
-                    {replyTo.content.length > 60 ? "…" : ""}
-                  </span>
-                </div>
-                <button
-                  onClick={() => setReplyTo(null)}
-                  className="text-muted-foreground hover:text-foreground shrink-0"
-                  aria-label="Cancelar resposta"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+                    );
+                  })
+                )}
               </div>
-            )}
 
-            <form onSubmit={send} className="flex gap-2">
-              <Input
-                ref={inputRef}
-                value={input}
-                onChange={(e) => {
-                  setInput(e.target.value);
-                  sendTypingRef.current?.();
-                }}
-                placeholder={replyTo ? "Sua resposta..." : "Mensagem..."}
-                disabled={sending}
-                maxLength={2000}
+              <div className="min-h-[28px]">
+                <TypingIndicator
+                  channelKey={`club-${id}`}
+                  displayName={user?.user_metadata?.display_name || user?.email?.split("@")[0]}
+                  registerSendTyping={(fn) => {
+                    sendTypingRef.current = fn;
+                  }}
+                />
+              </div>
+
+              {replyTo && (
+                <div className="flex items-center gap-2 rounded-xl bg-muted/50 border border-border/40 px-3 py-2 text-xs">
+                  <Reply className="w-3 h-3 text-primary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-muted-foreground">Respondendo </span>
+                    <span className="font-semibold">
+                      {replyTo.profile?.display_name || "leitor"}:
+                    </span>{" "}
+                    <span className="text-muted-foreground truncate">
+                      {replyTo.content.slice(0, 60)}
+                      {replyTo.content.length > 60 ? "…" : ""}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setReplyTo(null)}
+                    className="text-muted-foreground hover:text-foreground shrink-0"
+                    aria-label="Cancelar resposta"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
+              <form onSubmit={send} className="flex gap-2">
+                <Input
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    sendTypingRef.current?.();
+                  }}
+                  placeholder={replyTo ? "Sua resposta..." : "Mensagem..."}
+                  disabled={sending}
+                  maxLength={2000}
+                />
+                <Button
+                  type="submit"
+                  variant="hero"
+                  size="icon"
+                  disabled={sending || !input.trim()}
+                  aria-label="Enviar mensagem"
+                >
+                  <Send className="w-4 h-4" aria-hidden="true" />
+                </Button>
+              </form>
+            </TabsContent>
+
+            {/* TAB: LIVRO */}
+            <TabsContent value="book" className="mt-4 space-y-4">
+              {club.current_book && (
+                <Link
+                  to={`/livro/${club.current_book.id}`}
+                  className="flex gap-3 items-center group rounded-2xl glass p-4 hover:border-primary/40 transition-all"
+                >
+                  <BookCover book={club.current_book} size="md" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-wider text-primary font-semibold">
+                      Lendo agora
+                    </p>
+                    <p className="font-semibold text-base group-hover:text-primary transition-colors line-clamp-2">
+                      {club.current_book.title}
+                    </p>
+                    {club.current_book.authors?.[0] && (
+                      <p className="text-xs text-muted-foreground truncate">
+                        {club.current_book.authors.join(", ")}
+                      </p>
+                    )}
+                  </div>
+                </Link>
+              )}
+
+              {club.current_book && id && <ClubBookProgress clubId={id} />}
+
+              <ClubBookOfTheMonth
+                clubId={id!}
+                isOwner={isOwner}
+                isMember={isMember}
+                onCrown={() => load()}
               />
-              <Button
-                type="submit"
-                variant="hero"
-                size="icon"
-                disabled={sending || !input.trim()}
-                aria-label="Enviar mensagem"
-              >
-                <Send className="w-4 h-4" aria-hidden="true" />
-              </Button>
-            </form>
-          </>
+
+              {isOwner && <ClubAdminPanel clubId={id!} ownerId={user!.id} />}
+            </TabsContent>
+
+            {/* TAB: ATIVIDADE / MEMBROS */}
+            <TabsContent value="members" className="mt-4 space-y-4">
+              {id && <ClubActivityPanel clubId={id} isMember={isMember} />}
+
+              <div className="glass rounded-2xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-display text-lg font-semibold inline-flex items-center gap-2">
+                    <Users className="w-4 h-4 text-primary" /> Membros ({members.length})
+                  </h3>
+                  <Link
+                    to={`/clubes/${id}/membros`}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Ver todos
+                  </Link>
+                </div>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {members.slice(0, 12).map((m) => {
+                    const isOnline = onlineNow.some((p) => p.user_id === m.user_id);
+                    const link = profilePath({
+                      username: m.profile?.username,
+                      id: m.user_id,
+                    });
+                    return (
+                      <li key={m.user_id}>
+                        <Link
+                          to={link}
+                          className="flex items-center gap-3 p-2 rounded-xl hover:bg-muted/40 transition-colors"
+                        >
+                          <div className="relative shrink-0">
+                            <Avatar className="w-9 h-9">
+                              <AvatarImage src={m.profile?.avatar_url || undefined} />
+                              <AvatarFallback className="text-xs bg-gradient-gold text-primary-foreground">
+                                {(m.profile?.display_name || "?").charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            {isOnline && (
+                              <span
+                                aria-hidden
+                                className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-background"
+                              />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold truncate inline-flex items-center gap-1">
+                              {m.profile?.display_name || "Leitor"}
+                              {m.user_id === club.owner_id && (
+                                <Crown className="w-3 h-3 text-primary shrink-0" />
+                              )}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {isOnline ? "Online agora" : m.role === "owner" ? "Dono" : "Membro"}
+                            </p>
+                          </div>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </TabsContent>
+          </Tabs>
         )}
       </div>
     </AppShell>
