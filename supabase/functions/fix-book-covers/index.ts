@@ -25,7 +25,13 @@
 // ============================================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import { requireAdmin } from "../_shared/admin-guard.ts";
+import { requireAdminOrCron } from "../_shared/admin-guard.ts";
+import { startRun, finishRun } from "../_shared/automation-runs.ts";
+
+// Cooldown: livros com capa OK validada há menos de COOLDOWN_DAYS NÃO são reprocessados
+const COVER_OK_COOLDOWN_DAYS = 30;
+// Livros com capa quebrada são re-tentados em até este intervalo
+const COVER_FAIL_COOLDOWN_DAYS = 3;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
