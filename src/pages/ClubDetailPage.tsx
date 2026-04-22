@@ -81,6 +81,8 @@ export default function ClubDetailPage() {
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [pendingQuote, setPendingQuote] = useState<BookQuotePayload | null>(null);
   const [tab, setTab] = useState<string>("chat");
+  const [pendingSpoilerPage, setPendingSpoilerPage] = useState<number | null>(null);
+  const [myCurrentPage, setMyCurrentPage] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const sendTypingRef = useRef<(() => void) | null>(null);
