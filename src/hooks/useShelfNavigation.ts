@@ -11,6 +11,12 @@ import type { Book, UserBook } from "@/types/book";
 export interface ShelfNavState {
   shelfId?: string;
   shelfTitle?: string;
+  /**
+   * Lista pré-computada de IDs da prateleira de origem.
+   * Quando presente, tem prioridade sobre a reconstrução via smart shelves.
+   * Útil para prateleiras dinâmicas (ex.: Modo Casa agrupando por autor/categoria).
+   */
+  bookIds?: string[];
 }
 
 interface ShelfNav {
