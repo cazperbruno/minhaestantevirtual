@@ -69,13 +69,13 @@ export function NextInSeriesBanner({ book, ub }: Props) {
             className="shrink-0 hover:scale-105 transition-transform"
             onClick={() => haptic("tap")}
           >
-            <div className="w-16 md:w-20 rounded-md overflow-hidden shadow-book ring-1 ring-border/40">
-              <BookCover
-                src={next.cover_url || undefined}
-                title={next.title}
-                aspectRatio="2/3"
-              />
-            </div>
+            <BookCover
+              book={next}
+              size="sm"
+              fallback={false}
+              interactive={false}
+              className="shadow-book ring-1 ring-border/40"
+            />
           </Link>
 
           <div className="flex-1 min-w-0">
