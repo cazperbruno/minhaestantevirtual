@@ -2,12 +2,18 @@ import { useState } from "react";
 import {
   useClubInviteLink, useCreateInviteLink, useRevokeInviteLink,
 } from "@/hooks/useClubInviteLink";
+import { useClubInviteRedemptions } from "@/hooks/useClubInviteRedemptions";
+import { Link } from "react-router-dom";
+import { profilePath } from "@/lib/profile-path";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Link2, Copy, Check, RotateCw, Trash2, Loader2, Share2 } from "lucide-react";
+import { Link2, Copy, Check, RotateCw, Trash2, Loader2, Share2, History } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 
 interface Props {
