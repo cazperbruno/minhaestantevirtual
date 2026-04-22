@@ -33,6 +33,8 @@ import { ClubLeaderboard } from "@/components/clubs/ClubLeaderboard";
 import { MentionInput } from "@/components/clubs/MentionInput";
 import { MessageContent } from "@/components/clubs/MessageContent";
 import { ReadingSprintPanel } from "@/components/clubs/ReadingSprintPanel";
+import { SpoilerWrapper } from "@/components/clubs/SpoilerWrapper";
+import { SpoilerComposeButton } from "@/components/clubs/SpoilerComposeButton";
 
 interface Profile {
   id: string;
@@ -48,6 +50,7 @@ interface Message {
   created_at: string;
   parent_id?: string | null;
   book_quote?: BookQuotePayload | null;
+  spoiler_page?: number | null;
   profile?: Profile;
 }
 
@@ -78,6 +81,8 @@ export default function ClubDetailPage() {
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [pendingQuote, setPendingQuote] = useState<BookQuotePayload | null>(null);
   const [tab, setTab] = useState<string>("chat");
+  const [pendingSpoilerPage, setPendingSpoilerPage] = useState<number | null>(null);
+  const [myCurrentPage, setMyCurrentPage] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const sendTypingRef = useRef<(() => void) | null>(null);
@@ -183,6 +188,28 @@ export default function ClubDetailPage() {
   const { data: myRequest } = useMyJoinRequest(user?.id, id);
   const requestJoin = useRequestJoin(id || "", user?.id);
 
+  // Página atual do leitor no livro do mês — usado para esconder spoilers além disso
+  useEffect(() => {
+    const bookId = club?.current_book?.id;
+    if (!user?.id || !bookId) {
+      setMyCurrentPage(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("user_books")
+        .select("current_page")
+        .eq("user_id", user.id)
+        .eq("book_id", bookId)
+        .maybeSingle();
+      if (!cancelled) setMyCurrentPage((data as { current_page: number | null } | null)?.current_page ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, club?.current_book?.id]);
+
   // Heartbeat de presença para "online agora" na categoria
   useClubPresence(id, isMember);
 
@@ -216,21 +243,25 @@ export default function ClubDetailPage() {
     const text = input.trim();
     const quoteToSend = pendingQuote;
     const parentToSend = replyTo;
+    const spoilerToSend = pendingSpoilerPage;
     setInput("");
     setReplyTo(null);
     setPendingQuote(null);
+    setPendingSpoilerPage(null);
     const { error } = await supabase.from("club_messages").insert({
       club_id: id,
       user_id: user.id,
       content: text,
       parent_id: parentToSend?.id ?? null,
       book_quote: (quoteToSend as any) ?? null,
+      spoiler_page: spoilerToSend ?? null,
     } as any);
     if (error) {
       toast.error("Mensagem não enviada", { description: "Verifique sua conexão." });
       setInput(text);
       setReplyTo(parentToSend);
       setPendingQuote(quoteToSend);
+      setPendingSpoilerPage(spoilerToSend);
     } else {
       void awardXp(user.id, "club_message", { silent: true });
     }
@@ -571,23 +602,28 @@ export default function ClubDetailPage() {
                               );
                             })()}
 
-                          <div
-                            className={cn(
-                              "rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words",
-                              mine ? "bg-primary text-primary-foreground" : "bg-muted",
-                            )}
+                          <SpoilerWrapper
+                            spoilerPage={m.spoiler_page ?? null}
+                            readerPage={mine ? Number.MAX_SAFE_INTEGER : myCurrentPage}
                           >
-                            {m.book_quote && <QuoteBlock quote={m.book_quote} />}
-                            <MessageContent
-                              text={m.content}
-                              members={members.map((mb) => ({
-                                user_id: mb.user_id,
-                                username: mb.profile?.username ?? null,
-                                display_name: mb.profile?.display_name ?? null,
-                              }))}
-                              highlightClassName={mine ? "text-primary-foreground" : "text-primary"}
-                            />
-                          </div>
+                            <div
+                              className={cn(
+                                "rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words",
+                                mine ? "bg-primary text-primary-foreground" : "bg-muted",
+                              )}
+                            >
+                              {m.book_quote && <QuoteBlock quote={m.book_quote} />}
+                              <MessageContent
+                                text={m.content}
+                                members={members.map((mb) => ({
+                                  user_id: mb.user_id,
+                                  username: mb.profile?.username ?? null,
+                                  display_name: mb.profile?.display_name ?? null,
+                                }))}
+                                highlightClassName={mine ? "text-primary-foreground" : "text-primary"}
+                              />
+                            </div>
+                          </SpoilerWrapper>
 
                           <MessageReactions
                             messageId={m.id}
@@ -686,6 +722,12 @@ export default function ClubDetailPage() {
                   currentBook={club.current_book ? { id: club.current_book.id, title: club.current_book.title } : null}
                   onAttach={(q) => setPendingQuote(q)}
                 />
+                {club.current_book && (
+                  <SpoilerComposeButton
+                    value={pendingSpoilerPage}
+                    onChange={setPendingSpoilerPage}
+                  />
+                )}
                 <MentionInput
                   ref={inputRef}
                   value={input}

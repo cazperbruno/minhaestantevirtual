@@ -2,12 +2,18 @@ import { useState } from "react";
 import {
   useClubInviteLink, useCreateInviteLink, useRevokeInviteLink,
 } from "@/hooks/useClubInviteLink";
+import { useClubInviteRedemptions } from "@/hooks/useClubInviteRedemptions";
+import { Link } from "react-router-dom";
+import { profilePath } from "@/lib/profile-path";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Link2, Copy, Check, RotateCw, Trash2, Loader2, Share2 } from "lucide-react";
+import { Link2, Copy, Check, RotateCw, Trash2, Loader2, Share2, History } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 
 interface Props {
@@ -20,6 +26,7 @@ export function ClubInviteLinkPanel({ clubId, clubName }: Props) {
   const link = useClubInviteLink(clubId, true);
   const create = useCreateInviteLink(clubId);
   const revoke = useRevokeInviteLink(clubId);
+  const redemptions = useClubInviteRedemptions(clubId, true);
 
   const [expires, setExpires] = useState<string>("7");
   const [maxUses, setMaxUses] = useState<string>("");
@@ -170,6 +177,45 @@ export function ClubInviteLinkPanel({ clubId, clubName }: Props) {
             {create.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5" />}
             Gerar link de convite
           </Button>
+        </div>
+      )}
+
+      {/* Histórico de quem entrou via link */}
+      {redemptions.data && redemptions.data.length > 0 && (
+        <div className="pt-3 border-t border-border/40 space-y-2">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1.5">
+            <History className="w-3 h-3" />
+            Entraram via link · {redemptions.data.length}
+          </p>
+          <ul className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            {redemptions.data.map((r) => {
+              const name = r.profile?.display_name || r.profile?.username || "Leitor";
+              return (
+                <li key={r.id}>
+                  <Link
+                    to={profilePath({ username: r.profile?.username, id: r.user_id })}
+                    className="flex items-center gap-2 rounded-lg p-1.5 hover:bg-muted/50 transition-colors"
+                  >
+                    <Avatar className="w-7 h-7 shrink-0">
+                      <AvatarImage src={r.profile?.avatar_url || undefined} />
+                      <AvatarFallback className="text-[10px] bg-gradient-gold text-primary-foreground">
+                        {name.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium truncate">{name}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {formatDistanceToNow(new Date(r.redeemed_at), {
+                          addSuffix: true,
+                          locale: ptBR,
+                        })}
+                      </p>
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
     </section>
