@@ -26,6 +26,7 @@ const RankingPage = lazy(() => import("./pages/RankingPage"));
 const GoalsPage = lazy(() => import("./pages/GoalsPage"));
 const StatsPage = lazy(() => import("./pages/StatsPage"));
 const ClubsPage = lazy(() => import("./pages/ClubsPage"));
+const ClubCategoryPage = lazy(() => import("./pages/ClubCategoryPage"));
 const ClubDetailPage = lazy(() => import("./pages/ClubDetailPage"));
 const ClubMembersPage = lazy(() => import("./pages/ClubMembersPage"));
 const PublicProfile = lazy(() => import("./pages/PublicProfile"));
@@ -75,6 +76,7 @@ const App = () => (
             <Route path="/metas" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
             <Route path="/estatisticas" element={<ProtectedRoute><StatsPage /></ProtectedRoute>} />
             <Route path="/clubes" element={<ProtectedRoute><ClubsPage /></ProtectedRoute>} />
+            <Route path="/clubes/categoria/:slug" element={<ProtectedRoute><ClubCategoryPage /></ProtectedRoute>} />
             <Route path="/clubes/:id" element={<ProtectedRoute><ClubDetailPage /></ProtectedRoute>} />
             <Route path="/clubes/:id/membros" element={<ProtectedRoute><ClubMembersPage /></ProtectedRoute>} />
             <Route path="/u/:username" element={<ProtectedRoute><PublicProfile /></ProtectedRoute>} />
