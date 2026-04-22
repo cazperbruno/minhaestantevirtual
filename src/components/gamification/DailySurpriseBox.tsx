@@ -168,7 +168,6 @@ export function DailySurpriseBox() {
               ? <>Hoje pode chegar a <span className="text-amber-500 font-semibold">+150 XP</span>!</>
               : <>Pode ser <span className="text-amber-500 font-semibold">lendário</span>!</>}
           </p>
-          </p>
         </div>
         <Button
           size="sm"
