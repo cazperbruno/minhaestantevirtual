@@ -3,8 +3,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
-  title?: string;
-  subtitle?: string;
+  title?: ReactNode;
+  subtitle?: ReactNode;
   /** Conteúdo (cards). Será renderizado num scroller horizontal. */
   children: ReactNode;
   /** Mostra ação à direita do header (ex.: "Ver tudo"). */
