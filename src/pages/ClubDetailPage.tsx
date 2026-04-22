@@ -33,6 +33,8 @@ import { ClubLeaderboard } from "@/components/clubs/ClubLeaderboard";
 import { MentionInput } from "@/components/clubs/MentionInput";
 import { MessageContent } from "@/components/clubs/MessageContent";
 import { ReadingSprintPanel } from "@/components/clubs/ReadingSprintPanel";
+import { SpoilerWrapper } from "@/components/clubs/SpoilerWrapper";
+import { SpoilerComposeButton } from "@/components/clubs/SpoilerComposeButton";
 
 interface Profile {
   id: string;
@@ -48,6 +50,7 @@ interface Message {
   created_at: string;
   parent_id?: string | null;
   book_quote?: BookQuotePayload | null;
+  spoiler_page?: number | null;
   profile?: Profile;
 }
 
