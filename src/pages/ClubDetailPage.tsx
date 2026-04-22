@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { BookCover } from "@/components/books/BookCover";
 import {
   ArrowLeft, Send, Loader2, Users, LogOut, Lock, Globe2, Clock, Crown, X, Reply,
-  MessageSquare, BookOpen, Activity, Quote,
+  MessageSquare, BookOpen, Activity, Quote, EyeOff, Eye,
 } from "lucide-react";
 import { ClubBookOfTheMonth } from "@/components/clubs/ClubBookOfTheMonth";
 import { ClubAdminPanel } from "@/components/clubs/ClubAdminPanel";
@@ -35,6 +35,7 @@ import { MessageContent } from "@/components/clubs/MessageContent";
 import { ReadingSprintPanel } from "@/components/clubs/ReadingSprintPanel";
 import { SpoilerWrapper } from "@/components/clubs/SpoilerWrapper";
 import { SpoilerComposeButton } from "@/components/clubs/SpoilerComposeButton";
+import { useSpoilerFreeMode } from "@/hooks/useSpoilerFreeMode";
 
 interface Profile {
   id: string;
@@ -235,6 +236,10 @@ export default function ClubDetailPage() {
     isMember ? id : undefined,
     messageIds,
   );
+
+  // Modo sem-spoiler: oculta TODA mensagem com spoiler_page até o usuário revelar
+  const { enabled: spoilerFree, toggle: toggleSpoilerFree } = useSpoilerFreeMode(id);
+  const hasAnySpoilerMsg = messages.some((m) => typeof m.spoiler_page === "number" && (m.spoiler_page ?? 0) > 0);
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -512,6 +517,29 @@ export default function ClubDetailPage() {
                 <ClubBookProgress clubId={id} compact bookTitle={club.current_book.title} />
               )}
 
+              {/* Toggle: Modo sem spoiler — só aparece quando há mensagens marcadas */}
+              {hasAnySpoilerMsg && (
+                <button
+                  type="button"
+                  onClick={toggleSpoilerFree}
+                  aria-pressed={spoilerFree}
+                  className={cn(
+                    "w-full flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs transition-colors",
+                    spoilerFree
+                      ? "bg-primary/10 border-primary/40 text-primary"
+                      : "bg-card/40 border-border/40 text-muted-foreground hover:border-primary/30 hover:text-foreground",
+                  )}
+                >
+                  <span className="inline-flex items-center gap-1.5 font-semibold">
+                    {spoilerFree ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    Modo sem spoiler {spoilerFree ? "ligado" : "desligado"}
+                  </span>
+                  <span className="text-[10px] uppercase tracking-wider opacity-80">
+                    {spoilerFree ? "Toque para ver tudo" : "Toque para esconder"}
+                  </span>
+                </button>
+              )}
+
               <div
                 ref={scrollRef}
                 className="glass rounded-2xl p-4 h-[55vh] overflow-y-auto space-y-3"
@@ -605,6 +633,7 @@ export default function ClubDetailPage() {
                           <SpoilerWrapper
                             spoilerPage={m.spoiler_page ?? null}
                             readerPage={mine ? Number.MAX_SAFE_INTEGER : myCurrentPage}
+                            forceHide={spoilerFree && !mine}
                           >
                             <div
                               className={cn(
