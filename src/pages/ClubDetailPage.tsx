@@ -241,7 +241,7 @@ export default function ClubDetailPage() {
   const { enabled: spoilerFree, toggle: toggleSpoilerFree } = useSpoilerFreeMode(id);
   const hasAnySpoilerMsg = messages.some((m) => typeof m.spoiler_page === "number" && (m.spoiler_page ?? 0) > 0);
 
-
+  const send = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !input.trim() || !id) return;
     setSending(true);
