@@ -2448,6 +2448,18 @@ export type Database = {
         }[]
       }
       cleanup_expired_admin_csrf_tokens: { Args: never; Returns: number }
+      club_book_progress: {
+        Args: { _club_id: string }
+        Returns: {
+          avg_progress: number
+          book_id: string
+          finished_count: number
+          page_count: number
+          reading_count: number
+          total_members: number
+          total_pages_read: number
+        }[]
+      }
       club_online_count: { Args: { _club_id: string }; Returns: number }
       club_recent_activity: {
         Args: { _club_id: string; _limit?: number }
