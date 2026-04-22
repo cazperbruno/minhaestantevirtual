@@ -415,6 +415,153 @@ export default function WrappedPage() {
         ),
       },
       {
+        id: "monthly",
+        bg: "from-status-reading/25 via-background to-background",
+        glow: "bg-status-reading/40",
+        render: () => {
+          const max = Math.max(1, ...data.monthly.map((m) => m.count));
+          return (
+            <div className="w-full max-w-xl mx-auto">
+              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-3 text-center">
+                Mês a mês
+              </p>
+              <h3 className="font-display text-3xl md:text-5xl font-bold leading-tight tracking-tight text-center mb-8">
+                Seu ritmo de <span className="text-primary italic">leitura</span>.
+              </h3>
+              <div className="flex items-end justify-between gap-1.5 h-44 px-1">
+                {data.monthly.map((m) => {
+                  const h = m.count > 0 ? Math.max(8, (m.count / max) * 100) : 4;
+                  const isTop = data.monthlyTop && MONTHS[m.month] === data.monthlyTop.month && m.count > 0;
+                  return (
+                    <div key={m.month} className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
+                      <span className="text-[10px] tabular-nums font-mono text-muted-foreground/70 h-3">
+                        {m.count > 0 ? m.count : ""}
+                      </span>
+                      <div
+                        className={cn(
+                          "w-full rounded-t-md transition-all",
+                          isTop ? "bg-primary shadow-glow" : "bg-foreground/15",
+                        )}
+                        style={{ height: `${h}%` }}
+                      />
+                      <span className={cn(
+                        "text-[10px] uppercase tracking-wider",
+                        isTop ? "text-primary font-bold" : "text-muted-foreground",
+                      )}>
+                        {MONTHS[m.month]}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              {data.monthlyTop && (
+                <p className="mt-6 text-center text-sm text-muted-foreground">
+                  <span className="text-primary font-semibold">{data.monthlyTop.month}</span> foi seu mês mais intenso · {data.monthlyTop.count} {data.monthlyTop.count === 1 ? "livro" : "livros"}.
+                </p>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        id: "first-last",
+        bg: "from-accent/25 via-background to-background",
+        glow: "bg-accent/40",
+        render: () => (
+          <div className="w-full max-w-xl mx-auto">
+            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-3 text-center">
+              Como começou e terminou
+            </p>
+            <h3 className="font-display text-3xl md:text-5xl font-bold leading-tight tracking-tight text-center mb-8">
+              A <span className="text-primary italic">jornada</span> do ano.
+            </h3>
+            <div className="space-y-4">
+              {data.firstBook && (
+                <FirstLastCard label="Primeira leitura" book={data.firstBook} accent="from-status-reading/30 to-status-reading/5" />
+              )}
+              {data.lastBook && (
+                <FirstLastCard label="Última leitura" book={data.lastBook} accent="from-primary/30 to-primary/5" />
+              )}
+              {!data.firstBook && (
+                <p className="text-center text-muted-foreground">Sem leituras registradas com data.</p>
+              )}
+            </div>
+          </div>
+        ),
+      },
+      {
+        id: "friends",
+        bg: "from-status-wishlist/30 via-background to-background",
+        glow: "bg-status-wishlist/40",
+        render: () => {
+          const top = friends.slice(0, 6);
+          const myIdx = top.findIndex((f) => f.isMe);
+          return (
+            <div className="w-full max-w-xl mx-auto">
+              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-3 text-center">
+                Entre você e quem você segue
+              </p>
+              <h3 className="font-display text-3xl md:text-5xl font-bold leading-tight tracking-tight text-center mb-8">
+                Sua <span className="text-primary italic">posição</span> no ranking.
+              </h3>
+              {top.length > 1 ? (
+                <ol className="space-y-2.5">
+                  {top.map((f, i) => (
+                    <li
+                      key={f.user_id}
+                      className={cn(
+                        "rounded-2xl px-4 py-3 flex items-center gap-3 border transition-all",
+                        f.isMe
+                          ? "bg-primary/15 border-primary/40 shadow-glow"
+                          : "glass border-border",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "w-8 h-8 rounded-full flex items-center justify-center font-display font-bold tabular-nums shrink-0 text-sm",
+                          i === 0 ? "bg-primary text-primary-foreground" : "bg-foreground/10 text-foreground",
+                        )}
+                      >
+                        {i + 1}
+                      </span>
+                      <div className="w-9 h-9 rounded-full overflow-hidden bg-muted shrink-0 ring-1 ring-border">
+                        {f.avatar_url ? (
+                          <img src={f.avatar_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-xs font-bold text-muted-foreground">
+                            {(f.display_name || f.username || "?").charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate text-sm">
+                          {f.isMe ? "Você" : (f.display_name || f.username || "Anônimo")}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground tabular-nums">
+                          {f.pages.toLocaleString("pt-BR")} pg
+                        </p>
+                      </div>
+                      <span className="font-mono font-bold tabular-nums text-foreground/90">
+                        {f.count}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="text-center text-muted-foreground text-sm">
+                  Siga outros leitores na busca para comparar seu ano.
+                </p>
+              )}
+              {myIdx > 0 && top.length > 1 && (
+                <p className="mt-5 text-center text-sm text-muted-foreground">
+                  Você está em <span className="text-primary font-semibold">#{myIdx + 1}</span> entre {top.length} leitores.
+                </p>
+              )}
+            </div>
+          );
+        },
+      },
+      {
         id: "outro",
         bg: "from-primary/40 via-accent/30 to-background",
         glow: "bg-primary/50",
@@ -435,7 +582,11 @@ export default function WrappedPage() {
               <Button variant="hero" size="lg" onClick={share} className="gap-2 shadow-lg">
                 <Share2 className="w-4 h-4" /> Compartilhar meu Wrapped
               </Button>
-              <Button variant="outline" size="lg" onClick={() => navigate("/")}>
+              <Button variant="outline" size="lg" onClick={shareStory} disabled={savingStory} className="gap-2">
+                {savingStory ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                Salvar como story
+              </Button>
+              <Button variant="ghost" size="lg" onClick={() => navigate("/")}>
                 Voltar ao início
               </Button>
             </div>
@@ -444,7 +595,7 @@ export default function WrappedPage() {
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [data, navigate],
+    [data, friends, navigate, savingStory],
   );
 
   const isLast = slide === slides.length - 1;
