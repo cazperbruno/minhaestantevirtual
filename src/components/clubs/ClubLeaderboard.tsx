@@ -153,14 +153,14 @@ function LeaderboardItem({
         {row.achievements && row.achievements.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1.5">
             {row.achievements.map((a) => {
-              const meta = ACHIEVEMENT_META[a] || { icon: "✨", tone: "bg-muted text-foreground" };
+              const meta = ACHIEVEMENT_META[a] || { label: a, icon: "✨", tone: "bg-muted text-foreground" };
               return (
                 <Badge
                   key={a}
                   variant="secondary"
                   className={cn("text-[10px] px-1.5 py-0 h-4 gap-0.5 font-semibold", meta.tone)}
                 >
-                  <span aria-hidden>{meta.icon}</span> {a}
+                  <span aria-hidden>{meta.icon}</span> {meta.label}
                 </Badge>
               );
             })}
