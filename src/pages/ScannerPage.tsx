@@ -124,7 +124,62 @@ export default function ScannerPage() {
   useEffect(() => () => {
     stop();
     if (continuousTimerRef.current) clearTimeout(continuousTimerRef.current);
+    if (autoAddTimerRef.current) clearInterval(autoAddTimerRef.current);
   }, []);
+
+  /**
+   * Adiciona o livro encontrado à biblioteca pessoal (status not_read).
+   * Idempotente — usa upsert por (user_id, book_id).
+   */
+  const addFoundBookToLibrary = async () => {
+    if (!user || !foundBook) return;
+    try {
+      await supabase
+        .from("user_books")
+        .upsert(
+          { user_id: user.id, book_id: foundBook.id, status: "not_read" },
+          { onConflict: "user_id,book_id" },
+        );
+      void awardXp(user.id, "add_book", { silent: true });
+      invalidate.library(user.id);
+      haptic("success");
+      toast.success("Adicionado à sua biblioteca", {
+        description: foundBook.title,
+      });
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao adicionar");
+    }
+  };
+
+  /** Cancela o countdown de auto-add (modo single). */
+  const cancelAutoAdd = () => {
+    if (autoAddTimerRef.current) {
+      clearInterval(autoAddTimerRef.current);
+      autoAddTimerRef.current = null;
+    }
+    setAutoAddCountdown(null);
+    haptic("tap");
+  };
+
+  /** Inicia countdown de N segundos e auto-adiciona ao final. */
+  const startAutoAddCountdown = (seconds = 2) => {
+    cancelAutoAdd();
+    setAutoAddCountdown(seconds);
+    autoAddTimerRef.current = window.setInterval(() => {
+      setAutoAddCountdown((s) => {
+        if (s == null) return null;
+        if (s <= 1) {
+          if (autoAddTimerRef.current) clearInterval(autoAddTimerRef.current);
+          autoAddTimerRef.current = null;
+          // Dispara o add no próximo tick pra não correr dentro do setState
+          setTimeout(() => { void addFoundBookToLibrary(); }, 0);
+          return null;
+        }
+        return s - 1;
+      });
+    }, 1000);
+  };
+
 
   const stop = () => {
     try { controlsRef.current?.stop(); } catch { /* noop */ }
