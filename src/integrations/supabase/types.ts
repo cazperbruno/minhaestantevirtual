@@ -166,6 +166,33 @@ export type Database = {
           },
         ]
       }
+      admin_csrf_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          last_used_at: string | null
+          token_hash: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          last_used_at?: string | null
+          token_hash: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_used_at?: string | null
+          token_hash?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       app_events: {
         Row: {
           created_at: string
@@ -2336,6 +2363,7 @@ export type Database = {
           xp_granted: number
         }[]
       }
+      cleanup_expired_admin_csrf_tokens: { Args: never; Returns: number }
       compute_book_quality_score: {
         Args: {
           _authors: string[]
