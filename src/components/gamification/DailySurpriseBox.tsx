@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Gift, Sparkles, Loader2 } from "lucide-react";
+import { Gift, Sparkles, Loader2, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useOpenSurpriseBox, useSurpriseStatus, type SurpriseRarity } from "@/hooks/useSurpriseBox";
+import { useEpicSaturday } from "@/hooks/useEpicSaturday";
 import { supabase } from "@/integrations/supabase/client";
 import { BookCover } from "@/components/books/BookCover";
 import { goldenBurst } from "@/lib/confetti";
 import { haptic } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
+import { trackEvent } from "@/lib/track";
 import type { Book } from "@/types/book";
 
 const rarityStyles: Record<SurpriseRarity, { label: string; gradient: string; glow: string }> = {
@@ -25,6 +27,7 @@ const rarityStyles: Record<SurpriseRarity, { label: string; gradient: string; gl
 export function DailySurpriseBox() {
   const { user } = useAuth();
   const { data: status, isLoading } = useSurpriseStatus(user?.id);
+  const { data: isEpicSaturday } = useEpicSaturday();
   const open = useOpenSurpriseBox(user?.id);
   const [revealedBook, setRevealedBook] = useState<Book | null>(null);
   const [shaking, setShaking] = useState(false);
@@ -59,6 +62,12 @@ export function DailySurpriseBox() {
         if (data) setRevealedBook(data as Book);
       }
       setOpened(true);
+      // Telemetria de profundidade — Fase 3
+      trackEvent("surprise_box_opened", {
+        rarity: claim.rarity,
+        bonus_xp: claim.bonus_xp,
+        epic_saturday: !!isEpicSaturday,
+      });
       if (claim.rarity === "epic" || claim.rarity === "legendary") {
         haptic("success");
         goldenBurst();
