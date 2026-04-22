@@ -65,7 +65,7 @@ export function ShelfNavigator({ shelfTitle, index, total, prevId, nextId, child
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prevId, nextId, total]);
 
-  // Swipe horizontal (mobile)
+  // Swipe horizontal (mobile) — só dispara fora de áreas interativas/roláveis.
   useEffect(() => {
     const el = wrapRef.current;
     if (!el || total <= 1) return;
@@ -74,9 +74,38 @@ export function ShelfNavigator({ shelfTitle, index, total, prevId, nextId, child
     let startY = 0;
     let startT = 0;
     let active = false;
+    let blocked = false;
+
+    /**
+     * Bloqueia o swipe se o toque começou dentro de:
+     *  - botão / link / input / textarea / select
+     *  - qualquer ancestral marcado com data-no-shelf-swipe
+     *  - qualquer ancestral com overflow-x scrollable (carrosséis horizontais,
+     *    como CinematicShelf ou ações horizontais do BookHero)
+     */
+    const isBlockedTarget = (target: EventTarget | null): boolean => {
+      let node = target as HTMLElement | null;
+      while (node && node !== el) {
+        const tag = node.tagName;
+        if (tag === "BUTTON" || tag === "A" || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || tag === "LABEL") {
+          return true;
+        }
+        if (node.dataset?.noShelfSwipe !== undefined) return true;
+        if (node.getAttribute?.("role") === "slider" || node.getAttribute?.("role") === "button") return true;
+        // overflow-x scrollable e com conteúdo maior que o container
+        const style = window.getComputedStyle(node);
+        const ox = style.overflowX;
+        if ((ox === "auto" || ox === "scroll") && node.scrollWidth > node.clientWidth + 4) {
+          return true;
+        }
+        node = node.parentElement;
+      }
+      return false;
+    };
 
     const onStart = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
+      blocked = isBlockedTarget(e.target);
       active = true;
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
@@ -85,14 +114,16 @@ export function ShelfNavigator({ shelfTitle, index, total, prevId, nextId, child
     const onEnd = (e: TouchEvent) => {
       if (!active) return;
       active = false;
+      if (blocked) return;
       const t = e.changedTouches[0];
       const dx = t.clientX - startX;
       const dy = t.clientY - startY;
       const dt = Date.now() - startT;
-      // Critérios: gesto rápido (<700ms), horizontal claro, amplo (>70px)
-      if (dt > 700) return;
-      if (Math.abs(dx) < 70) return;
-      if (Math.abs(dy) > Math.abs(dx) * 0.6) return;
+      // Critérios mais rígidos: gesto rápido (<500ms), horizontal puro, muito amplo (>120px),
+      // e razão dy/dx baixa (<0.4) — evita confundir scroll vertical lento com swipe.
+      if (dt > 500) return;
+      if (Math.abs(dx) < 120) return;
+      if (Math.abs(dy) > Math.abs(dx) * 0.4) return;
       if (dx < 0 && nextId) goTo(nextId);
       else if (dx > 0 && prevId) goTo(prevId);
     };
