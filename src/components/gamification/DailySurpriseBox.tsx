@@ -33,24 +33,25 @@ export function DailySurpriseBox() {
   const [shaking, setShaking] = useState(false);
   const [opened, setOpened] = useState(false);
 
-  // Quando já abriu hoje, busca o livro pra mostrar o estado "claimed"
+  // Quando já abriu hoje, marca como aberto mesmo se livro não for encontrado
   useEffect(() => {
+    if (status?.available === false) {
+      setOpened(true);
+    }
     if (!status?.last_book_id) return;
     let cancelled = false;
     (async () => {
       const { data } = await supabase
         .from("books").select("*").eq("id", status.last_book_id!).maybeSingle();
-      if (!cancelled && data) {
-        setRevealedBook(data as Book);
-        setOpened(true);
-      }
+      if (!cancelled && data) setRevealedBook(data as Book);
     })();
     return () => { cancelled = true; };
-  }, [status?.last_book_id]);
+  }, [status?.last_book_id, status?.available]);
 
   if (!user || isLoading) return null;
 
   const handleOpen = async () => {
+    if (open.isPending) return;
     haptic("tap");
     setShaking(true);
     try {
