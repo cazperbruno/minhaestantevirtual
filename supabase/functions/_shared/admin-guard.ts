@@ -163,9 +163,22 @@ export async function requireAdminOrCron(req: Request): Promise<AdminGuardResult
 
   const cronSource = req.headers.get("x-cron-source");
   const authHeader = req.headers.get("Authorization") || "";
+  const apiKey = req.headers.get("apikey") || "";
+  console.log("[requireAdminOrCron] incoming", {
+    cronSource,
+    hasAuthHeader: Boolean(authHeader),
+    authPrefix: authHeader.slice(0, 24),
+    hasApiKey: Boolean(apiKey),
+    apiKeyPrefix: apiKey.slice(0, 24),
+  });
   if (
     cronSource === "readify-internal" &&
-    (authHeader === `Bearer ${ANON}` || authHeader === `Bearer ${SERVICE_ROLE}`)
+    (
+      authHeader === `Bearer ${ANON}` ||
+      authHeader === `Bearer ${SERVICE_ROLE}` ||
+      apiKey === ANON ||
+      apiKey === SERVICE_ROLE
+    )
   ) {
     const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
     return { ok: true, isService: true, sb };
