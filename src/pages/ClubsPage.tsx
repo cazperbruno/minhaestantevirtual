@@ -9,121 +9,120 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Users, Plus, Loader2, Lock, Globe2, Mail, Check, X, Search, Sparkles, BookOpen,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  Users, Plus, Loader2, Lock, Globe2, Mail, Check, X, Sparkles, BookOpen, Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import { BookCover } from "@/components/books/BookCover";
 import { useMyInvitations, useAcceptInvitation, useDeclineInvitation } from "@/hooks/useClubAccess";
+import { useClubCategoriesSummary } from "@/hooks/useClubCategories";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { CLUB_CATEGORIES, type ClubCategory } from "@/lib/club-categories";
 import { cn } from "@/lib/utils";
 
-type Filter = "all" | "mine" | "public";
-
-interface ClubRow {
+interface MineRow {
   id: string;
   name: string;
-  description: string | null;
+  category: ClubCategory;
   is_public: boolean;
-  owner_id: string;
   current_book?: { id: string; title: string; authors: string[]; cover_url: string | null } | null;
-  member_count: number;
-  i_am_member: boolean;
 }
 
 export default function ClubsPage() {
   const { user } = useAuth();
-  const [clubs, setClubs] = useState<ClubRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const summary = useClubCategoriesSummary();
+  const [mine, setMine] = useState<MineRow[]>([]);
+  const [loadingMine, setLoadingMine] = useState(true);
+
+  // Create
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [isPublic, setIsPublic] = useState(true);
+  const [category, setCategory] = useState<ClubCategory>("geral");
   const [creating, setCreating] = useState(false);
   const [open, setOpen] = useState(false);
-  const [filter, setFilter] = useState<Filter>("all");
+
+  // Search across categories
   const [query, setQuery] = useState("");
-  const debouncedQuery = useDebouncedValue(query, 200);
+  const debouncedQuery = useDebouncedValue(query, 250);
+  const [searchResults, setSearchResults] = useState<MineRow[]>([]);
+  const [searching, setSearching] = useState(false);
 
   const myInvites = useMyInvitations(user?.id);
   const acceptInv = useAcceptInvitation(user?.id);
   const declineInv = useDeclineInvitation(user?.id);
 
-  const load = async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from("book_clubs")
-      .select("id,name,description,is_public,owner_id,current_book:books(id,title,authors,cover_url)")
-      .order("updated_at", { ascending: false })
-      .limit(60);
-
-    const ids = (data || []).map((c) => c.id);
-    const [{ data: counts }, { data: mine }] = await Promise.all([
-      ids.length
-        ? supabase.from("club_members").select("club_id").in("club_id", ids)
-        : Promise.resolve({ data: [] as { club_id: string }[] }),
-      user && ids.length
-        ? supabase.from("club_members").select("club_id").eq("user_id", user.id).in("club_id", ids)
-        : Promise.resolve({ data: [] as { club_id: string }[] }),
-    ]);
-    const countMap: Record<string, number> = {};
-    (counts || []).forEach((c) => {
-      countMap[c.club_id] = (countMap[c.club_id] || 0) + 1;
-    });
-    const mineSet = new Set((mine || []).map((m) => m.club_id));
-
-    setClubs(
-      (data || []).map((c) => ({
-        ...c,
-        member_count: countMap[c.id] || 0,
-        i_am_member: mineSet.has(c.id),
-      })) as ClubRow[],
-    );
-    setLoading(false);
-  };
-
+  // Carrega "Meus clubes"
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!user) {
+      setMine([]);
+      setLoadingMine(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoadingMine(true);
+      const { data: rows } = await supabase
+        .from("club_members")
+        .select("club_id")
+        .eq("user_id", user.id);
+      const ids = (rows || []).map((r) => r.club_id);
+      if (ids.length === 0) {
+        if (!cancelled) {
+          setMine([]);
+          setLoadingMine(false);
+        }
+        return;
+      }
+      const { data: clubs } = await supabase
+        .from("book_clubs")
+        .select("id,name,category,is_public,current_book:books(id,title,authors,cover_url)")
+        .in("id", ids)
+        .order("updated_at", { ascending: false })
+        .limit(20);
+      if (!cancelled) {
+        setMine((clubs || []).map((c) => ({ ...c, category: (c.category as ClubCategory) || "geral" })) as MineRow[]);
+        setLoadingMine(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [user?.id]);
 
-  // Realtime: novo clube criado → recarrega lista
+  // Busca global por nome (cross-categoria)
   useEffect(() => {
-    const ch = supabase
-      .channel("clubs-list")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "book_clubs" },
-        () => load(),
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const q = debouncedQuery.trim();
+    if (q.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setSearching(true);
+      const { data } = await supabase
+        .from("book_clubs")
+        .select("id,name,category,is_public,current_book:books(id,title,authors,cover_url)")
+        .ilike("name", `%${q}%`)
+        .limit(15);
+      if (!cancelled) {
+        setSearchResults((data || []).map((c) => ({ ...c, category: (c.category as ClubCategory) || "geral" })) as MineRow[]);
+        setSearching(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [debouncedQuery]);
 
-  const filtered = useMemo(() => {
-    const q = debouncedQuery.trim().toLowerCase();
-    return clubs.filter((c) => {
-      if (filter === "mine" && !c.i_am_member) return false;
-      if (filter === "public" && !c.is_public) return false;
-      if (!q) return true;
-      return (
-        c.name.toLowerCase().includes(q) ||
-        (c.description || "").toLowerCase().includes(q) ||
-        (c.current_book?.title || "").toLowerCase().includes(q)
-      );
+  const summaryByCategory = useMemo(() => {
+    const map: Record<string, { clubs: number; members: number; online: number }> = {};
+    (summary.data || []).forEach((s) => {
+      map[s.category] = { clubs: s.clubs_count, members: s.members_count, online: s.online_count };
     });
-  }, [clubs, filter, debouncedQuery]);
-
-  const stats = useMemo(() => {
-    const mine = clubs.filter((c) => c.i_am_member).length;
-    const publicC = clubs.filter((c) => c.is_public).length;
-    return { total: clubs.length, mine, publicC };
-  }, [clubs]);
+    return map;
+  }, [summary.data]);
 
   const create = async () => {
     if (!user || name.trim().length < 2) return;
@@ -135,48 +134,21 @@ export default function ClubsPage() {
         name: name.trim(),
         description: desc.trim() || null,
         is_public: isPublic,
+        category,
       })
       .select()
       .single();
     if (error) toast.error("Erro ao criar clube");
     else {
-      toast.success(
-        isPublic ? "Clube público criado!" : "Clube privado criado! Convide leitores manualmente.",
-      );
+      toast.success(isPublic ? "Clube público criado!" : "Clube privado criado!");
       setOpen(false);
-      setName("");
-      setDesc("");
-      setIsPublic(true);
-      load();
+      setName(""); setDesc(""); setIsPublic(true); setCategory("geral");
+      summary.refetch();
     }
     setCreating(false);
   };
 
-  const join = async (club: ClubRow) => {
-    if (!user) return;
-    if (club.is_public) {
-      const { error } = await supabase
-        .from("club_members")
-        .insert({ club_id: club.id, user_id: user.id });
-      if (error) toast.error("Erro ao entrar");
-      else {
-        toast.success("Você entrou no clube");
-        load();
-      }
-    } else {
-      const { error } = await supabase
-        .from("club_join_requests")
-        .insert({ club_id: club.id, user_id: user.id });
-      if (error) {
-        if ((error as { code?: string }).code === "23505")
-          toast.info("Você já solicitou entrada nesse clube");
-        else toast.error("Erro ao solicitar");
-      } else
-        toast.success("Solicitação enviada", {
-          description: "O administrador será notificado.",
-        });
-    }
-  };
+  const isSearching = debouncedQuery.trim().length >= 2;
 
   return (
     <AppShell>
@@ -189,7 +161,7 @@ export default function ClubsPage() {
                 <Users className="w-7 h-7 md:w-8 md:h-8 text-primary" /> Clubes
               </h1>
               <p className="text-muted-foreground mt-1 text-sm md:text-base">
-                Encontre leitores e leia em grupo
+                Escolha uma vibe e encontre sua comunidade
               </p>
             </div>
             <Dialog open={open} onOpenChange={setOpen}>
@@ -205,32 +177,28 @@ export default function ClubsPage() {
                 <div className="space-y-3">
                   <div>
                     <Label htmlFor="name">Nome</Label>
-                    <Input
-                      id="name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      maxLength={80}
-                      placeholder="Ex: Clube de fantasia"
-                    />
+                    <Input id="name" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} placeholder="Ex: Clube de fantasia épica" />
                   </div>
                   <div>
                     <Label htmlFor="desc">Descrição</Label>
-                    <Textarea
-                      id="desc"
-                      value={desc}
-                      onChange={(e) => setDesc(e.target.value)}
-                      rows={3}
-                      placeholder="Conte um pouco sobre o que o clube discute..."
-                      maxLength={500}
-                    />
+                    <Textarea id="desc" value={desc} onChange={(e) => setDesc(e.target.value)} rows={3} maxLength={500} placeholder="Sobre o que vocês discutem?" />
+                  </div>
+                  <div>
+                    <Label htmlFor="cat">Categoria</Label>
+                    <Select value={category} onValueChange={(v) => setCategory(v as ClubCategory)}>
+                      <SelectTrigger id="cat"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {CLUB_CATEGORIES.map((c) => (
+                          <SelectItem key={c.slug} value={c.slug}>
+                            <span className="mr-2" aria-hidden>{c.emoji}</span>{c.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="flex items-start gap-3 p-3 rounded-xl bg-card/40 border border-border/40">
                     <div className="mt-0.5">
-                      {isPublic ? (
-                        <Globe2 className="w-5 h-5 text-primary" />
-                      ) : (
-                        <Lock className="w-5 h-5 text-primary" />
-                      )}
+                      {isPublic ? <Globe2 className="w-5 h-5 text-primary" /> : <Lock className="w-5 h-5 text-primary" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
@@ -240,33 +208,17 @@ export default function ClubsPage() {
                         <Switch id="is_public" checked={isPublic} onCheckedChange={setIsPublic} />
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {isPublic
-                          ? "Qualquer leitor pode encontrar e entrar."
-                          : "Acesso só por convite ou aprovação do administrador."}
+                        {isPublic ? "Qualquer leitor pode encontrar e entrar." : "Acesso só por convite ou aprovação."}
                       </p>
                     </div>
                   </div>
-                  <Button
-                    variant="hero"
-                    onClick={create}
-                    disabled={creating || name.trim().length < 2}
-                    className="w-full"
-                  >
+                  <Button variant="hero" onClick={create} disabled={creating || name.trim().length < 2} className="w-full">
                     {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Criar clube"}
                   </Button>
                 </div>
               </DialogContent>
             </Dialog>
           </div>
-
-          {/* Stats compactas — só quando há clubes */}
-          {!loading && clubs.length > 0 && (
-            <div className="mt-4 flex gap-2 text-xs">
-              <Stat label="Total" value={stats.total} />
-              <Stat label="Meus" value={stats.mine} />
-              <Stat label="Públicos" value={stats.publicC} />
-            </div>
-          )}
         </header>
 
         {/* CONVITES PENDENTES */}
@@ -277,30 +229,15 @@ export default function ClubsPage() {
             </h2>
             <ul className="space-y-2">
               {(myInvites.data || []).map((inv) => (
-                <li
-                  key={inv.id}
-                  className="flex items-center gap-3 p-3 rounded-xl bg-card/40 border border-border/30"
-                >
+                <li key={inv.id} className="flex items-center gap-3 p-3 rounded-xl bg-card/40 border border-border/30">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{inv.club?.name || "Clube"}</p>
                     <p className="text-xs text-muted-foreground">Convite recebido</p>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="hero"
-                    disabled={acceptInv.isPending}
-                    onClick={() => acceptInv.mutate(inv.id, { onSuccess: () => load() })}
-                    className="h-8 gap-1"
-                  >
+                  <Button size="sm" variant="hero" disabled={acceptInv.isPending} onClick={() => acceptInv.mutate(inv.id)} className="h-8 gap-1">
                     <Check className="w-3.5 h-3.5" /> Aceitar
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={declineInv.isPending}
-                    onClick={() => declineInv.mutate(inv.id)}
-                    className="h-8 px-2"
-                  >
+                  <Button size="sm" variant="ghost" disabled={declineInv.isPending} onClick={() => declineInv.mutate(inv.id)} className="h-8 px-2">
                     <X className="w-3.5 h-3.5" />
                   </Button>
                 </li>
@@ -309,143 +246,167 @@ export default function ClubsPage() {
           </section>
         )}
 
-        {/* Filtros + busca */}
-        {(!loading && clubs.length > 0) && (
-          <div className="mb-5 flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar clubes ou livros do mês..."
-                className="pl-9"
-              />
-            </div>
-            <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
-              <TabsList className="grid grid-cols-3 w-full sm:w-auto">
-                <TabsTrigger value="all" className="text-xs sm:text-sm">Todos</TabsTrigger>
-                <TabsTrigger value="mine" className="text-xs sm:text-sm gap-1">
-                  Meus {stats.mine > 0 && <span className="text-primary">({stats.mine})</span>}
-                </TabsTrigger>
-                <TabsTrigger value="public" className="text-xs sm:text-sm">Públicos</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-        )}
-
-        {/* Conteúdo */}
-        {loading ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-44 rounded-2xl" />
-            ))}
-          </div>
-        ) : clubs.length === 0 ? (
-          <EmptyState
-            icon={<Users />}
-            title="Nenhum clube ainda"
-            description="Crie o primeiro clube e convide pessoas para ler junto."
-            action={
-              <Button variant="hero" size="lg" className="gap-2" onClick={() => setOpen(true)}>
-                <Plus className="w-4 h-4" /> Criar clube
-              </Button>
-            }
+        {/* Busca global */}
+        <div className="mb-6 relative">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar clube por nome..."
+            className="pl-9"
           />
-        ) : filtered.length === 0 ? (
-          <div className="glass rounded-2xl p-10 text-center">
-            <Sparkles className="w-8 h-8 text-primary mx-auto mb-3" />
-            <p className="font-semibold">Nada encontrado</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Ajuste a busca ou troque o filtro acima.
-            </p>
-          </div>
+        </div>
+
+        {/* Resultados de busca (sobrepõe categorias) */}
+        {isSearching ? (
+          <section className="mb-6">
+            <h2 className="font-display text-xl font-bold mb-3">Resultados</h2>
+            {searching ? (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}
+              </div>
+            ) : searchResults.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">Nada encontrado para "{debouncedQuery}".</p>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {searchResults.map((c) => <CompactClubCard key={c.id} club={c} />)}
+              </div>
+            )}
+          </section>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map((c) => (
-              <ClubCard key={c.id} club={c} onJoin={() => join(c)} />
-            ))}
-          </div>
+          <>
+            {/* MEUS CLUBES — atalho rápido */}
+            {!loadingMine && mine.length > 0 && (
+              <section className="mb-8">
+                <h2 className="font-display text-xl font-bold mb-3 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary" /> Continue no clube
+                </h2>
+                <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-5 md:-mx-10 px-5 md:px-10 pb-2">
+                  {mine.map((c) => (
+                    <Link key={c.id} to={`/clubes/${c.id}`} className="snap-start shrink-0 w-64 glass rounded-2xl p-4 hover:border-primary/40 transition-colors">
+                      <div className="flex items-start gap-3">
+                        {c.current_book ? (
+                          <BookCover book={c.current_book} size="sm" />
+                        ) : (
+                          <div className="w-12 h-16 rounded-md bg-muted/40 flex items-center justify-center">
+                            <BookOpen className="w-5 h-5 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs uppercase tracking-wider text-primary font-semibold">
+                            {CLUB_CATEGORIES.find((x) => x.slug === c.category)?.emoji} {CLUB_CATEGORIES.find((x) => x.slug === c.category)?.label}
+                          </p>
+                          <p className="font-semibold text-sm leading-tight line-clamp-2 mt-0.5">{c.name}</p>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* CATEGORIAS */}
+            <section>
+              <h2 className="font-display text-xl font-bold mb-3">Explorar por categoria</h2>
+              {summary.isLoading ? (
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                  {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-32 rounded-2xl" />)}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                  {CLUB_CATEGORIES.map((cat) => {
+                    const stats = summaryByCategory[cat.slug] || { clubs: 0, members: 0, online: 0 };
+                    return <CategoryCard key={cat.slug} cat={cat} stats={stats} />;
+                  })}
+                </div>
+              )}
+              {!summary.isLoading && Object.keys(summaryByCategory).length === 0 && (
+                <div className="mt-6">
+                  <EmptyState
+                    icon={<Users />}
+                    title="Nenhum clube ainda"
+                    description="Crie o primeiro e convide leitores para a categoria que você ama."
+                    action={
+                      <Button variant="hero" size="lg" className="gap-2" onClick={() => setOpen(true)}>
+                        <Plus className="w-4 h-4" /> Criar clube
+                      </Button>
+                    }
+                  />
+                </div>
+              )}
+            </section>
+          </>
         )}
       </div>
     </AppShell>
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function CategoryCard({
+  cat,
+  stats,
+}: {
+  cat: typeof CLUB_CATEGORIES[number];
+  stats: { clubs: number; members: number; online: number };
+}) {
+  const empty = stats.clubs === 0;
   return (
-    <div className="px-2.5 py-1 rounded-full bg-muted/40 border border-border/40 text-muted-foreground">
-      <span className="font-semibold text-foreground tabular-nums">{value}</span>{" "}
-      <span className="text-[11px] uppercase tracking-wider">{label}</span>
-    </div>
+    <Link
+      to={`/clubes/categoria/${cat.slug}`}
+      className={cn(
+        "group relative rounded-2xl p-4 md:p-5 border border-border/40 transition-all overflow-hidden",
+        "bg-gradient-to-br hover:scale-[1.02] hover:border-primary/40 hover:shadow-lg active:scale-[0.99]",
+        cat.gradient,
+        empty && "opacity-70",
+      )}
+    >
+      <div className="relative z-10">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-3xl md:text-4xl drop-shadow" aria-hidden>{cat.emoji}</span>
+          {stats.online > 0 && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              {stats.online}
+            </span>
+          )}
+        </div>
+        <h3 className="font-display text-base md:text-lg font-bold leading-tight">{cat.label}</h3>
+        <p className={cn("text-[11px] md:text-xs mt-0.5 line-clamp-1", cat.accent)}>{cat.description}</p>
+        <div className="mt-3 flex items-center gap-3 text-[11px] text-foreground/80 tabular-nums">
+          <span className="inline-flex items-center gap-1">
+            <Users className="w-3 h-3" /> {stats.clubs} {stats.clubs === 1 ? "clube" : "clubes"}
+          </span>
+          {stats.members > 0 && <span className="opacity-80">· {stats.members} {stats.members === 1 ? "leitor" : "leitores"}</span>}
+        </div>
+      </div>
+    </Link>
   );
 }
 
-function ClubCard({ club, onJoin }: { club: ClubRow; onJoin: () => void }) {
+function CompactClubCard({ club }: { club: MineRow }) {
+  const meta = CLUB_CATEGORIES.find((c) => c.slug === club.category);
   return (
-    <article
-      className={cn(
-        "glass rounded-2xl p-5 flex flex-col transition-all hover:border-primary/40",
-        club.i_am_member && "border-primary/30 ring-1 ring-primary/10",
-      )}
+    <Link
+      to={`/clubes/${club.id}`}
+      className="glass rounded-2xl p-4 flex items-start gap-3 hover:border-primary/40 transition-colors"
     >
-      <Link to={`/clubes/${club.id}`} className="flex-1 group">
-        <div className="flex items-start gap-2 justify-between">
-          <h2 className="font-display text-lg font-semibold leading-tight group-hover:text-primary transition-colors line-clamp-2">
-            {club.name}
-          </h2>
-          <span
-            className={cn(
-              "text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0",
-              club.is_public
-                ? "bg-muted/50 text-muted-foreground"
-                : "bg-primary/15 text-primary",
-            )}
-          >
-            {club.is_public ? (
-              <Globe2 className="w-3 h-3" />
-            ) : (
-              <Lock className="w-3 h-3" />
-            )}
-            {club.is_public ? "Público" : "Privado"}
-          </span>
+      {club.current_book ? (
+        <BookCover book={club.current_book} size="sm" />
+      ) : (
+        <div className="w-12 h-16 rounded-md bg-muted/40 flex items-center justify-center shrink-0">
+          <BookOpen className="w-5 h-5 text-muted-foreground" />
         </div>
-        {club.description && (
-          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{club.description}</p>
-        )}
-        {club.current_book ? (
-          <div className="flex gap-2 mt-3 items-center">
-            <BookCover book={club.current_book} size="sm" />
-            <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-wider text-primary font-semibold">
-                Lendo agora
-              </p>
-              <p className="text-sm font-medium truncate">{club.current_book.title}</p>
-            </div>
-          </div>
-        ) : (
-          <div className="flex gap-2 mt-3 items-center text-muted-foreground">
-            <BookOpen className="w-4 h-4" />
-            <p className="text-xs italic">Sem livro do mês ainda</p>
-          </div>
-        )}
-      </Link>
-      <div className="flex items-center justify-between mt-4 pt-3 border-t border-border/40 gap-2">
-        <span className="text-xs text-muted-foreground flex items-center gap-1 min-w-0">
-          <Users className="w-3 h-3 shrink-0" />
-          <span className="truncate">
-            {club.member_count} {club.member_count === 1 ? "membro" : "membros"}
-          </span>
-        </span>
-        {club.i_am_member ? (
-          <Link to={`/clubes/${club.id}`}>
-            <Button size="sm" variant="outline">Abrir</Button>
-          </Link>
-        ) : (
-          <Button size="sm" variant="hero" onClick={onJoin}>
-            {club.is_public ? "Entrar" : "Solicitar"}
-          </Button>
-        )}
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] uppercase tracking-wider text-primary font-semibold">
+          {meta?.emoji} {meta?.label}
+        </p>
+        <p className="font-semibold text-sm leading-tight line-clamp-2 mt-0.5">{club.name}</p>
+        <p className="text-xs text-muted-foreground mt-1 inline-flex items-center gap-1">
+          {club.is_public ? <Globe2 className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+          {club.is_public ? "Público" : "Privado"}
+        </p>
       </div>
-    </article>
+    </Link>
   );
 }
