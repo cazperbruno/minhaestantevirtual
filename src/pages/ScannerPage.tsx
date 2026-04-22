@@ -750,7 +750,12 @@ export default function ScannerPage() {
             </form>
 
             {foundBook && (
-              <div className="glass rounded-2xl p-5 border border-primary/40 shadow-glow animate-scale-in">
+              <div className={cn(
+                "glass rounded-2xl p-5 border shadow-glow animate-scale-in transition-colors",
+                autoAddCountdown != null
+                  ? "border-status-reading/60 bg-status-reading/5"
+                  : "border-primary/40",
+              )}>
                 <div className="flex items-start gap-4">
                   <div className="w-16 h-24 shrink-0 rounded-md overflow-hidden bg-muted">
                     {foundBook.cover_url ? (
@@ -760,20 +765,53 @@ export default function ScannerPage() {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-primary font-medium flex items-center gap-1.5 mb-1">
-                      <Check className="w-3.5 h-3.5" /> Livro encontrado
+                    <p className={cn(
+                      "text-xs font-medium flex items-center gap-1.5 mb-1",
+                      autoAddCountdown != null ? "text-status-reading" : "text-primary",
+                    )}>
+                      <Check className="w-3.5 h-3.5" />
+                      {autoAddCountdown != null
+                        ? `Adicionando em ${autoAddCountdown}s…`
+                        : "Livro encontrado"}
                     </p>
                     <h3 className="font-display font-semibold text-lg leading-tight line-clamp-2">{foundBook.title}</h3>
                     {foundBook.authors?.length ? <p className="text-sm text-muted-foreground line-clamp-1">{foundBook.authors.join(", ")}</p> : null}
-                    <div className="flex flex-wrap gap-2 mt-4">
+                  </div>
+                </div>
+
+                {/* Barra de progresso visual do countdown */}
+                {autoAddCountdown != null && (
+                  <div className="mt-4 h-1 rounded-full bg-foreground/10 overflow-hidden">
+                    <div
+                      className="h-full bg-status-reading transition-[width] ease-linear"
+                      style={{
+                        width: `${((2 - autoAddCountdown) / 2) * 100}%`,
+                        transitionDuration: "1000ms",
+                      }}
+                    />
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2 mt-4">
+                  {autoAddCountdown != null ? (
+                    <>
+                      <Button variant="outline" size="lg" onClick={cancelAutoAdd} className="gap-2 flex-1 min-w-[140px]">
+                        <X className="w-4 h-4" /> Cancelar
+                      </Button>
+                      <Button variant="hero" size="lg" onClick={() => { cancelAutoAdd(); void addFoundBookToLibrary(); }} className="gap-2 flex-1 min-w-[140px]">
+                        <Plus className="w-4 h-4" /> Adicionar agora
+                      </Button>
+                    </>
+                  ) : (
+                    <>
                       <Button variant="hero" onClick={() => navigate(`/livro/${foundBook.id}`)} className="gap-2">
                         Ver livro <ArrowRight className="w-4 h-4" />
                       </Button>
                       <Button variant="outline" onClick={scanNext} className="gap-2">
                         <ScanBarcode className="w-4 h-4" /> Escanear próximo
                       </Button>
-                    </div>
-                  </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}
