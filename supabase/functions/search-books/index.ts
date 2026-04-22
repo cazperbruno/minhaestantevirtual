@@ -8,6 +8,7 @@ import {
   mergeBest,
   findDuplicateByTitleAuthor,
   aiFallbackInferBook,
+  rerankByPortuguese,
 } from "../_shared/isbn-intelligence.ts";
 
 const corsHeaders = {
