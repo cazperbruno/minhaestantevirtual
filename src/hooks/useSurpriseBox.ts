@@ -70,5 +70,11 @@ export function useOpenSurpriseBox(userId: string | undefined) {
         qc.invalidateQueries({ queryKey: qk.ranking() });
       }
     },
+    onError: (err) => {
+      console.error("[surprise-box] open error", err);
+      toast.error("Não foi possível abrir a caixa", {
+        description: "Tente novamente em instantes",
+      });
+    },
   });
 }
