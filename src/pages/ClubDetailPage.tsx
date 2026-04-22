@@ -188,6 +188,28 @@ export default function ClubDetailPage() {
   const { data: myRequest } = useMyJoinRequest(user?.id, id);
   const requestJoin = useRequestJoin(id || "", user?.id);
 
+  // Página atual do leitor no livro do mês — usado para esconder spoilers além disso
+  useEffect(() => {
+    const bookId = club?.current_book?.id;
+    if (!user?.id || !bookId) {
+      setMyCurrentPage(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("user_books")
+        .select("current_page")
+        .eq("user_id", user.id)
+        .eq("book_id", bookId)
+        .maybeSingle();
+      if (!cancelled) setMyCurrentPage((data as { current_page: number | null } | null)?.current_page ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, club?.current_book?.id]);
+
   // Heartbeat de presença para "online agora" na categoria
   useClubPresence(id, isMember);
 
