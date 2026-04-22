@@ -195,6 +195,16 @@ export default function ClubDetailPage() {
       : null,
   );
 
+  // Map id -> mensagem para resolver parent (thread snippet)
+  const messageMap = new Map(messages.map((m) => [m.id, m]));
+
+  // Reactions em tempo real
+  const messageIds = messages.map((m) => m.id);
+  const { reactions, toggle: toggleReaction } = useClubReactions(
+    isMember ? id : undefined,
+    messageIds,
+  );
+
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !input.trim() || !id) return;
