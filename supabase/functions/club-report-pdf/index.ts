@@ -245,8 +245,25 @@ Deno.serve(async (req) => {
           doc.rect(margin - 2, y - 10, pageWidth - margin * 2 + 4, 16, "F");
         }
         let cx2 = margin;
-        const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : String(i + 1);
-        doc.text(medal, cx2, y);
+        const rank = i + 1;
+        if (i < 3) {
+          // medalha colorida
+          const colors: [number, number, number][] = [
+            [212, 175, 55],   // ouro
+            [176, 176, 176],  // prata
+            [184, 115, 51],   // bronze
+          ];
+          const c = colors[i];
+          doc.setFillColor(c[0], c[1], c[2]);
+          doc.circle(cx2 + 6, y - 3, 7, "F");
+          doc.setTextColor(255, 255, 255);
+          doc.setFont("helvetica", "bold");
+          doc.text(String(rank), cx2 + 6, y, { align: "center" });
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(33, 37, 41);
+        } else {
+          doc.text(String(rank), cx2, y);
+        }
         cx2 += colW2[0];
         const name = r.display_name || r.username || "Leitor";
         doc.text(truncate(name, colW2[1] - 4, 10), cx2, y);
