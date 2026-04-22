@@ -381,6 +381,7 @@ Deno.serve(async (req) => {
     }
 
     summary.duration_ms = Date.now() - t0;
+    await finishRun(sb, run, { status: "success", result: summary });
     return jsonResponse(summary);
   } catch (e) {
     console.error("validate-isbns error", e);
