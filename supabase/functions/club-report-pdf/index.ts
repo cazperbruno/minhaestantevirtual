@@ -35,11 +35,33 @@ interface RankRow {
 
 interface Report {
   club: { id: string; name: string; description: string | null; members_count: number; created_at: string };
-  current_book: { id: string; title: string; authors: string[]; page_count: number | null } | null;
+  current_book: { id: string; title: string; authors: string[]; page_count: number | null; cover_url?: string | null } | null;
   progress: ProgressRow | null;
   weekly: { week_start: string; messages: number; active_users: number }[];
   ranking: RankRow[];
   generated_at: string;
+}
+
+/** Baixa uma imagem e converte para base64 (PNG/JPEG) para o jsPDF. */
+async function fetchImageAsBase64(url: string): Promise<{ data: string; format: "JPEG" | "PNG" } | null> {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 6000);
+    const r = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!r.ok) return null;
+    const ct = r.headers.get("content-type") || "";
+    const format: "JPEG" | "PNG" = ct.includes("png") ? "PNG" : "JPEG";
+    const buf = new Uint8Array(await r.arrayBuffer());
+    let bin = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < buf.length; i += chunk) {
+      bin += String.fromCharCode(...buf.subarray(i, i + chunk));
+    }
+    return { data: btoa(bin), format };
+  } catch {
+    return null;
+  }
 }
 
 Deno.serve(async (req) => {
