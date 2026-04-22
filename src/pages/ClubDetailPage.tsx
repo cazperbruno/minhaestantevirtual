@@ -16,6 +16,8 @@ import { ClubBookOfTheMonth } from "@/components/clubs/ClubBookOfTheMonth";
 import { ClubAdminPanel } from "@/components/clubs/ClubAdminPanel";
 import { ClubActivityPanel } from "@/components/clubs/ClubActivityPanel";
 import { ClubBookProgress } from "@/components/clubs/ClubBookProgress";
+import { MessageReactions } from "@/components/clubs/MessageReactions";
+import { QuoteAttachDialog, QuoteBlock, type BookQuotePayload } from "@/components/clubs/QuoteAttachDialog";
 import { useMyJoinRequest, useRequestJoin } from "@/hooks/useClubAccess";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -26,6 +28,7 @@ import { profilePath } from "@/lib/profile-path";
 import { cn } from "@/lib/utils";
 import { useClubPresence } from "@/hooks/useClubPresence";
 import { useClubChatPresence } from "@/hooks/useClubChatPresence";
+import { useClubReactions } from "@/hooks/useClubReactions";
 
 interface Profile {
   id: string;
@@ -39,6 +42,8 @@ interface Message {
   user_id: string;
   content: string;
   created_at: string;
+  parent_id?: string | null;
+  book_quote?: BookQuotePayload | null;
   profile?: Profile;
 }
 
@@ -67,6 +72,7 @@ export default function ClubDetailPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [pendingQuote, setPendingQuote] = useState<BookQuotePayload | null>(null);
   const [tab, setTab] = useState<string>("chat");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
