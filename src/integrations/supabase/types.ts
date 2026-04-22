@@ -2963,6 +2963,13 @@ export type Database = {
         Args: { _rec_id: string; _user: string }
         Returns: boolean
       }
+      join_public_club: {
+        Args: { _club_id: string }
+        Returns: {
+          message: string
+          success: boolean
+        }[]
+      }
       level_for_xp: { Args: { _xp: number }; Returns: number }
       merge_books: {
         Args: { _canonical_id: string; _duplicate_id: string }
