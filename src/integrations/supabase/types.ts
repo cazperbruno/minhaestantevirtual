@@ -863,6 +863,45 @@ export type Database = {
           },
         ]
       }
+      club_invite_redemptions: {
+        Row: {
+          club_id: string
+          id: string
+          invite_link_id: string
+          redeemed_at: string
+          user_id: string
+        }
+        Insert: {
+          club_id: string
+          id?: string
+          invite_link_id: string
+          redeemed_at?: string
+          user_id: string
+        }
+        Update: {
+          club_id?: string
+          id?: string
+          invite_link_id?: string
+          redeemed_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_invite_redemptions_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "book_clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_invite_redemptions_invite_link_id_fkey"
+            columns: ["invite_link_id"]
+            isOneToOne: false
+            referencedRelation: "club_invite_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       club_join_requests: {
         Row: {
           club_id: string
@@ -976,6 +1015,7 @@ export type Database = {
           created_at: string
           id: string
           parent_id: string | null
+          spoiler_page: number | null
           user_id: string
         }
         Insert: {
@@ -985,6 +1025,7 @@ export type Database = {
           created_at?: string
           id?: string
           parent_id?: string | null
+          spoiler_page?: number | null
           user_id: string
         }
         Update: {
@@ -994,6 +1035,7 @@ export type Database = {
           created_at?: string
           id?: string
           parent_id?: string | null
+          spoiler_page?: number | null
           user_id?: string
         }
         Relationships: [
