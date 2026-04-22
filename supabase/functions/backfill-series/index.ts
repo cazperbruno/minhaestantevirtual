@@ -17,11 +17,12 @@
  * Body opcional: { limit?: number }  (default 100)
  */
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { requireAdmin } from "../_shared/admin-guard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-csrf-token",
 };
 
 // ---------- Normalização (espelha src/lib/series-normalize.ts) ----------
@@ -106,9 +107,14 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supaUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supaUrl, serviceKey);
+    const guard = await requireAdmin(req);
+    if (!guard.ok) {
+      return new Response(JSON.stringify({ error: guard.error }), {
+        status: guard.status ?? 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const supabase = guard.sb;
 
     let body: any = {};
     try {

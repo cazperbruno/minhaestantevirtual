@@ -11,13 +11,15 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useAdminCsrfToken } from "@/hooks/useAdminCsrfToken";
+import { invokeAdmin } from "@/lib/admin-invoke";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CatalogQualityPanel } from "@/components/reports/CatalogQualityPanel";
 import { EnrichmentProgressPanel } from "@/components/reports/EnrichmentProgressPanel";
 import {
   Shield, Users, BookOpen, Activity, Loader2, Database, Download,
-  ListChecks, BarChart3, RefreshCw, FileSearch,
+  ListChecks, BarChart3, RefreshCw, FileSearch, ShieldCheck, ShieldAlert,
 } from "lucide-react";
 
 interface Stats {
@@ -39,6 +41,7 @@ interface AuditRow {
 
 export default function AdminPage() {
   const { isAdmin, loading: adminLoading } = useIsAdmin();
+  const csrf = useAdminCsrfToken();
   const [stats, setStats] = useState<Stats | null>(null);
   const [logs, setLogs] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,10 +121,16 @@ export default function AdminPage() {
       errors: [] as string[],
     };
     try {
+      const csrfToken = await csrf.ensureToken();
+      if (!csrfToken) {
+        toast.error("Não foi possível obter o token de segurança. Recarregue a página.");
+        return;
+      }
       // batches de 50 ISBNs (a função aceita até 100, mas 50 é mais responsivo)
       for (let i = 0; i < all.length; i += 50) {
         const chunk = all.slice(i, i + 50);
-        const { data, error } = await supabase.functions.invoke("import-books-by-isbn", {
+        const { data, error } = await invokeAdmin("import-books-by-isbn", {
+          csrfToken,
           body: {
             isbns: chunk,
             language: language === "any" ? null : language,
@@ -154,7 +163,12 @@ export default function AdminPage() {
   const runFn = async (fn: string, label: string, body?: any) => {
     const id = toast.loading(`Rodando ${label}…`);
     try {
-      const { data, error } = await supabase.functions.invoke(fn, { body });
+      const csrfToken = await csrf.ensureToken();
+      if (!csrfToken) {
+        toast.error("Token de segurança ausente. Recarregue a página.", { id });
+        return;
+      }
+      const { data, error } = await invokeAdmin(fn, { csrfToken, body });
       if (error) throw error;
       toast.success(`${label}: ${JSON.stringify(data).slice(0, 120)}…`, { id });
       await loadStats();
@@ -178,10 +192,19 @@ export default function AdminPage() {
               Acesso restrito · operações afetam o banco de produção
             </p>
           </div>
-          <Button variant="outline" onClick={loadStats} disabled={loading} className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-            Atualizar
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <CsrfBadge
+              token={csrf.token}
+              expiresAt={csrf.expiresAt}
+              loading={csrf.loading}
+              error={csrf.error}
+              onRotate={() => void csrf.rotate()}
+            />
+            <Button variant="outline" onClick={loadStats} disabled={loading} className="gap-2">
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              Atualizar
+            </Button>
+          </div>
         </header>
 
         {/* Stats */}
@@ -379,6 +402,64 @@ function ResultPill({
     <div className="rounded-lg bg-background/50 px-3 py-2 border border-border/40">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className={`font-bold text-lg ${cls}`}>{value ?? 0}</div>
+    </div>
+  );
+}
+
+function CsrfBadge({
+  token, expiresAt, loading, error, onRotate,
+}: {
+  token: string | null;
+  expiresAt: number | null;
+  loading: boolean;
+  error: string | null;
+  onRotate: () => void;
+}) {
+  const now = Date.now();
+  const valid = !!token && !!expiresAt && expiresAt > now;
+  const minsLeft = expiresAt ? Math.max(0, Math.round((expiresAt - now) / 60000)) : 0;
+
+  return (
+    <div
+      className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs ${
+        error
+          ? "border-destructive/40 bg-destructive/10 text-destructive"
+          : valid
+            ? "border-success/40 bg-success/10 text-success"
+            : "border-warning/40 bg-warning/10 text-warning"
+      }`}
+      title={
+        error
+          ? `Erro: ${error}`
+          : valid
+            ? `Token CSRF ativo · expira em ~${minsLeft} min`
+            : "Sem token CSRF — operações bloqueadas"
+      }
+    >
+      {error ? (
+        <ShieldAlert className="w-3.5 h-3.5" />
+      ) : valid ? (
+        <ShieldCheck className="w-3.5 h-3.5" />
+      ) : (
+        <Shield className="w-3.5 h-3.5" />
+      )}
+      <span className="font-medium">
+        {loading
+          ? "Token CSRF…"
+          : error
+            ? "CSRF falhou"
+            : valid
+              ? `CSRF ativo (${minsLeft}m)`
+              : "CSRF inativo"}
+      </span>
+      <button
+        type="button"
+        onClick={onRotate}
+        className="opacity-70 hover:opacity-100 underline"
+        disabled={loading}
+      >
+        rotacionar
+      </button>
     </div>
   );
 }

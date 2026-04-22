@@ -21,11 +21,12 @@
  * Auth: admin OU service_role (cron / chamada do próprio seed).
  */
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { requireAdmin } from "../_shared/admin-guard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "authorization, x-client-info, apikey, content-type, x-csrf-token, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface Body {
@@ -171,32 +172,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const authHeader = req.headers.get("Authorization") || "";
-
-    const isService =
-      authHeader === `Bearer ${SERVICE_ROLE}` ||
-      req.headers.get("apikey") === SERVICE_ROLE;
-
-    const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
-
-    if (!isService) {
-      if (!authHeader.startsWith("Bearer ")) {
-        return jsonResponse({ error: "Unauthorized" }, 401);
-      }
-      const userClient = createClient(SUPABASE_URL, ANON, {
-        global: { headers: { Authorization: authHeader } },
-      });
-      const { data: u } = await userClient.auth.getUser();
-      if (!u?.user) return jsonResponse({ error: "Unauthorized" }, 401);
-      const { data: isAdmin } = await sb.rpc("has_role", {
-        _user_id: u.user.id,
-        _role: "admin",
-      });
-      if (!isAdmin) return jsonResponse({ error: "Admin only" }, 403);
-    }
+    const guard = await requireAdmin(req);
+    if (!guard.ok) return jsonResponse({ error: guard.error }, guard.status ?? 403);
+    const sb = guard.sb;
 
     const body: Body = await req.json().catch(() => ({}));
     const mode = body.mode || "recent";

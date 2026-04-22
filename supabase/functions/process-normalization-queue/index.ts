@@ -3,11 +3,12 @@
 // process-normalization-queue — Drena fila de normalização IA (cron)
 // =====================================================================
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { requireAdmin } from "../_shared/admin-guard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-csrf-token",
 };
 
 const BATCH_SIZE = 10;
@@ -16,9 +17,16 @@ const MAX_ATTEMPTS = 3;
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  const guard = await requireAdmin(req);
+  if (!guard.ok) {
+    return new Response(JSON.stringify({ error: guard.error }), {
+      status: guard.status ?? 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
+  const sb = guard.sb;
 
   const { data: jobs, error } = await sb
     .from("metadata_normalization_queue")
