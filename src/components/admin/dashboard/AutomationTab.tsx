@@ -8,7 +8,7 @@ import { invokeAdmin } from "@/lib/admin-invoke";
 import { toast } from "sonner";
 import {
   Activity, BookOpen, CheckCircle2, Clock, Database, Image as ImageIcon,
-  Loader2, Play, RefreshCw, Sparkles, XCircle, Trophy, Bell,
+  Loader2, Play, RefreshCw, Sparkles, XCircle, Trophy, Bell, Tag,
 } from "lucide-react";
 
 interface RunRow {
@@ -105,6 +105,15 @@ const JOBS: JobConfig[] = [
     fn: "notify-league-finale",
     body: {},
     icon: Trophy,
+  },
+  {
+    id: "classify-clubs",
+    label: "Classificar clubes (IA)",
+    schedule: "manual",
+    description: "Atribui categoria via IA aos clubes ainda em 'Geral' (lote de 50)",
+    fn: "classify-clubs",
+    body: {},
+    icon: Tag,
   },
 ];
 
