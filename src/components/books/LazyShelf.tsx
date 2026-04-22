@@ -13,39 +13,36 @@ interface Props {
  * (ou estar próxima de entrar) na viewport. Reduz queries paralelas
  * no carregamento inicial da Library/Discover.
  *
- * Importante: depois de montar, observa se o filho realmente renderizou
- * algo. Se ele retornar `null` (ex: usuário sem amigos seguindo), colapsa
- * o espaço reservado para evitar "buracos" visuais entre prateleiras.
+ * Comportamento:
+ *  - Antes de inView: renderiza um placeholder magro (8px) — não cria "buraco".
+ *  - Após inView: monta o filho. Se o filho não renderizar nada (return null),
+ *    o wrapper colapsa naturalmente para 0px (sem min-height fixo).
+ *  - Quando o filho está montando/buscando dados, ele mesmo mostra seu skeleton.
  */
 export function LazyShelf({ children, rootMargin = "400px 0px" }: Props) {
   const { ref, inView } = useInView<HTMLDivElement>({ rootMargin });
   const innerRef = useRef<HTMLDivElement>(null);
-  const [hasContent, setHasContent] = useState(true);
+  const [hasContent, setHasContent] = useState(false);
 
+  // Observa se o filho efetivamente renderizou algo após montar.
   useEffect(() => {
     if (!inView) return;
-    // Verifica em cada animation frame se o filho terminou de renderizar.
-    // Damos algumas tentativas pra dar tempo de queries assíncronas resolverem.
-    let tries = 0;
-    let raf = 0;
-    const check = () => {
-      const node = innerRef.current;
-      if (!node) return;
-      const empty = node.childElementCount === 0 || node.offsetHeight < 8;
-      setHasContent(!empty);
-      tries++;
-      if (tries < 40) raf = requestAnimationFrame(check);
-    };
-    raf = requestAnimationFrame(check);
-    return () => cancelAnimationFrame(raf);
+    const el = innerRef.current;
+    if (!el) return;
+    const check = () => setHasContent(el.offsetHeight > 4);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, [inView]);
 
   return (
-    <div
-      ref={ref}
-      className={!inView ? "min-h-[280px]" : hasContent ? "" : "min-h-0"}
-    >
-      {inView ? <div ref={innerRef}>{children}</div> : <ShelfSkeleton />}
+    <div ref={ref} className={inView ? "" : "h-2"}>
+      {inView && (
+        <div ref={innerRef}>
+          {children}
+        </div>
+      )}
     </div>
   );
 }
