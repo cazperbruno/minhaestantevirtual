@@ -61,10 +61,17 @@ export function LibraryFilters({ items, value, onChange, showStatusFilter }: Pro
     return Array.from(s).sort();
   }, [items]);
 
+  // Categorias normalizadas em PT-BR (mescla "Fiction"/"Ficção", "Sci-Fi"/"Ficção científica" etc.)
   const categories = useMemo(() => {
     const s = new Set<string>();
-    items.forEach((i) => i.book?.categories?.forEach((c) => c && s.add(c)));
-    return Array.from(s).sort();
+    items.forEach((i) =>
+      i.book?.categories?.forEach((c) => {
+        if (!c) return;
+        const loc = localizeCategory(c);
+        if (loc && loc !== "Outros") s.add(loc);
+      }),
+    );
+    return Array.from(s).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [items]);
 
   const publishers = useMemo(() => {
