@@ -100,57 +100,104 @@ export default function AdminPage() {
   if (!isAdmin) return <Navigate to="/" replace />;
 
   // ===== Import by ISBN =====
-  const parseIsbns = (raw: string): string[] => {
-    return raw
-      .split(/[\s,;\n\r]+/)
-      .map((s) => s.replace(/[^0-9Xx]/g, ""))
-      .filter((s) => s.length === 10 || s.length === 13);
+  // Parser inteligente: aceita ISBN-10/13, normaliza, deduplica e separa válidos de inválidos.
+  const parseIsbnDetail = (raw: string) => {
+    const seen = new Set<string>();
+    const valid: string[] = [];
+    const invalid: string[] = [];
+    const tokens = raw.split(/[\s,;\n\r]+/).map((s) => s.trim()).filter(Boolean);
+    for (const t of tokens) {
+      const cleaned = t.replace(/[^0-9Xx]/g, "").toUpperCase();
+      if (cleaned.length !== 10 && cleaned.length !== 13) {
+        invalid.push(t);
+        continue;
+      }
+      if (seen.has(cleaned)) continue;
+      seen.add(cleaned);
+      valid.push(cleaned);
+    }
+    return { valid, invalid, duplicates: tokens.length - valid.length - invalid.length };
   };
+  const parseIsbns = (raw: string) => parseIsbnDetail(raw).valid;
 
   const runIsbnImport = async () => {
-    const all = parseIsbns(isbnInput);
+    const detail = parseIsbnDetail(isbnInput);
+    const all = detail.valid;
     if (all.length === 0) {
       toast.error("Cole pelo menos um ISBN válido (10 ou 13 dígitos).");
       return;
     }
+    if (detail.invalid.length > 0) {
+      toast.warning(`${detail.invalid.length} entrada(s) ignorada(s) por não serem ISBN válido`);
+    }
     setImporting(true);
     setImportResult(null);
     setProgress({ done: 0, total: all.length });
+    const t0 = performance.now();
     const aggregated = {
-      received: 0, invalid: 0, already_existed: 0,
+      received: 0, invalid: detail.invalid.length, already_existed: 0,
       not_found_external: 0, inserted: 0, enqueued_for_enrichment: 0,
+      ai_fallback_used: 0, avg_quality_score: 0,
+      sample: [] as { isbn: string; title: string; score: number; source: string }[],
       errors: [] as string[],
+      duration_ms: 0,
+      batches: 0,
     };
+    let scoreSum = 0;
+    let scoreCount = 0;
     try {
       const csrfToken = await csrf.ensureToken();
       if (!csrfToken) {
         toast.error("Não foi possível obter o token de segurança. Recarregue a página.");
         return;
       }
-      // batches de 50 ISBNs (a função aceita até 100, mas 50 é mais responsivo)
-      for (let i = 0; i < all.length; i += 50) {
-        const chunk = all.slice(i, i + 50);
-        const { data, error } = await invokeAdmin("import-books-by-isbn", {
-          csrfToken,
-          body: {
-            isbns: chunk,
-            language: language === "any" ? null : language,
-          },
-        });
-        if (error) throw error;
-        const d: any = data ?? {};
-        aggregated.received += d.received ?? 0;
-        aggregated.invalid += d.invalid ?? 0;
-        aggregated.already_existed += d.already_existed ?? 0;
-        aggregated.not_found_external += d.not_found_external ?? 0;
-        aggregated.inserted += d.inserted ?? 0;
-        aggregated.enqueued_for_enrichment += d.enqueued_for_enrichment ?? 0;
-        if (d.errors?.length) aggregated.errors.push(...d.errors);
-        setProgress({ done: Math.min(i + chunk.length, all.length), total: all.length });
+      // Lotes de 100 (limite máximo do edge function) — 2 lotes em paralelo p/ acelerar.
+      const BATCH = 100;
+      const PARALLEL = 2;
+      const batches: string[][] = [];
+      for (let i = 0; i < all.length; i += BATCH) batches.push(all.slice(i, i + BATCH));
+      aggregated.batches = batches.length;
+
+      let processedIsbns = 0;
+      for (let i = 0; i < batches.length; i += PARALLEL) {
+        const slice = batches.slice(i, i + PARALLEL);
+        const results = await Promise.all(
+          slice.map((chunk) =>
+            invokeAdmin("import-books-by-isbn", {
+              csrfToken,
+              body: {
+                isbns: chunk,
+                language: language === "any" ? null : language,
+              },
+            }),
+          ),
+        );
+        for (let k = 0; k < results.length; k++) {
+          const { data, error } = results[k];
+          if (error) throw error;
+          const d: any = data ?? {};
+          aggregated.received += d.received ?? 0;
+          aggregated.invalid += d.invalid ?? 0;
+          aggregated.already_existed += d.already_existed ?? 0;
+          aggregated.not_found_external += d.not_found_external ?? 0;
+          aggregated.inserted += d.inserted ?? 0;
+          aggregated.enqueued_for_enrichment += d.enqueued_for_enrichment ?? 0;
+          aggregated.ai_fallback_used += d.ai_fallback_used ?? 0;
+          if (typeof d.avg_quality_score === "number" && d.inserted > 0) {
+            scoreSum += d.avg_quality_score * d.inserted;
+            scoreCount += d.inserted;
+          }
+          if (Array.isArray(d.sample)) aggregated.sample.push(...d.sample);
+          if (d.errors?.length) aggregated.errors.push(...d.errors);
+          processedIsbns += slice[k].length;
+        }
+        setProgress({ done: Math.min(processedIsbns, all.length), total: all.length });
       }
+      aggregated.avg_quality_score = scoreCount > 0 ? Math.round(scoreSum / scoreCount) : 0;
+      aggregated.duration_ms = Math.round(performance.now() - t0);
       setImportResult(aggregated);
       toast.success(
-        `Importação: ${aggregated.inserted} novos · ${aggregated.already_existed} já existiam · ${aggregated.not_found_external} não encontrados`,
+        `${aggregated.inserted} novos · ${aggregated.already_existed} existentes · ${aggregated.not_found_external} não encontrados · ${(aggregated.duration_ms / 1000).toFixed(1)}s`,
       );
       await loadStats();
     } catch (e: any) {
