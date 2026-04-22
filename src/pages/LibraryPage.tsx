@@ -147,6 +147,7 @@ export default function LibraryPage() {
                         title={s.title}
                         subtitle={s.subtitle}
                         items={s.items}
+                        emoji={s.emoji}
                       />
                     ))}
                     {/* Concluídos como prateleira final dedicada (só sem filtro ativo) */}
