@@ -159,7 +159,7 @@ export function HomeMode({ items }: Props) {
       ) : (
         <div className="space-y-8">
           {shelves.map(([label, books]) => (
-            <PhysicalShelf key={label} label={label} books={books} />
+            <PhysicalShelf key={label} label={label} group={group} books={books} />
           ))}
         </div>
       )}
@@ -167,7 +167,9 @@ export function HomeMode({ items }: Props) {
   );
 }
 
-function PhysicalShelf({ label, books }: { label: string; books: UserBook[] }) {
+function PhysicalShelf({ label, group, books }: { label: string; group: Group; books: UserBook[] }) {
+  const shelfId = `home:${group}:${label}`;
+  const bookIds = books.map((ub) => ub.book?.id).filter(Boolean) as string[];
   return (
     <section>
       <div className="flex items-baseline justify-between mb-2 px-1">
@@ -184,6 +186,7 @@ function PhysicalShelf({ label, books }: { label: string; books: UserBook[] }) {
               <Link
                 key={ub.id}
                 to={`/livro/${ub.book.id}`}
+                state={{ shelfId, shelfTitle: label, bookIds }}
                 className="group/book block w-[88px] md:w-[104px] hover:z-10"
                 title={ub.book.title}
               >

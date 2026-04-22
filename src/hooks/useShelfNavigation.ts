@@ -11,6 +11,12 @@ import type { Book, UserBook } from "@/types/book";
 export interface ShelfNavState {
   shelfId?: string;
   shelfTitle?: string;
+  /**
+   * Lista pré-computada de IDs da prateleira de origem.
+   * Quando presente, tem prioridade sobre a reconstrução via smart shelves.
+   * Útil para prateleiras dinâmicas (ex.: Modo Casa agrupando por autor/categoria).
+   */
+  bookIds?: string[];
 }
 
 interface ShelfNav {
@@ -46,19 +52,27 @@ export function useShelfNavigation(currentBookId?: string): ShelfNav {
     if (!enabled) {
       return { bookIds: [], index: -1, total: 0 };
     }
-    const shelf = shelves.find((s) => s.id === state.shelfId);
-    const ids = (shelf?.items || []).map((ub) => ub.book?.id).filter(Boolean) as string[];
+    // Prioridade 1: lista pré-computada via state (Modo Casa, etc.)
+    let ids: string[] = [];
+    let title = state.shelfTitle;
+    if (state.bookIds && state.bookIds.length > 0) {
+      ids = state.bookIds;
+    } else {
+      const shelf = shelves.find((s) => s.id === state.shelfId);
+      ids = (shelf?.items || []).map((ub) => ub.book?.id).filter(Boolean) as string[];
+      title = title ?? shelf?.title;
+    }
     const index = currentBookId ? ids.indexOf(currentBookId) : -1;
     return {
       shelfId: state.shelfId,
-      shelfTitle: state.shelfTitle ?? shelf?.title,
+      shelfTitle: title,
       bookIds: ids,
       index,
       total: ids.length,
       prevId: index > 0 ? ids[index - 1] : undefined,
       nextId: index >= 0 && index < ids.length - 1 ? ids[index + 1] : undefined,
     };
-  }, [enabled, shelves, state.shelfId, state.shelfTitle, currentBookId]);
+  }, [enabled, shelves, state.shelfId, state.shelfTitle, state.bookIds, currentBookId]);
 
   // Preload: busca próximo (e anterior) em background — abertura instantânea no swipe.
   useEffect(() => {

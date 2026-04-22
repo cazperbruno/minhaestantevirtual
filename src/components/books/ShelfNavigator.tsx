@@ -26,19 +26,23 @@ export function ShelfNavigator({ shelfTitle, index, total, prevId, nextId, child
   const navigate = useNavigate();
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  // Lê o shelfId atual do history.state — sobrevive ao remount entre transições.
-  const shelfIdFromHistory = (): string | undefined => {
+  // Lê estado de navegação do history.state — sobrevive ao remount entre transições.
+  const stateFromHistory = (): { shelfId?: string; bookIds?: string[] } => {
     try {
-      return (window.history.state?.usr?.shelfId as string | undefined) ?? undefined;
+      const usr = window.history.state?.usr || {};
+      return {
+        shelfId: usr.shelfId as string | undefined,
+        bookIds: usr.bookIds as string[] | undefined,
+      };
     } catch {
-      return undefined;
+      return {};
     }
   };
 
   const goTo = (id?: string) => {
     if (!id) return;
-    const shelfId = shelfIdFromHistory();
-    const state: ShelfNavState = { shelfId, shelfTitle };
+    const { shelfId, bookIds } = stateFromHistory();
+    const state: ShelfNavState = { shelfId, shelfTitle, bookIds };
     navigate(`/livro/${id}`, { state });
   };
 
