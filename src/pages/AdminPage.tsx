@@ -18,9 +18,16 @@ import { toast } from "sonner";
 import { CatalogQualityPanel } from "@/components/reports/CatalogQualityPanel";
 import { EnrichmentProgressPanel } from "@/components/reports/EnrichmentProgressPanel";
 import { IsbnQuickLookup } from "@/components/admin/IsbnQuickLookup";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { OverviewTab } from "@/components/admin/dashboard/OverviewTab";
+import { UsersTab } from "@/components/admin/dashboard/UsersTab";
+import { SystemTab } from "@/components/admin/dashboard/SystemTab";
+import { FeedTab } from "@/components/admin/dashboard/FeedTab";
+import { LogsTab } from "@/components/admin/dashboard/LogsTab";
 import {
-  Shield, Users, BookOpen, Activity, Loader2, Database, Download,
-  ListChecks, BarChart3, RefreshCw, FileSearch, ShieldCheck, ShieldAlert,
+  Shield, Users, BookOpen, Activity, Loader2, Download,
+  RefreshCw, ShieldCheck, ShieldAlert,
+  LayoutDashboard, Server, FileSearch,
 } from "lucide-react";
 
 interface Stats {
