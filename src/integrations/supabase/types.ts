@@ -1013,6 +1013,85 @@ export type Database = {
           },
         ]
       }
+      club_reading_sprint_participants: {
+        Row: {
+          joined_at: string
+          pages_end: number | null
+          pages_read: number | null
+          pages_start: number
+          sprint_id: string
+          user_id: string
+        }
+        Insert: {
+          joined_at?: string
+          pages_end?: number | null
+          pages_read?: number | null
+          pages_start?: number
+          sprint_id: string
+          user_id: string
+        }
+        Update: {
+          joined_at?: string
+          pages_end?: number | null
+          pages_read?: number | null
+          pages_start?: number
+          sprint_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_reading_sprint_participants_sprint_id_fkey"
+            columns: ["sprint_id"]
+            isOneToOne: false
+            referencedRelation: "club_reading_sprints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      club_reading_sprints: {
+        Row: {
+          club_id: string
+          created_at: string
+          created_by: string
+          duration_minutes: number
+          ends_at: string
+          finished_at: string | null
+          id: string
+          starts_at: string
+          status: string
+        }
+        Insert: {
+          club_id: string
+          created_at?: string
+          created_by: string
+          duration_minutes: number
+          ends_at: string
+          finished_at?: string | null
+          id?: string
+          starts_at?: string
+          status?: string
+        }
+        Update: {
+          club_id?: string
+          created_at?: string
+          created_by?: string
+          duration_minutes?: number
+          ends_at?: string
+          finished_at?: string | null
+          id?: string
+          starts_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_reading_sprints_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "book_clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cover_audit_log: {
         Row: {
           checked: number
@@ -2739,6 +2818,10 @@ export type Database = {
         }
         Returns: string
       }
+      finish_reading_sprint: {
+        Args: { _sprint_id: string }
+        Returns: undefined
+      }
       friends_reading_now: {
         Args: { _limit?: number; _user_id: string }
         Returns: {
@@ -3007,6 +3090,10 @@ export type Database = {
           shared_genres: number
           username: string
         }[]
+      }
+      start_reading_sprint: {
+        Args: { _club_id: string; _duration: number }
+        Returns: string
       }
       streak_at_risk_today: {
         Args: never
