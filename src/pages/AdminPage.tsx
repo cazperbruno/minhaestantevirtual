@@ -121,10 +121,16 @@ export default function AdminPage() {
       errors: [] as string[],
     };
     try {
+      const csrfToken = await csrf.ensureToken();
+      if (!csrfToken) {
+        toast.error("Não foi possível obter o token de segurança. Recarregue a página.");
+        return;
+      }
       // batches de 50 ISBNs (a função aceita até 100, mas 50 é mais responsivo)
       for (let i = 0; i < all.length; i += 50) {
         const chunk = all.slice(i, i + 50);
-        const { data, error } = await supabase.functions.invoke("import-books-by-isbn", {
+        const { data, error } = await invokeAdmin("import-books-by-isbn", {
+          csrfToken,
           body: {
             isbns: chunk,
             language: language === "any" ? null : language,
@@ -157,7 +163,12 @@ export default function AdminPage() {
   const runFn = async (fn: string, label: string, body?: any) => {
     const id = toast.loading(`Rodando ${label}…`);
     try {
-      const { data, error } = await supabase.functions.invoke(fn, { body });
+      const csrfToken = await csrf.ensureToken();
+      if (!csrfToken) {
+        toast.error("Token de segurança ausente. Recarregue a página.", { id });
+        return;
+      }
+      const { data, error } = await invokeAdmin(fn, { csrfToken, body });
       if (error) throw error;
       toast.success(`${label}: ${JSON.stringify(data).slice(0, 120)}…`, { id });
       await loadStats();
