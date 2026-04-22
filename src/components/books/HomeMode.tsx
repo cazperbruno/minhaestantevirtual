@@ -159,7 +159,7 @@ export function HomeMode({ items }: Props) {
       ) : (
         <div className="space-y-8">
           {shelves.map(([label, books]) => (
-            <PhysicalShelf key={label} label={label} books={books} />
+            <PhysicalShelf key={label} label={label} group={group} books={books} />
           ))}
         </div>
       )}
