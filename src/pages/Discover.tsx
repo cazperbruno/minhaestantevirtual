@@ -21,6 +21,7 @@ import { StoriesBar } from "@/components/social/StoriesBar";
 import { FollowingReadsShelfRow } from "@/components/books/FollowingReadsShelfRow";
 import { useBecauseYouRead } from "@/hooks/useBecauseYouRead";
 import { dedupeByIsbn } from "@/lib/dedupe";
+import { StreakAtRiskBanner } from "@/components/gamification/StreakAtRiskBanner";
 
 export default function Discover() {
   const { user } = useAuth();
@@ -141,6 +142,9 @@ export default function Discover() {
 
           <ContentTypeFilter className="mt-5" />
         </header>
+
+        {/* Streak em risco — alerta amistoso (Fase 1 retenção) */}
+        <StreakAtRiskBanner />
 
         {/* Stories de leitura (24h) */}
         <section className="mb-8 -mt-4">
