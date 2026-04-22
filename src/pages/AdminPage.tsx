@@ -14,6 +14,7 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CatalogQualityPanel } from "@/components/reports/CatalogQualityPanel";
+import { EnrichmentProgressPanel } from "@/components/reports/EnrichmentProgressPanel";
 import {
   Shield, Users, BookOpen, Activity, Loader2, Database, Download,
   ListChecks, BarChart3, RefreshCw, FileSearch,
