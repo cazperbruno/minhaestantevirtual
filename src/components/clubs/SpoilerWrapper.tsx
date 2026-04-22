@@ -11,6 +11,11 @@ interface Props {
   children: ReactNode;
   /** Classe da bolha externa (cor de fundo etc). */
   className?: string;
+  /**
+   * Modo "sem spoiler" global ligado pelo usuário — força o blur em TODA mensagem
+   * com spoilerPage, independente da página atual do leitor.
+   */
+  forceHide?: boolean;
 }
 
 /**
@@ -19,15 +24,22 @@ interface Props {
  *
  * Regras:
  * - Sem spoilerPage → renderiza normalmente.
+ * - forceHide ligado → sempre esconde (até revelar manualmente).
  * - Com spoilerPage e readerPage >= spoilerPage → renderiza normalmente.
  * - Caso contrário → blur + aviso até o usuário revelar.
  */
-export function SpoilerWrapper({ spoilerPage, readerPage, children, className }: Props) {
+export function SpoilerWrapper({ spoilerPage, readerPage, children, className, forceHide }: Props) {
   const [revealed, setRevealed] = useState(false);
+
+  // Quando o modo sem-spoiler é desligado, voltar a mostrar normalmente sem cliques.
+  // Quando é ligado, ocultar de novo (a menos que já tenha sido revelado nesta sessão).
+  // Não mexemos em `revealed` aqui para preservar a escolha do usuário por mensagem.
 
   const hasSpoiler = typeof spoilerPage === "number" && spoilerPage > 0;
   const shouldHide =
-    hasSpoiler && (readerPage == null || readerPage < (spoilerPage ?? 0)) && !revealed;
+    hasSpoiler &&
+    !revealed &&
+    (forceHide || readerPage == null || readerPage < (spoilerPage ?? 0));
 
   if (!hasSpoiler) {
     return <div className={className}>{children}</div>;
