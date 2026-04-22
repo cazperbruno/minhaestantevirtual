@@ -194,12 +194,55 @@ export default function ClubCategoryPage() {
             meta.gradient,
           )}
         >
-          <div className="relative z-10 flex items-center gap-4">
-            <span className="text-5xl md:text-6xl drop-shadow-lg" aria-hidden>{meta.emoji}</span>
-            <div className="min-w-0">
-              <h1 className="font-display text-3xl md:text-4xl font-bold leading-tight">{meta.label}</h1>
-              <p className={cn("text-sm md:text-base mt-1", meta.accent)}>{meta.description}</p>
+          <div className="relative z-10 flex items-start justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-4 min-w-0">
+              <span className="text-5xl md:text-6xl drop-shadow-lg" aria-hidden>{meta.emoji}</span>
+              <div className="min-w-0">
+                <h1 className="font-display text-3xl md:text-4xl font-bold leading-tight">{meta.label}</h1>
+                <p className={cn("text-sm md:text-base mt-1", meta.accent)}>{meta.description}</p>
+              </div>
             </div>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button variant="hero" size="sm" className="gap-2 shrink-0">
+                  <Plus className="w-4 h-4" /> Criar em {meta.label}
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Novo clube em {meta.label} {meta.emoji}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="cat-name">Nome</Label>
+                    <Input id="cat-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} placeholder={`Ex: Clube de ${meta.label.toLowerCase()}`} />
+                  </div>
+                  <div>
+                    <Label htmlFor="cat-desc">Descrição</Label>
+                    <Textarea id="cat-desc" value={desc} onChange={(e) => setDesc(e.target.value)} rows={3} maxLength={500} placeholder="Sobre o que vocês discutem?" />
+                  </div>
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-card/40 border border-border/40">
+                    <div className="mt-0.5">
+                      {isPublic ? <Globe2 className="w-5 h-5 text-primary" /> : <Lock className="w-5 h-5 text-primary" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label htmlFor="cat-pub" className="font-semibold cursor-pointer">
+                          {isPublic ? "Público" : "Privado"}
+                        </Label>
+                        <Switch id="cat-pub" checked={isPublic} onCheckedChange={setIsPublic} />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {isPublic ? "Qualquer leitor pode encontrar e entrar." : "Acesso só por convite ou aprovação."}
+                      </p>
+                    </div>
+                  </div>
+                  <Button variant="hero" onClick={create} disabled={creating || name.trim().length < 2} className="w-full">
+                    {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Criar clube"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </header>
 
