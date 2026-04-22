@@ -922,18 +922,33 @@ Deno.serve(async (req) => {
         });
       }
 
-      const [ol, gb] = await Promise.all([searchOpenLibrary(q, "por"), searchGoogleBooks(q, "pt")]);
-      const results = [...ol, ...gb];
+      // Busca em paralelo: sempre OL em PT + Google em PT.
+      // Se ainda houver espaço, complementa com OL/GB sem filtro de idioma.
+      const [olPt, gbPt] = await Promise.all([
+        searchOpenLibrary(q, "por"),
+        searchGoogleBooks(q, "pt"),
+      ]);
+      let combined: NormalizedBook[] = [...olPt, ...gbPt];
+      // Se as fontes PT trouxeram pouco (<8), adiciona buscas globais como complemento
+      if (combined.length < 8) {
+        const [olAny, gbAny] = await Promise.all([
+          searchOpenLibrary(q, ""),
+          searchGoogleBooks(q, ""),
+        ]);
+        combined = [...combined, ...olAny, ...gbAny];
+      }
+      // Dedupe por título+autor
       const seen = new Set<string>();
       const dedup: NormalizedBook[] = [];
-      for (const r of results) {
-        const key = `${r.title.toLowerCase()}|${(r.authors[0] || "").toLowerCase()}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          dedup.push(r);
-        }
+      for (const r of combined) {
+        const key = `${(r.title || "").toLowerCase()}|${(r.authors[0] || "").toLowerCase()}`;
+        if (!key.trim() || seen.has(key)) continue;
+        seen.add(key);
+        dedup.push(r);
       }
-      return new Response(JSON.stringify({ results: dedup.slice(0, 30) }), {
+      // Rerank: PT-BR primeiro, desempate por quality_score
+      const ranked = rerankByPortuguese(dedup, computeQualityScore);
+      return new Response(JSON.stringify({ results: ranked.slice(0, 30) }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
