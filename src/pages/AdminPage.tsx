@@ -192,10 +192,19 @@ export default function AdminPage() {
               Acesso restrito · operações afetam o banco de produção
             </p>
           </div>
-          <Button variant="outline" onClick={loadStats} disabled={loading} className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-            Atualizar
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <CsrfBadge
+              token={csrf.token}
+              expiresAt={csrf.expiresAt}
+              loading={csrf.loading}
+              error={csrf.error}
+              onRotate={() => void csrf.rotate()}
+            />
+            <Button variant="outline" onClick={loadStats} disabled={loading} className="gap-2">
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              Atualizar
+            </Button>
+          </div>
         </header>
 
         {/* Stats */}
