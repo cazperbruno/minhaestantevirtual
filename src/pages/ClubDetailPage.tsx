@@ -628,7 +628,37 @@ export default function ClubDetailPage() {
                 </div>
               )}
 
+              {pendingQuote && (
+                <div className="rounded-xl bg-primary/5 border border-primary/30 px-3 py-2 text-xs">
+                  <div className="flex items-start gap-2">
+                    <Quote className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-primary mb-0.5">
+                        Citação anexada
+                        {pendingQuote.book_title && ` · ${pendingQuote.book_title}`}
+                        {pendingQuote.page && ` (p. ${pendingQuote.page})`}
+                      </p>
+                      <p className="italic text-muted-foreground line-clamp-2">
+                        "{pendingQuote.text}"
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPendingQuote(null)}
+                      className="text-muted-foreground hover:text-foreground shrink-0"
+                      aria-label="Remover citação"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <form onSubmit={send} className="flex gap-2">
+                <QuoteAttachDialog
+                  currentBook={club.current_book ? { id: club.current_book.id, title: club.current_book.title } : null}
+                  onAttach={(q) => setPendingQuote(q)}
+                />
                 <Input
                   ref={inputRef}
                   value={input}
@@ -636,7 +666,7 @@ export default function ClubDetailPage() {
                     setInput(e.target.value);
                     sendTypingRef.current?.();
                   }}
-                  placeholder={replyTo ? "Sua resposta..." : "Mensagem..."}
+                  placeholder={replyTo ? "Sua resposta..." : pendingQuote ? "Comente a citação..." : "Mensagem..."}
                   disabled={sending}
                   maxLength={2000}
                 />
