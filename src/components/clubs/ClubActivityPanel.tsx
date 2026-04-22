@@ -38,7 +38,7 @@ export function ClubActivityPanel({ clubId, isMember }: Props) {
             const verb =
               item.kind === "message" ? "comentou" : "entrou no clube";
             const link = item.profile?.username
-              ? profilePath(item.profile.username)
+              ? profilePath({ username: item.profile.username })
               : undefined;
             return (
               <li key={`${item.kind}-${idx}-${item.at}`} className="flex items-start gap-3">
