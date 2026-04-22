@@ -24,9 +24,10 @@ import { UsersTab } from "@/components/admin/dashboard/UsersTab";
 import { SystemTab } from "@/components/admin/dashboard/SystemTab";
 import { FeedTab } from "@/components/admin/dashboard/FeedTab";
 import { LogsTab } from "@/components/admin/dashboard/LogsTab";
+import { AutomationTab } from "@/components/admin/dashboard/AutomationTab";
 import {
   Shield, Loader2, Download, RefreshCw, ShieldCheck, ShieldAlert,
-  LayoutDashboard, Users, Server, Activity, FileSearch, Database, Wrench,
+  LayoutDashboard, Users, Server, Activity, FileSearch, Database, Wrench, Zap,
 } from "lucide-react";
 
 interface AuditRow {
