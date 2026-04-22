@@ -8,17 +8,19 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { LogOut, Settings as SettingsIcon, Shield, Eye, BookOpen, Bell, Download } from "lucide-react";
+import { LogOut, Settings as SettingsIcon, Shield, Eye, BookOpen, Bell, Download, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { InstallAppCard } from "@/components/pwa/InstallAppCard";
 import { PushNotificationsCard } from "@/components/pwa/PushNotificationsCard";
 import { VersionTag } from "@/components/pwa/VersionTag";
+import { useTutorial } from "@/hooks/useTutorial";
 
 type Visibility = "public" | "private" | "followers";
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const { openTutorial } = useTutorial();
   const [profile, setProfile] = useState<any>(null);
   const [showProgress, setShowProgress] = useState<boolean>(true);
   const [savingFlag, setSavingFlag] = useState<string | null>(null);
@@ -204,6 +206,20 @@ export default function SettingsPage() {
           <InstallAppCard />
           <Button asChild variant="outline" size="sm" className="w-full">
             <Link to="/instalar">Ver instruções completas</Link>
+          </Button>
+        </section>
+
+        {/* Tutorial */}
+        <section className="mt-5 glass rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <h2 className="font-display text-lg font-semibold">Tutorial</h2>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            Reveja a apresentação cinemática de boas-vindas a qualquer momento.
+          </p>
+          <Button variant="outline" size="sm" className="w-full gap-2" onClick={openTutorial}>
+            <Sparkles className="w-3.5 h-3.5" /> Reabrir tutorial
           </Button>
         </section>
 
