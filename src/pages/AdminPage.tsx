@@ -66,7 +66,7 @@ export default function AdminPage() {
         supabase.from("books").select("id", { count: "exact", head: true }).gte("created_at", since24h),
         supabase.from("books").select("id", { count: "exact", head: true }).gte("created_at", since7d),
         supabase.from("enrichment_queue").select("id", { count: "exact", head: true }).eq("status", "pending"),
-        supabase.from("book_audit_log").select("id, process, action, created_at, details").order("created_at", { ascending: false }).limit(20),
+        supabase.from("book_audit_log").select("id, process, action, created_at, details").order("created_at", { ascending: false }).limit(10),
       ]);
       setStats({
         users: usersR.count ?? 0,
@@ -100,57 +100,104 @@ export default function AdminPage() {
   if (!isAdmin) return <Navigate to="/" replace />;
 
   // ===== Import by ISBN =====
-  const parseIsbns = (raw: string): string[] => {
-    return raw
-      .split(/[\s,;\n\r]+/)
-      .map((s) => s.replace(/[^0-9Xx]/g, ""))
-      .filter((s) => s.length === 10 || s.length === 13);
+  // Parser inteligente: aceita ISBN-10/13, normaliza, deduplica e separa válidos de inválidos.
+  const parseIsbnDetail = (raw: string) => {
+    const seen = new Set<string>();
+    const valid: string[] = [];
+    const invalid: string[] = [];
+    const tokens = raw.split(/[\s,;\n\r]+/).map((s) => s.trim()).filter(Boolean);
+    for (const t of tokens) {
+      const cleaned = t.replace(/[^0-9Xx]/g, "").toUpperCase();
+      if (cleaned.length !== 10 && cleaned.length !== 13) {
+        invalid.push(t);
+        continue;
+      }
+      if (seen.has(cleaned)) continue;
+      seen.add(cleaned);
+      valid.push(cleaned);
+    }
+    return { valid, invalid, duplicates: tokens.length - valid.length - invalid.length };
   };
+  const parseIsbns = (raw: string) => parseIsbnDetail(raw).valid;
 
   const runIsbnImport = async () => {
-    const all = parseIsbns(isbnInput);
+    const detail = parseIsbnDetail(isbnInput);
+    const all = detail.valid;
     if (all.length === 0) {
       toast.error("Cole pelo menos um ISBN válido (10 ou 13 dígitos).");
       return;
     }
+    if (detail.invalid.length > 0) {
+      toast.warning(`${detail.invalid.length} entrada(s) ignorada(s) por não serem ISBN válido`);
+    }
     setImporting(true);
     setImportResult(null);
     setProgress({ done: 0, total: all.length });
+    const t0 = performance.now();
     const aggregated = {
-      received: 0, invalid: 0, already_existed: 0,
+      received: 0, invalid: detail.invalid.length, already_existed: 0,
       not_found_external: 0, inserted: 0, enqueued_for_enrichment: 0,
+      ai_fallback_used: 0, avg_quality_score: 0,
+      sample: [] as { isbn: string; title: string; score: number; source: string }[],
       errors: [] as string[],
+      duration_ms: 0,
+      batches: 0,
     };
+    let scoreSum = 0;
+    let scoreCount = 0;
     try {
       const csrfToken = await csrf.ensureToken();
       if (!csrfToken) {
         toast.error("Não foi possível obter o token de segurança. Recarregue a página.");
         return;
       }
-      // batches de 50 ISBNs (a função aceita até 100, mas 50 é mais responsivo)
-      for (let i = 0; i < all.length; i += 50) {
-        const chunk = all.slice(i, i + 50);
-        const { data, error } = await invokeAdmin("import-books-by-isbn", {
-          csrfToken,
-          body: {
-            isbns: chunk,
-            language: language === "any" ? null : language,
-          },
-        });
-        if (error) throw error;
-        const d: any = data ?? {};
-        aggregated.received += d.received ?? 0;
-        aggregated.invalid += d.invalid ?? 0;
-        aggregated.already_existed += d.already_existed ?? 0;
-        aggregated.not_found_external += d.not_found_external ?? 0;
-        aggregated.inserted += d.inserted ?? 0;
-        aggregated.enqueued_for_enrichment += d.enqueued_for_enrichment ?? 0;
-        if (d.errors?.length) aggregated.errors.push(...d.errors);
-        setProgress({ done: Math.min(i + chunk.length, all.length), total: all.length });
+      // Lotes de 100 (limite máximo do edge function) — 2 lotes em paralelo p/ acelerar.
+      const BATCH = 100;
+      const PARALLEL = 2;
+      const batches: string[][] = [];
+      for (let i = 0; i < all.length; i += BATCH) batches.push(all.slice(i, i + BATCH));
+      aggregated.batches = batches.length;
+
+      let processedIsbns = 0;
+      for (let i = 0; i < batches.length; i += PARALLEL) {
+        const slice = batches.slice(i, i + PARALLEL);
+        const results = await Promise.all(
+          slice.map((chunk) =>
+            invokeAdmin("import-books-by-isbn", {
+              csrfToken,
+              body: {
+                isbns: chunk,
+                language: language === "any" ? null : language,
+              },
+            }),
+          ),
+        );
+        for (let k = 0; k < results.length; k++) {
+          const { data, error } = results[k];
+          if (error) throw error;
+          const d: any = data ?? {};
+          aggregated.received += d.received ?? 0;
+          aggregated.invalid += d.invalid ?? 0;
+          aggregated.already_existed += d.already_existed ?? 0;
+          aggregated.not_found_external += d.not_found_external ?? 0;
+          aggregated.inserted += d.inserted ?? 0;
+          aggregated.enqueued_for_enrichment += d.enqueued_for_enrichment ?? 0;
+          aggregated.ai_fallback_used += d.ai_fallback_used ?? 0;
+          if (typeof d.avg_quality_score === "number" && d.inserted > 0) {
+            scoreSum += d.avg_quality_score * d.inserted;
+            scoreCount += d.inserted;
+          }
+          if (Array.isArray(d.sample)) aggregated.sample.push(...d.sample);
+          if (d.errors?.length) aggregated.errors.push(...d.errors);
+          processedIsbns += slice[k].length;
+        }
+        setProgress({ done: Math.min(processedIsbns, all.length), total: all.length });
       }
+      aggregated.avg_quality_score = scoreCount > 0 ? Math.round(scoreSum / scoreCount) : 0;
+      aggregated.duration_ms = Math.round(performance.now() - t0);
       setImportResult(aggregated);
       toast.success(
-        `Importação: ${aggregated.inserted} novos · ${aggregated.already_existed} já existiam · ${aggregated.not_found_external} não encontrados`,
+        `${aggregated.inserted} novos · ${aggregated.already_existed} existentes · ${aggregated.not_found_external} não encontrados · ${(aggregated.duration_ms / 1000).toFixed(1)}s`,
       );
       await loadStats();
     } catch (e: any) {
@@ -255,8 +302,8 @@ export default function AdminPage() {
                 Importar livros por lista de ISBN
               </h3>
               <p className="text-sm text-muted-foreground mt-1">
-                Cole ISBNs (10 ou 13 dígitos), um por linha ou separados por vírgula. Processa em lotes de 50.
-                Verifica banco interno antes de chamar APIs externas.
+                Cole ISBNs (10 ou 13 dígitos), um por linha ou separados por vírgula. Processa em <strong>lotes de 100</strong> com 2 lotes paralelos.
+                Cascade: BrasilAPI → OpenLibrary → Google Books → IA fallback.
               </p>
             </div>
           </div>
@@ -272,9 +319,27 @@ export default function AdminPage() {
                 className="font-mono text-sm"
                 disabled={importing}
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                {parseIsbns(isbnInput).length} ISBNs válidos detectados
-              </p>
+              {(() => {
+                const d = parseIsbnDetail(isbnInput);
+                const batches = Math.ceil(d.valid.length / 100);
+                return (
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5 text-xs">
+                    <Badge variant="secondary" className="font-normal">
+                      {d.valid.length} válidos
+                    </Badge>
+                    {d.invalid.length > 0 && (
+                      <Badge variant="outline" className="font-normal text-warning border-warning/40">
+                        {d.invalid.length} inválidos (ignorados)
+                      </Badge>
+                    )}
+                    {batches > 0 && (
+                      <span className="text-muted-foreground">
+                        · {batches} lote{batches > 1 ? "s" : ""} de até 100
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             <div className="space-y-3">
               <div>
@@ -310,9 +375,35 @@ export default function AdminPage() {
           )}
 
           {importResult && (
-            <div className="rounded-xl border border-border/50 bg-muted/30 p-4 space-y-2">
-              <p className="text-sm font-semibold">Resultado da importação</p>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+            <div className="rounded-xl border border-border/50 bg-muted/30 p-4 space-y-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <p className="text-sm font-semibold">Resultado da importação</p>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  {importResult.batches > 0 && (
+                    <Badge variant="outline" className="font-normal">
+                      {importResult.batches} lote{importResult.batches > 1 ? "s" : ""}
+                    </Badge>
+                  )}
+                  {importResult.duration_ms > 0 && (
+                    <Badge variant="outline" className="font-normal">
+                      {(importResult.duration_ms / 1000).toFixed(1)}s
+                    </Badge>
+                  )}
+                  {importResult.received > 0 && (
+                    <Badge
+                      variant="outline"
+                      className={`font-normal ${
+                        ((importResult.inserted + importResult.already_existed) / importResult.received) >= 0.8
+                          ? "text-success border-success/40"
+                          : "text-warning border-warning/40"
+                      }`}
+                    >
+                      {Math.round(((importResult.inserted + importResult.already_existed) / Math.max(1, importResult.received)) * 100)}% sucesso
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                 <ResultPill label="Recebidos" value={importResult.received} />
                 <ResultPill label="Inválidos" value={importResult.invalid} variant="warn" />
                 <ResultPill label="Já existiam" value={importResult.already_existed} variant="muted" />
@@ -332,7 +423,7 @@ export default function AdminPage() {
                     {importResult.sample.length} amostras inseridas
                   </summary>
                   <ul className="mt-2 space-y-1">
-                    {importResult.sample.map((s: any, i: number) => (
+                    {importResult.sample.slice(0, 20).map((s: any, i: number) => (
                       <li key={i} className="flex items-center justify-between gap-2">
                         <span className="truncate">{s.title}</span>
                         <span className="shrink-0 text-muted-foreground">
@@ -386,41 +477,71 @@ export default function AdminPage() {
           </div>
         </Card>
 
-        {/* Logs */}
+        {/* Logs — últimas 10 operações */}
         <Card className="p-6 space-y-3">
-          <h3 className="font-display text-xl font-semibold flex items-center gap-2">
-            <FileSearch className="w-5 h-5 text-primary" />
-            Últimas operações
-          </h3>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h3 className="font-display text-xl font-semibold flex items-center gap-2">
+              <FileSearch className="w-5 h-5 text-primary" />
+              Últimas 10 operações
+            </h3>
+            <span className="text-xs text-muted-foreground">
+              {logs.length} registro{logs.length !== 1 ? "s" : ""}
+            </span>
+          </div>
           {loading ? (
-            <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
+            <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
           ) : logs.length === 0 ? (
             <p className="text-sm text-muted-foreground">Sem registros.</p>
           ) : (
             <div className="divide-y divide-border/50">
-              {logs.map((l) => (
-                <div key={l.id} className="py-2 flex items-start justify-between gap-3 text-sm">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="secondary">{l.process}</Badge>
-                      <span className="text-muted-foreground text-xs">{l.action}</span>
-                    </div>
-                    {l.details && (
-                      <p className="text-xs text-muted-foreground mt-1 truncate">
-                        {JSON.stringify(l.details).slice(0, 180)}
-                      </p>
-                    )}
-                  </div>
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    {new Date(l.created_at).toLocaleString("pt-BR")}
-                  </span>
-                </div>
-              ))}
+              {logs.map((l) => <AuditLogRow key={l.id} log={l} />)}
             </div>
           )}
         </Card>
       </div>
     </AppShell>
+  );
+}
+
+/** Linha individual do log de auditoria — formata detalhes específicos por tipo. */
+function AuditLogRow({ log }: { log: AuditRow }) {
+  const d = log.details ?? {};
+  const isImport = log.process === "import-books-by-isbn" && log.action === "import";
+  const isNotFound = log.action === "not-found";
+  const summary = (() => {
+    if (isImport) {
+      const parts: string[] = [];
+      if (d.inserted != null) parts.push(`${d.inserted} novos`);
+      if (d.already_existed != null) parts.push(`${d.already_existed} existiam`);
+      if (d.not_found_external) parts.push(`${d.not_found_external} não encontrados`);
+      if (d.invalid) parts.push(`${d.invalid} inválidos`);
+      if (d.avg_quality_score) parts.push(`qualidade ${d.avg_quality_score}/100`);
+      return parts.join(" · ");
+    }
+    if (isNotFound && d.isbn) {
+      return `ISBN ${d.isbn} · fontes: ${(d.sources_tried || []).join(", ")}`;
+    }
+    return JSON.stringify(d).slice(0, 180);
+  })();
+  const tone =
+    isNotFound ? "text-warning border-warning/40" :
+    isImport && d.inserted > 0 ? "text-success border-success/40" :
+    "";
+  return (
+    <div className="py-2.5 flex items-start justify-between gap-3 text-sm">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge variant="outline" className={`text-[10px] ${tone}`}>{log.process}</Badge>
+          <span className="text-muted-foreground text-xs">{log.action}</span>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{summary}</p>
+      </div>
+      <span className="text-[11px] text-muted-foreground shrink-0 whitespace-nowrap">
+        {new Date(log.created_at).toLocaleString("pt-BR", {
+          day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+        })}
+      </span>
+    </div>
   );
 }
 
