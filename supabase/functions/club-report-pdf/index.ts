@@ -104,6 +104,20 @@ Deno.serve(async (req) => {
       y += size * lines.length * 1.2;
     };
 
+    /** Trunca texto até caber em maxWidth, adicionando "…" se cortar. */
+    const truncate = (text: string, maxWidth: number, fontSize = 11): string => {
+      doc.setFontSize(fontSize);
+      if (doc.getTextWidth(text) <= maxWidth) return text;
+      const ellipsis = "…";
+      let lo = 0, hi = text.length;
+      while (lo < hi) {
+        const mid = Math.ceil((lo + hi) / 2);
+        if (doc.getTextWidth(text.slice(0, mid) + ellipsis) <= maxWidth) lo = mid;
+        else hi = mid - 1;
+      }
+      return text.slice(0, lo) + ellipsis;
+    };
+
     const hr = () => {
       ensureSpace(10);
       doc.setDrawColor(220, 220, 220);
@@ -222,20 +236,27 @@ Deno.serve(async (req) => {
 
       doc.setFont("helvetica", "normal");
       doc.setTextColor(33, 37, 41);
+      doc.setFontSize(10);
       report.ranking.forEach((r, i) => {
-        ensureSpace(16);
+        ensureSpace(18);
+        // zebra
+        if (i % 2 === 1) {
+          doc.setFillColor(248, 248, 250);
+          doc.rect(margin - 2, y - 10, pageWidth - margin * 2 + 4, 16, "F");
+        }
         let cx2 = margin;
-        doc.text(String(i + 1), cx2, y);
+        const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : String(i + 1);
+        doc.text(medal, cx2, y);
         cx2 += colW2[0];
         const name = r.display_name || r.username || "Leitor";
-        doc.text(doc.splitTextToSize(name, colW2[1] - 4)[0], cx2, y);
+        doc.text(truncate(name, colW2[1] - 4, 10), cx2, y);
         cx2 += colW2[1];
         doc.text(String(r.pages_read), cx2, y);
         cx2 += colW2[2];
         doc.text(String(r.level), cx2, y);
         cx2 += colW2[3];
         doc.text(String(r.total_points), cx2, y);
-        y += 14;
+        y += 16;
       });
     } else {
       line("Ainda sem ranking.", { size: 10, color: [120, 120, 120] });
