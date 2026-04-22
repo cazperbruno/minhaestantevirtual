@@ -82,16 +82,19 @@ export default function ScannerPage() {
   const [manualIsbn, setManualIsbn] = useState("");
   /**
    * Modos de escaneamento (UX Apple-style segmented):
-   *  - "single":     scaneia 1 livro, pára e mostra cartão "ver livro"
+   *  - "single":     scaneia 1 livro, mostra cartão e auto-adiciona em 2s (com cancelar)
    *  - "continuous": auto-adiciona ao acervo (status: not_read) e reagenda scan
    *  - "batch":      junta numa lista temporária com escolha de status por item
    */
-  const [scanMode, setScanMode] = useState<"single" | "continuous" | "batch">("batch");
+  const [scanMode, setScanMode] = useState<"single" | "continuous" | "batch">("single");
   /** Histórico da sessão (modo contínuo). */
   const [sessionLog, setSessionLog] = useState<Array<{ id: string; title: string; cover_url?: string | null }>>([]);
   /** Lista do lote atual (modo batch). Resetada manualmente pelo usuário. */
   const [batch, setBatch] = useState<BatchItem[]>([]);
   const continuousTimerRef = useRef<number | null>(null);
+  /** Countdown de auto-add do modo single (segundos restantes). null = inativo. */
+  const [autoAddCountdown, setAutoAddCountdown] = useState<number | null>(null);
+  const autoAddTimerRef = useRef<number | null>(null);
 
   // Barcode state
   const [detected, setDetected] = useState<string | null>(null);
