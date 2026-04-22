@@ -477,36 +477,24 @@ export default function AdminPage() {
           </div>
         </Card>
 
-        {/* Logs */}
+        {/* Logs — últimas 10 operações */}
         <Card className="p-6 space-y-3">
-          <h3 className="font-display text-xl font-semibold flex items-center gap-2">
-            <FileSearch className="w-5 h-5 text-primary" />
-            Últimas operações
-          </h3>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h3 className="font-display text-xl font-semibold flex items-center gap-2">
+              <FileSearch className="w-5 h-5 text-primary" />
+              Últimas 10 operações
+            </h3>
+            <span className="text-xs text-muted-foreground">
+              {logs.length} registro{logs.length !== 1 ? "s" : ""}
+            </span>
+          </div>
           {loading ? (
-            <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
+            <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
           ) : logs.length === 0 ? (
             <p className="text-sm text-muted-foreground">Sem registros.</p>
           ) : (
             <div className="divide-y divide-border/50">
-              {logs.map((l) => (
-                <div key={l.id} className="py-2 flex items-start justify-between gap-3 text-sm">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="secondary">{l.process}</Badge>
-                      <span className="text-muted-foreground text-xs">{l.action}</span>
-                    </div>
-                    {l.details && (
-                      <p className="text-xs text-muted-foreground mt-1 truncate">
-                        {JSON.stringify(l.details).slice(0, 180)}
-                      </p>
-                    )}
-                  </div>
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    {new Date(l.created_at).toLocaleString("pt-BR")}
-                  </span>
-                </div>
-              ))}
+              {logs.map((l) => <AuditLogRow key={l.id} log={l} />)}
             </div>
           )}
         </Card>
