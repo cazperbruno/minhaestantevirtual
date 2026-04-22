@@ -38,8 +38,17 @@ interface MineRow {
 export default function ClubsPage() {
   const { user } = useAuth();
   const summary = useClubCategoriesSummary();
+  const featured = useFeaturedClub();
+  const recommended = useRecommendedClubs(6);
   const [mine, setMine] = useState<MineRow[]>([]);
   const [loadingMine, setLoadingMine] = useState(true);
+
+  // Membros (avatares) para os cards de "Meus clubes" e recomendados
+  const memberClubIds = useMemo(
+    () => [...mine.map((c) => c.id), ...(recommended.data || []).map((c) => c.id)],
+    [mine, recommended.data],
+  );
+  const membersByClub = useClubsMembers(memberClubIds);
 
   // Create
   const [name, setName] = useState("");
