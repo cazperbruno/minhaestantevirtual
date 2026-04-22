@@ -315,7 +315,30 @@ export default function AdminPage() {
                 <ResultPill label="Não encontrados" value={importResult.not_found_external} variant="warn" />
                 <ResultPill label="Inseridos ✓" value={importResult.inserted} variant="success" />
                 <ResultPill label="Na fila enrich" value={importResult.enqueued_for_enrichment} variant="success" />
+                <ResultPill label="IA fallback" value={importResult.ai_fallback_used ?? 0} variant="muted" />
+                <ResultPill
+                  label="Qualidade média"
+                  value={importResult.avg_quality_score ? `${importResult.avg_quality_score}/100` : "—"}
+                  variant={importResult.avg_quality_score >= 70 ? "success" : "warn"}
+                />
               </div>
+              {importResult.sample?.length > 0 && (
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground">
+                    {importResult.sample.length} amostras inseridas
+                  </summary>
+                  <ul className="mt-2 space-y-1">
+                    {importResult.sample.map((s: any, i: number) => (
+                      <li key={i} className="flex items-center justify-between gap-2">
+                        <span className="truncate">{s.title}</span>
+                        <span className="shrink-0 text-muted-foreground">
+                          {s.score}/100 · {s.source}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
               {importResult.errors?.length > 0 && (
                 <details className="text-xs">
                   <summary className="cursor-pointer text-warning">{importResult.errors.length} erros</summary>
