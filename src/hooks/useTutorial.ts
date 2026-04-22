@@ -55,7 +55,7 @@ export function useTutorial() {
 
   const closeTutorial = useCallback(() => setOpen(false), []);
 
-  return { open, openTutorial, closeTutorial, finishTutorial };
+  return { open, closeTutorial, finishTutorial };
 }
 
 /** Dispara abertura do tutorial de qualquer lugar do app. */
