@@ -204,9 +204,11 @@ Deno.serve(async (req) => {
     } else if (mode === "popular") {
       pickRandom(SUBJECTS.popular, 5).forEach((s) => targets.push({ subject: s, isManga: false }));
     } else {
-      // mixed: 2 popular + 1 pt + 1 manga
+      // mixed: PRIORIDADE PT-BR — 3 subjects PT + 2 popular + 1 manga (6 fontes).
+      // Antes: 2 popular + 1 pt + 1 manga (4 fontes, 25% PT).
+      // Agora: 50% das fontes são PT-BR.
+      pickRandom(SUBJECTS.pt, 3).forEach((s) => targets.push({ subject: s, isManga: false }));
       pickRandom(SUBJECTS.popular, 2).forEach((s) => targets.push({ subject: s, isManga: false }));
-      pickRandom(SUBJECTS.pt, 1).forEach((s) => targets.push({ subject: s, isManga: false }));
       pickRandom(SUBJECTS.manga, 1).forEach((s) => targets.push({ subject: s, isManga: true }));
     }
 
