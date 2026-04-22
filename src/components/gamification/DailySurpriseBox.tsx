@@ -79,8 +79,8 @@ export function DailySurpriseBox() {
     }
   };
 
-  // Estado: já abriu hoje
-  if (opened && revealedBook) {
+  // Estado: já abriu hoje (com ou sem livro disponível)
+  if (opened) {
     const rarity = (status?.last_rarity ?? "common") as SurpriseRarity;
     const style = rarityStyles[rarity];
     return (
@@ -92,9 +92,15 @@ export function DailySurpriseBox() {
         )}
       >
         <div className="flex items-center gap-4">
-          <Link to={`/livro/${revealedBook.id}`} className="shrink-0">
-            <BookCover book={revealedBook} size="sm" className="hover:scale-105 transition-transform" />
-          </Link>
+          {revealedBook ? (
+            <Link to={`/livro/${revealedBook.id}`} className="shrink-0">
+              <BookCover book={revealedBook} size="sm" className="hover:scale-105 transition-transform" />
+            </Link>
+          ) : (
+            <div className="shrink-0 w-16 h-24 rounded-lg bg-primary/15 grid place-items-center">
+              <Gift className="w-7 h-7 text-primary" />
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <Gift className="w-3.5 h-3.5 text-primary" />
@@ -103,9 +109,9 @@ export function DailySurpriseBox() {
               </span>
             </div>
             <p className="font-display font-bold text-base leading-tight line-clamp-2">
-              {revealedBook.title}
+              {revealedBook?.title ?? "Recompensa do dia coletada"}
             </p>
-            {revealedBook.authors?.[0] && (
+            {revealedBook?.authors?.[0] && (
               <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
                 {revealedBook.authors.join(", ")}
               </p>
