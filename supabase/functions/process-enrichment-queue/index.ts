@@ -5,7 +5,7 @@
 // atualiza status. Backoff exponencial em falhas.
 // =====================================================================
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import { requireAdmin } from "../_shared/admin-guard.ts";
+import { requireAdminOrCron } from "../_shared/admin-guard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,7 +19,7 @@ const MAX_ATTEMPTS = 4;
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  const guard = await requireAdmin(req);
+  const guard = await requireAdminOrCron(req);
   if (!guard.ok) {
     return new Response(JSON.stringify({ error: guard.error }), {
       status: guard.status ?? 403,
