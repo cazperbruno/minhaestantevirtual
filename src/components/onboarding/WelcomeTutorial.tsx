@@ -129,7 +129,7 @@ export function WelcomeTutorial({ open, onClose, onFinish }: Props) {
   const Icon = slide.icon;
 
   function next() {
-    haptic("light");
+    haptic("tap");
     if (isLast) {
       onFinish();
       return;
@@ -138,7 +138,7 @@ export function WelcomeTutorial({ open, onClose, onFinish }: Props) {
   }
 
   function prev() {
-    haptic("light");
+    haptic("tap");
     setIndex((i) => Math.max(0, i - 1));
   }
 
@@ -280,7 +280,7 @@ export function WelcomeTutorial({ open, onClose, onFinish }: Props) {
               <button
                 key={s.id}
                 onClick={() => {
-                  haptic("light");
+                  haptic("tap");
                   setIndex(i);
                 }}
                 aria-label={`Ir para tela ${i + 1}`}
