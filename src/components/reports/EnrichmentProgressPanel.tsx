@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
+import { useAdminCsrfToken } from "@/hooks/useAdminCsrfToken";
+import { invokeAdmin } from "@/lib/admin-invoke";
 import { toast } from "sonner";
 import {
-  Activity, AlertTriangle, CheckCircle2, Loader2, Pause, Play, RefreshCw, Sparkles,
+  Activity, AlertTriangle, CheckCircle2, Loader2, Pause, Play, RefreshCw, Sparkles, Zap,
 } from "lucide-react";
 
 interface Counts {
@@ -35,16 +37,17 @@ interface FailedJob {
   book?: { title: string } | null;
 }
 
-const POLL_MS = 4000;
+const POLL_MS = 3500;
+const DRAIN_MAX_ROUNDS = 30; // 30 rodadas × 20 itens = 600 itens por sessão
 
 /**
- * Real-time progress for enrichment_queue.
- * - Polls every 4s while live=true
- * - Shows pending/processing/done/failed counts
- * - Progress bar over the active session (since first mount)
- * - Live list of last 8 enriched books and recent failures
+ * Painel real-time da fila de enriquecimento.
+ *  - Postgres realtime + polling de fallback (3.5s)
+ *  - Botão "Drenar agora" dispara o processador em loop pelo browser
+ *    sem depender do cron (resolve filas travadas).
  */
 export function EnrichmentProgressPanel() {
+  const csrf = useAdminCsrfToken();
   const [counts, setCounts] = useState<Counts | null>(null);
   const [recent, setRecent] = useState<RecentBook[]>([]);
   const [failures, setFailures] = useState<FailedJob[]>([]);
@@ -53,9 +56,13 @@ export function EnrichmentProgressPanel() {
   const [live, setLive] = useState(true);
   const [lastTick, setLastTick] = useState<Date | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [draining, setDraining] = useState(false);
+  const [drainStats, setDrainStats] = useState<{
+    rounds: number; processed: number; success: number; failed: number; skipped: number;
+  } | null>(null);
+  const drainAbort = useRef<{ stopped: boolean } | null>(null);
 
-  // Baseline captured on mount: total queued at start, so the bar reflects
-  // *this session's* progress instead of all-time.
+  // Baseline para barra "desta sessão"
   const baselineRef = useRef<{ pending: number; processing: number } | null>(null);
 
   const aggregate = (rows: { status: string }[] | null): Counts => {
@@ -125,11 +132,27 @@ export function EnrichmentProgressPanel() {
     }
   };
 
+  // Polling
   useEffect(() => {
     void load({ silent: true });
     if (!live) return;
     const t = setInterval(() => { void load({ silent: true }); }, POLL_MS);
     return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live]);
+
+  // Realtime sobre a fila — atualiza imediatamente quando um job muda de status
+  useEffect(() => {
+    if (!live) return;
+    const ch = supabase
+      .channel("enrichment_queue_progress")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "enrichment_queue" },
+        () => { void load({ silent: true }); },
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [live]);
 
@@ -165,6 +188,67 @@ export function EnrichmentProgressPanel() {
     }
   };
 
+  /**
+   * Drena a fila chamando process-enrichment-queue em loop pelo navegador.
+   * Não depende do cron — útil quando a fila está travada.
+   */
+  const drainNow = async () => {
+    if (draining) {
+      drainAbort.current && (drainAbort.current.stopped = true);
+      return;
+    }
+    const csrfToken = await csrf.ensureToken();
+    if (!csrfToken) {
+      toast.error("Token de segurança ausente. Recarregue o painel.");
+      return;
+    }
+    setDraining(true);
+    drainAbort.current = { stopped: false };
+    const stats = { rounds: 0, processed: 0, success: 0, failed: 0, skipped: 0 };
+    setDrainStats(stats);
+    const toastId = toast.loading("Drenando fila…");
+    try {
+      for (let i = 0; i < DRAIN_MAX_ROUNDS; i++) {
+        if (drainAbort.current?.stopped) break;
+        const { data, error } = await invokeAdmin<{
+          processed: number; success: number; skipped: number; failed: number; auth_failed?: number;
+        }>("process-enrichment-queue", { csrfToken, body: {} });
+        if (error) {
+          toast.error(`Drenagem falhou: ${error.message}`, { id: toastId });
+          break;
+        }
+        stats.rounds += 1;
+        stats.processed += data?.processed ?? 0;
+        stats.success += data?.success ?? 0;
+        stats.failed += data?.failed ?? 0;
+        stats.skipped += data?.skipped ?? 0;
+        setDrainStats({ ...stats });
+        toast.loading(
+          `Drenando… rodada ${stats.rounds} · ${stats.success} ok · ${stats.failed} falhas`,
+          { id: toastId },
+        );
+        if ((data?.processed ?? 0) === 0) break; // fila esvaziou
+        if ((data?.auth_failed ?? 0) > 0 && (data?.success ?? 0) === 0) {
+          toast.error("Falha de autenticação ao chamar enrich-book — verifique secrets.", { id: toastId });
+          break;
+        }
+        await load({ silent: true });
+        // pequena pausa entre rodadas
+        await new Promise((r) => setTimeout(r, 400));
+      }
+      toast.success(
+        `Drenagem concluída: ${stats.success} ok · ${stats.skipped} pulados · ${stats.failed} falhas`,
+        { id: toastId },
+      );
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro inesperado na drenagem", { id: toastId });
+    } finally {
+      setDraining(false);
+      drainAbort.current = null;
+      void load({ silent: true });
+    }
+  };
+
   if (loading) {
     return (
       <Card className="p-6 space-y-3">
@@ -186,7 +270,7 @@ export function EnrichmentProgressPanel() {
             Progresso de importação · tempo real
           </h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Lendo <code className="text-xs">enrichment_queue</code> a cada {POLL_MS / 1000}s
+            Realtime + polling {POLL_MS / 1000}s
             {lastTick && (
               <span className="ml-2 text-xs">
                 · atualizado {lastTick.toLocaleTimeString("pt-BR")}
@@ -195,10 +279,20 @@ export function EnrichmentProgressPanel() {
           </p>
           {loadError && <p className="text-xs text-destructive mt-1">{loadError}</p>}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             size="sm"
-            variant={live ? "default" : "outline"}
+            variant={draining ? "destructive" : "default"}
+            onClick={() => void drainNow()}
+            className="gap-2"
+            disabled={!draining && (counts?.pending ?? 0) === 0}
+          >
+            {draining ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+            {draining ? "Parar drenagem" : "Drenar agora"}
+          </Button>
+          <Button
+            size="sm"
+            variant={live ? "outline" : "outline"}
             onClick={() => void toggleLive()}
             className="gap-2"
           >
@@ -232,6 +326,11 @@ export function EnrichmentProgressPanel() {
           <span className="font-mono text-xs text-muted-foreground">{pct}%</span>
         </div>
         <Progress value={pct} className="h-2.5" />
+        {drainStats && drainStats.rounds > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Drenagem manual: {drainStats.rounds} rodada(s) · {drainStats.success} ok · {drainStats.skipped} pulados · {drainStats.failed} falhas
+          </p>
+        )}
       </div>
 
       {/* Status grid */}
