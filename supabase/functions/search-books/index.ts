@@ -719,8 +719,22 @@ async function persistBook(supabase: any, book: NormalizedBook) {
     if (data) return data;
   }
 
+  // Dedupe por título + primeiro autor — evita duplicar quando duas fontes
+  // devolvem edições diferentes da mesma obra (ISBN diferente).
+  if ((book.content_type ?? "book") === "book" && book.title && book.authors?.length) {
+    const dup = await findDuplicateByTitleAuthor(supabase, book.title, book.authors);
+    if (dup) {
+      const { data } = await supabase.from("books").select("*").eq("id", dup.id).maybeSingle();
+      if (data) {
+        console.log(`[persistBook] dedupe título+autor → ${dup.id}`);
+        return data;
+      }
+    }
+  }
+
   // For series-bearing items, ensure the series row first.
   const seriesId = await ensureSeries(supabase, book);
+  const quality = computeQualityScore(book);
 
   const { data, error } = await supabase
     .from("books")
@@ -742,6 +756,7 @@ async function persistBook(supabase: any, book: NormalizedBook) {
       content_type: book.content_type ?? "book",
       series_id: seriesId,
       volume_number: book.volume_number ?? null,
+      quality_score: quality,
       raw: book.raw ?? (book._series ? { series: book._series } : null),
     })
     .select()
