@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { useClubPresence } from "@/hooks/useClubPresence";
 import { useClubChatPresence } from "@/hooks/useClubChatPresence";
 import { useClubReactions } from "@/hooks/useClubReactions";
+import { ClubLeaderboard } from "@/components/clubs/ClubLeaderboard";
 
 interface Profile {
   id: string;
