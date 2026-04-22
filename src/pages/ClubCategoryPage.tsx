@@ -46,6 +46,40 @@ export default function ClubCategoryPage() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 200);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  // Criar clube nesta categoria
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [desc, setDesc] = useState("");
+  const [isPublic, setIsPublic] = useState(true);
+  const [creating, setCreating] = useState(false);
+
+  const create = async () => {
+    if (!user || !isValidCategory || name.trim().length < 2) return;
+    setCreating(true);
+    const { data, error } = await supabase
+      .from("book_clubs")
+      .insert({
+        owner_id: user.id,
+        name: name.trim(),
+        description: desc.trim() || null,
+        is_public: isPublic,
+        category: slug as ClubCategory,
+      })
+      .select("id")
+      .single();
+    setCreating(false);
+    if (error || !data) {
+      toast.error("Erro ao criar clube");
+      return;
+    }
+    toast.success(isPublic ? "Clube público criado!" : "Clube privado criado!");
+    setOpen(false);
+    setName(""); setDesc(""); setIsPublic(true);
+    setReloadKey((k) => k + 1);
+    navigate(`/clubes/${data.id}`);
+  };
 
   useEffect(() => {
     if (!isValidCategory) return;
