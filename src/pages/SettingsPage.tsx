@@ -14,13 +14,12 @@ import { toast } from "sonner";
 import { InstallAppCard } from "@/components/pwa/InstallAppCard";
 import { PushNotificationsCard } from "@/components/pwa/PushNotificationsCard";
 import { VersionTag } from "@/components/pwa/VersionTag";
-import { useTutorial } from "@/hooks/useTutorial";
+import { openTutorial } from "@/hooks/useTutorial";
 
 type Visibility = "public" | "private" | "followers";
 
 export default function SettingsPage() {
   const { user } = useAuth();
-  const { openTutorial } = useTutorial();
   const [profile, setProfile] = useState<any>(null);
   const [showProgress, setShowProgress] = useState<boolean>(true);
   const [savingFlag, setSavingFlag] = useState<string | null>(null);
