@@ -27,10 +27,35 @@ interface Props {
  *  - fade gradient nas bordas (esquerda/direita) para sugerir mais conteúdo
  *  - GPU-accelerated; mantém 60fps mesmo com 30+ itens
  */
-export function CinematicShelf({ title, subtitle, children, action, className }: Props) {
+export function CinematicShelf({
+  title,
+  subtitle,
+  children,
+  action,
+  className,
+  initialCount = 12,
+  step = 12,
+}: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(false);
+
+  // Carregamento incremental: corta os filhos visíveis em lotes.
+  const allChildren = useMemo(() => Children.toArray(children), [children]);
+  const total = allChildren.length;
+  const [visibleCount, setVisibleCount] = useState(() => Math.min(initialCount, total));
+
+  // Quando o conjunto de filhos muda (novo dataset), reinicia.
+  useEffect(() => {
+    setVisibleCount(Math.min(initialCount, total));
+  }, [initialCount, total]);
+
+  const visibleChildren = total > visibleCount ? allChildren.slice(0, visibleCount) : allChildren;
+  const hasMore = visibleCount < total;
+  const remaining = total - visibleCount;
+  const loadMore = useCallback(() => {
+    setVisibleCount((c) => Math.min(c + step, total));
+  }, [step, total]);
 
   const update = useCallback(() => {
     const el = ref.current;
