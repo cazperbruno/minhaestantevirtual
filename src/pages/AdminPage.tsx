@@ -198,7 +198,26 @@ export default function AdminPage() {
               expiresAt={csrf.expiresAt}
               loading={csrf.loading}
               error={csrf.error}
-              onRotate={() => void csrf.rotate()}
+              onRotate={async () => {
+                const id = toast.loading("Rotacionando token CSRF…");
+                try {
+                  // Limpa estado antigo da sessão antes de pedir um novo
+                  try {
+                    sessionStorage.removeItem("readify.admin.csrf");
+                  } catch { /* noop */ }
+                  const newToken = await csrf.rotate();
+                  if (newToken) {
+                    toast.success("Novo token CSRF emitido com sucesso", { id });
+                  } else {
+                    toast.error(
+                      csrf.error ?? "Falha ao emitir novo token CSRF",
+                      { id },
+                    );
+                  }
+                } catch (e: any) {
+                  toast.error(e?.message ?? "Falha ao rotacionar token CSRF", { id });
+                }
+              }}
             />
             <Button variant="outline" onClick={loadStats} disabled={loading} className="gap-2">
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
