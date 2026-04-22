@@ -5,10 +5,15 @@
  *  - Chrome/Edge ≥111, Safari ≥18 (parcial). Fallback gracioso onde indisponível.
  *  - Respeita `prefers-reduced-motion`.
  *
- * Uso:
- *   await navigateWithTransition(() => navigate(`/livro/${id}`));
- *   // BookCover do card e BookHero compartilham `view-transition-name`
- *   // → o navegador interpola posição/tamanho automaticamente.
+ * Política de scroll: o reset para o topo da nova rota fica a cargo do
+ * componente global `ScrollToTop` (montado uma vez no `BrowserRouter`).
+ * Como ele usa `useLayoutEffect`, o reset acontece dentro da janela de
+ * atualização da View Transition — a página nova é revelada já no topo,
+ * sem "flash".
+ *
+ * Para garantir o mesmo comportamento em browsers SEM View Transitions
+ * (fallback), forçamos um `scrollTo(0,0)` imediatamente após o callback,
+ * antes do React commit, eliminando qualquer corrida.
  */
 
 type Doc = Document & {
@@ -31,7 +36,8 @@ export function supportsViewTransitions(): boolean {
 
 /**
  * Executa `update` dentro de uma View Transition. Sem suporte (ou
- * reduced-motion), apenas roda o callback imediatamente.
+ * reduced-motion), apenas roda o callback imediatamente. Em ambos os casos
+ * o `ScrollToTop` global garante topo da página em PUSH/REPLACE.
  */
 export async function viewTransition(update: () => void | Promise<void>): Promise<void> {
   if (!supportsViewTransitions() || reducedMotion()) {
@@ -39,7 +45,9 @@ export async function viewTransition(update: () => void | Promise<void>): Promis
     return;
   }
   const doc = document as Doc;
-  const transition = doc.startViewTransition!(update);
+  const transition = doc.startViewTransition!(async () => {
+    await update();
+  });
   try {
     await transition.finished;
   } catch {
