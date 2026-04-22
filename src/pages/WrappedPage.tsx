@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import {
   Sparkles, BookOpen, Users, BookText, Trophy, Share2, ArrowRight,
-  ChevronLeft, ChevronRight, Calendar, Download,
+  ChevronLeft, ChevronRight, Calendar, Download, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { haptic } from "@/lib/haptics";
@@ -22,6 +22,7 @@ interface RawRow {
     authors: string[];
     categories: string[] | null;
     page_count: number | null;
+    cover_url: string | null;
   } | null;
 }
 
@@ -34,7 +35,20 @@ interface WrappedData {
   longestBook: { title: string; pages: number } | null;
   monthlyTop: { month: string; count: number } | null;
   pagesRanking: Array<{ title: string; pages: number }>;
-  finishedBooks: Array<{ title: string; authors: string[] }>;
+  finishedBooks: Array<{ title: string; authors: string[]; cover_url: string | null; finished_at: string }>;
+  monthly: Array<{ month: number; count: number }>;
+  firstBook: { title: string; authors: string[]; date: string } | null;
+  lastBook: { title: string; authors: string[]; date: string } | null;
+}
+
+interface FriendStat {
+  user_id: string;
+  display_name: string | null;
+  username: string | null;
+  avatar_url: string | null;
+  count: number;
+  pages: number;
+  isMe?: boolean;
 }
 
 const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -89,6 +103,31 @@ function aggregate(rows: RawRow[], year: number): WrappedData {
 
   pagesRanking.sort((a, b) => b.pages - a.pages);
 
+  // Mês a mês — array completo de 12 posições
+  const monthly = Array.from({ length: 12 }, (_, m) => ({
+    month: m,
+    count: monthMap.get(m) || 0,
+  }));
+
+  // Primeira e última leitura do ano (ordenadas por data)
+  const sortedByDate = [...finished].sort(
+    (a, b) => new Date(a.finished_at!).getTime() - new Date(b.finished_at!).getTime(),
+  );
+  const firstBook = sortedByDate[0]
+    ? {
+        title: sortedByDate[0].book!.title,
+        authors: sortedByDate[0].book!.authors,
+        date: sortedByDate[0].finished_at!,
+      }
+    : null;
+  const lastBook = sortedByDate.length > 1
+    ? {
+        title: sortedByDate[sortedByDate.length - 1].book!.title,
+        authors: sortedByDate[sortedByDate.length - 1].book!.authors,
+        date: sortedByDate[sortedByDate.length - 1].finished_at!,
+      }
+    : null;
+
   return {
     year,
     totalBooks,
@@ -101,7 +140,12 @@ function aggregate(rows: RawRow[], year: number): WrappedData {
     finishedBooks: finished.slice(0, 12).map((r) => ({
       title: r.book!.title,
       authors: r.book!.authors,
+      cover_url: r.book!.cover_url ?? null,
+      finished_at: r.finished_at!,
     })),
+    monthly,
+    firstBook,
+    lastBook,
   };
 }
 
@@ -119,7 +163,9 @@ export default function WrappedPage() {
   const [year, setYear] = useState(defaultYear);
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<RawRow[]>([]);
+  const [friends, setFriends] = useState<FriendStat[]>([]);
   const [slide, setSlide] = useState(0);
+  const [savingStory, setSavingStory] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const startX = useRef<number | null>(null);
 
@@ -130,7 +176,7 @@ export default function WrappedPage() {
       setLoading(true);
       const { data } = await supabase
         .from("user_books")
-        .select("status, finished_at, current_page, book:books(title, authors, categories, page_count)")
+        .select("status, finished_at, current_page, book:books(title, authors, categories, page_count, cover_url)")
         .eq("user_id", user.id);
       if (!cancelled) {
         setRows((data as unknown as RawRow[]) || []);
@@ -141,6 +187,74 @@ export default function WrappedPage() {
       cancelled = true;
     };
   }, [user]);
+
+  // Buscar ranking entre quem você segue (e você mesmo) — leituras concluídas no ano
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const { data: f } = await supabase
+        .from("follows")
+        .select("following_id")
+        .eq("follower_id", user.id);
+      const ids = [user.id, ...((f || []).map((x) => x.following_id) as string[])];
+      if (ids.length === 0) {
+        setFriends([]);
+        return;
+      }
+
+      const start = `${year}-01-01`;
+      const end = `${year + 1}-01-01`;
+      const [{ data: ub }, { data: profs }] = await Promise.all([
+        supabase
+          .from("user_books")
+          .select("user_id, current_page, book:books(page_count)")
+          .in("user_id", ids)
+          .eq("status", "read")
+          .gte("finished_at", start)
+          .lt("finished_at", end),
+        supabase
+          .from("profiles")
+          .select("id, display_name, username, avatar_url")
+          .in("id", ids),
+      ]);
+
+      const profMap = new Map<string, { display_name: string | null; username: string | null; avatar_url: string | null }>();
+      for (const p of (profs as any[]) || []) {
+        profMap.set(p.id, { display_name: p.display_name, username: p.username, avatar_url: p.avatar_url });
+      }
+
+      const agg = new Map<string, { count: number; pages: number }>();
+      for (const r of (ub as any[]) || []) {
+        const k = r.user_id as string;
+        const cur = agg.get(k) || { count: 0, pages: 0 };
+        cur.count += 1;
+        cur.pages += (r.current_page ?? r.book?.page_count ?? 0);
+        agg.set(k, cur);
+      }
+
+      const stats: FriendStat[] = ids.map((id) => {
+        const a = agg.get(id) || { count: 0, pages: 0 };
+        const p = profMap.get(id) || { display_name: null, username: null, avatar_url: null };
+        return {
+          user_id: id,
+          display_name: p.display_name,
+          username: p.username,
+          avatar_url: p.avatar_url,
+          count: a.count,
+          pages: a.pages,
+          isMe: id === user.id,
+        };
+      })
+        .filter((s) => s.count > 0 || s.isMe)
+        .sort((a, b) => b.count - a.count || b.pages - a.pages);
+
+      if (!cancelled) setFriends(stats);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, year]);
 
   const data = useMemo(() => aggregate(rows, year), [rows, year]);
 
@@ -301,6 +415,153 @@ export default function WrappedPage() {
         ),
       },
       {
+        id: "monthly",
+        bg: "from-status-reading/25 via-background to-background",
+        glow: "bg-status-reading/40",
+        render: () => {
+          const max = Math.max(1, ...data.monthly.map((m) => m.count));
+          return (
+            <div className="w-full max-w-xl mx-auto">
+              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-3 text-center">
+                Mês a mês
+              </p>
+              <h3 className="font-display text-3xl md:text-5xl font-bold leading-tight tracking-tight text-center mb-8">
+                Seu ritmo de <span className="text-primary italic">leitura</span>.
+              </h3>
+              <div className="flex items-end justify-between gap-1.5 h-44 px-1">
+                {data.monthly.map((m) => {
+                  const h = m.count > 0 ? Math.max(8, (m.count / max) * 100) : 4;
+                  const isTop = data.monthlyTop && MONTHS[m.month] === data.monthlyTop.month && m.count > 0;
+                  return (
+                    <div key={m.month} className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
+                      <span className="text-[10px] tabular-nums font-mono text-muted-foreground/70 h-3">
+                        {m.count > 0 ? m.count : ""}
+                      </span>
+                      <div
+                        className={cn(
+                          "w-full rounded-t-md transition-all",
+                          isTop ? "bg-primary shadow-glow" : "bg-foreground/15",
+                        )}
+                        style={{ height: `${h}%` }}
+                      />
+                      <span className={cn(
+                        "text-[10px] uppercase tracking-wider",
+                        isTop ? "text-primary font-bold" : "text-muted-foreground",
+                      )}>
+                        {MONTHS[m.month]}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              {data.monthlyTop && (
+                <p className="mt-6 text-center text-sm text-muted-foreground">
+                  <span className="text-primary font-semibold">{data.monthlyTop.month}</span> foi seu mês mais intenso · {data.monthlyTop.count} {data.monthlyTop.count === 1 ? "livro" : "livros"}.
+                </p>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        id: "first-last",
+        bg: "from-accent/25 via-background to-background",
+        glow: "bg-accent/40",
+        render: () => (
+          <div className="w-full max-w-xl mx-auto">
+            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-3 text-center">
+              Como começou e terminou
+            </p>
+            <h3 className="font-display text-3xl md:text-5xl font-bold leading-tight tracking-tight text-center mb-8">
+              A <span className="text-primary italic">jornada</span> do ano.
+            </h3>
+            <div className="space-y-4">
+              {data.firstBook && (
+                <FirstLastCard label="Primeira leitura" book={data.firstBook} accent="from-status-reading/30 to-status-reading/5" />
+              )}
+              {data.lastBook && (
+                <FirstLastCard label="Última leitura" book={data.lastBook} accent="from-primary/30 to-primary/5" />
+              )}
+              {!data.firstBook && (
+                <p className="text-center text-muted-foreground">Sem leituras registradas com data.</p>
+              )}
+            </div>
+          </div>
+        ),
+      },
+      {
+        id: "friends",
+        bg: "from-status-wishlist/30 via-background to-background",
+        glow: "bg-status-wishlist/40",
+        render: () => {
+          const top = friends.slice(0, 6);
+          const myIdx = top.findIndex((f) => f.isMe);
+          return (
+            <div className="w-full max-w-xl mx-auto">
+              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-3 text-center">
+                Entre você e quem você segue
+              </p>
+              <h3 className="font-display text-3xl md:text-5xl font-bold leading-tight tracking-tight text-center mb-8">
+                Sua <span className="text-primary italic">posição</span> no ranking.
+              </h3>
+              {top.length > 1 ? (
+                <ol className="space-y-2.5">
+                  {top.map((f, i) => (
+                    <li
+                      key={f.user_id}
+                      className={cn(
+                        "rounded-2xl px-4 py-3 flex items-center gap-3 border transition-all",
+                        f.isMe
+                          ? "bg-primary/15 border-primary/40 shadow-glow"
+                          : "glass border-border",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "w-8 h-8 rounded-full flex items-center justify-center font-display font-bold tabular-nums shrink-0 text-sm",
+                          i === 0 ? "bg-primary text-primary-foreground" : "bg-foreground/10 text-foreground",
+                        )}
+                      >
+                        {i + 1}
+                      </span>
+                      <div className="w-9 h-9 rounded-full overflow-hidden bg-muted shrink-0 ring-1 ring-border">
+                        {f.avatar_url ? (
+                          <img src={f.avatar_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-xs font-bold text-muted-foreground">
+                            {(f.display_name || f.username || "?").charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate text-sm">
+                          {f.isMe ? "Você" : (f.display_name || f.username || "Anônimo")}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground tabular-nums">
+                          {f.pages.toLocaleString("pt-BR")} pg
+                        </p>
+                      </div>
+                      <span className="font-mono font-bold tabular-nums text-foreground/90">
+                        {f.count}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="text-center text-muted-foreground text-sm">
+                  Siga outros leitores na busca para comparar seu ano.
+                </p>
+              )}
+              {myIdx > 0 && top.length > 1 && (
+                <p className="mt-5 text-center text-sm text-muted-foreground">
+                  Você está em <span className="text-primary font-semibold">#{myIdx + 1}</span> entre {top.length} leitores.
+                </p>
+              )}
+            </div>
+          );
+        },
+      },
+      {
         id: "outro",
         bg: "from-primary/40 via-accent/30 to-background",
         glow: "bg-primary/50",
@@ -321,7 +582,11 @@ export default function WrappedPage() {
               <Button variant="hero" size="lg" onClick={share} className="gap-2 shadow-lg">
                 <Share2 className="w-4 h-4" /> Compartilhar meu Wrapped
               </Button>
-              <Button variant="outline" size="lg" onClick={() => navigate("/")}>
+              <Button variant="outline" size="lg" onClick={shareStory} disabled={savingStory} className="gap-2">
+                {savingStory ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                Salvar como story
+              </Button>
+              <Button variant="ghost" size="lg" onClick={() => navigate("/")}>
                 Voltar ao início
               </Button>
             </div>
@@ -330,7 +595,7 @@ export default function WrappedPage() {
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [data, navigate],
+    [data, friends, navigate, savingStory],
   );
 
   const isLast = slide === slides.length - 1;
@@ -385,6 +650,146 @@ export default function WrappedPage() {
     } else {
       await navigator.clipboard.writeText(`${text}\n${url}`);
       toast.success("Resumo copiado!");
+    }
+  }
+
+  /**
+   * Gera uma imagem 9:16 (1080x1920) estilo story do Instagram com os números
+   * principais do ano. Tenta compartilhar via Web Share API com `files`; se
+   * não suportar, faz download direto.
+   */
+  async function shareStory() {
+    setSavingStory(true);
+    haptic("tap");
+    try {
+      const W = 1080;
+      const H = 1920;
+      const canvas = document.createElement("canvas");
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas indisponível");
+
+      // Gradiente de fundo (cores semânticas do app — convertidas pra hex pra canvas)
+      const grad = ctx.createLinearGradient(0, 0, W, H);
+      grad.addColorStop(0, "#7c3aed");
+      grad.addColorStop(0.5, "#1e1b3a");
+      grad.addColorStop(1, "#0a0613");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+
+      // Glow circular topo direito
+      const glow = ctx.createRadialGradient(W * 0.85, H * 0.15, 50, W * 0.85, H * 0.15, 600);
+      glow.addColorStop(0, "rgba(168, 85, 247, 0.55)");
+      glow.addColorStop(1, "rgba(168, 85, 247, 0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, W, H);
+
+      // Glow circular inferior esquerdo
+      const glow2 = ctx.createRadialGradient(W * 0.1, H * 0.85, 50, W * 0.1, H * 0.85, 700);
+      glow2.addColorStop(0, "rgba(99, 102, 241, 0.45)");
+      glow2.addColorStop(1, "rgba(99, 102, 241, 0)");
+      ctx.fillStyle = glow2;
+      ctx.fillRect(0, 0, W, H);
+
+      // Header
+      ctx.fillStyle = "rgba(255,255,255,0.7)";
+      ctx.font = "600 32px system-ui, -apple-system, 'Segoe UI', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(`WRAPPED · ${data.year}`, W / 2, 200);
+
+      // Big number (livros)
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "800 380px Georgia, 'Times New Roman', serif";
+      ctx.fillText(String(data.totalBooks), W / 2, 600);
+
+      ctx.fillStyle = "rgba(255,255,255,0.95)";
+      ctx.font = "600 56px Georgia, 'Times New Roman', serif";
+      ctx.fillText(data.totalBooks === 1 ? "livro lido" : "livros lidos", W / 2, 700);
+
+      // Páginas
+      if (data.totalPages > 0) {
+        ctx.fillStyle = "rgba(255,255,255,0.75)";
+        ctx.font = "500 38px system-ui, -apple-system, 'Segoe UI', sans-serif";
+        ctx.fillText(
+          `${data.totalPages.toLocaleString("pt-BR")} páginas viradas`,
+          W / 2,
+          780,
+        );
+      }
+
+      // Linha divisória
+      ctx.strokeStyle = "rgba(255,255,255,0.2)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(W * 0.2, 880);
+      ctx.lineTo(W * 0.8, 880);
+      ctx.stroke();
+
+      // Stats grid
+      let y = 1000;
+      const drawStat = (label: string, value: string) => {
+        ctx.fillStyle = "rgba(255,255,255,0.55)";
+        ctx.font = "600 30px system-ui, -apple-system, 'Segoe UI', sans-serif";
+        ctx.fillText(label.toUpperCase(), W / 2, y);
+        y += 55;
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "700 60px Georgia, 'Times New Roman', serif";
+        // Trunca se muito grande
+        let v = value;
+        while (ctx.measureText(v).width > W - 160 && v.length > 12) {
+          v = v.slice(0, -2) + "…";
+        }
+        ctx.fillText(v, W / 2, y);
+        y += 110;
+      };
+
+      if (data.topAuthor) drawStat("Autor mais lido", data.topAuthor.name);
+      if (data.topGenres[0]) drawStat("Gênero favorito", data.topGenres[0].name);
+      if (data.monthlyTop) {
+        drawStat(
+          "Mês mais intenso",
+          `${data.monthlyTop.month} · ${data.monthlyTop.count}`,
+        );
+      }
+
+      // Footer
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.font = "500 32px system-ui, -apple-system, 'Segoe UI', sans-serif";
+      ctx.fillText("readify · seu ano em livros", W / 2, H - 120);
+
+      // Export
+      const blob: Blob = await new Promise((resolve, reject) =>
+        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob falhou"))), "image/png", 0.95),
+      );
+      const file = new File([blob], `wrapped-${data.year}.png`, { type: "image/png" });
+
+      const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
+      if (nav.canShare?.({ files: [file] }) && navigator.share) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: `Meu Wrapped ${data.year}`,
+            text: "Meu ano em livros 📚",
+          });
+          haptic("success");
+        } catch {/* user cancel */}
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `wrapped-${data.year}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast.success("Story salvo na galeria");
+      }
+    } catch (e) {
+      console.error("[wrapped] story error", e);
+      toast.error("Não foi possível gerar a imagem");
+    } finally {
+      setSavingStory(false);
     }
   }
 
@@ -585,3 +990,26 @@ function YearSwitcher({ year, setYear }: { year: number; setYear: (y: number) =>
     </div>
   );
 }
+
+function FirstLastCard({
+  label, book, accent,
+}: {
+  label: string;
+  book: { title: string; authors: string[]; date: string };
+  accent: string;
+}) {
+  const d = new Date(book.date);
+  const dateLabel = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long" });
+  return (
+    <div className={cn("rounded-2xl p-4 border border-border bg-gradient-to-br relative overflow-hidden", accent)}>
+      <p className="text-[11px] uppercase tracking-widest text-muted-foreground mb-1.5 font-semibold">
+        {label} · {dateLabel}
+      </p>
+      <p className="font-display text-xl md:text-2xl font-bold leading-tight line-clamp-2">{book.title}</p>
+      {book.authors?.[0] && (
+        <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{book.authors.join(", ")}</p>
+      )}
+    </div>
+  );
+}
+

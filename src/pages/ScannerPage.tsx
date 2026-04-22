@@ -82,16 +82,19 @@ export default function ScannerPage() {
   const [manualIsbn, setManualIsbn] = useState("");
   /**
    * Modos de escaneamento (UX Apple-style segmented):
-   *  - "single":     scaneia 1 livro, pára e mostra cartão "ver livro"
+   *  - "single":     scaneia 1 livro, mostra cartão e auto-adiciona em 2s (com cancelar)
    *  - "continuous": auto-adiciona ao acervo (status: not_read) e reagenda scan
    *  - "batch":      junta numa lista temporária com escolha de status por item
    */
-  const [scanMode, setScanMode] = useState<"single" | "continuous" | "batch">("batch");
+  const [scanMode, setScanMode] = useState<"single" | "continuous" | "batch">("single");
   /** Histórico da sessão (modo contínuo). */
   const [sessionLog, setSessionLog] = useState<Array<{ id: string; title: string; cover_url?: string | null }>>([]);
   /** Lista do lote atual (modo batch). Resetada manualmente pelo usuário. */
   const [batch, setBatch] = useState<BatchItem[]>([]);
   const continuousTimerRef = useRef<number | null>(null);
+  /** Countdown de auto-add do modo single (segundos restantes). null = inativo. */
+  const [autoAddCountdown, setAutoAddCountdown] = useState<number | null>(null);
+  const autoAddTimerRef = useRef<number | null>(null);
 
   // Barcode state
   const [detected, setDetected] = useState<string | null>(null);
@@ -121,7 +124,62 @@ export default function ScannerPage() {
   useEffect(() => () => {
     stop();
     if (continuousTimerRef.current) clearTimeout(continuousTimerRef.current);
+    if (autoAddTimerRef.current) clearInterval(autoAddTimerRef.current);
   }, []);
+
+  /**
+   * Adiciona o livro encontrado à biblioteca pessoal (status not_read).
+   * Idempotente — usa upsert por (user_id, book_id).
+   */
+  const addFoundBookToLibrary = async () => {
+    if (!user || !foundBook) return;
+    try {
+      await supabase
+        .from("user_books")
+        .upsert(
+          { user_id: user.id, book_id: foundBook.id, status: "not_read" },
+          { onConflict: "user_id,book_id" },
+        );
+      void awardXp(user.id, "add_book", { silent: true });
+      invalidate.library(user.id);
+      haptic("success");
+      toast.success("Adicionado à sua biblioteca", {
+        description: foundBook.title,
+      });
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao adicionar");
+    }
+  };
+
+  /** Cancela o countdown de auto-add (modo single). */
+  const cancelAutoAdd = () => {
+    if (autoAddTimerRef.current) {
+      clearInterval(autoAddTimerRef.current);
+      autoAddTimerRef.current = null;
+    }
+    setAutoAddCountdown(null);
+    haptic("tap");
+  };
+
+  /** Inicia countdown de N segundos e auto-adiciona ao final. */
+  const startAutoAddCountdown = (seconds = 2) => {
+    cancelAutoAdd();
+    setAutoAddCountdown(seconds);
+    autoAddTimerRef.current = window.setInterval(() => {
+      setAutoAddCountdown((s) => {
+        if (s == null) return null;
+        if (s <= 1) {
+          if (autoAddTimerRef.current) clearInterval(autoAddTimerRef.current);
+          autoAddTimerRef.current = null;
+          // Dispara o add no próximo tick pra não correr dentro do setState
+          setTimeout(() => { void addFoundBookToLibrary(); }, 0);
+          return null;
+        }
+        return s - 1;
+      });
+    }, 1000);
+  };
+
 
   const stop = () => {
     try { controlsRef.current?.stop(); } catch { /* noop */ }
@@ -334,6 +392,13 @@ export default function ScannerPage() {
               duration: 1800,
             });
             rescheduleScan(1500);
+          } else if (scanMode === "single") {
+            // Modo single — auto-add em 2s com botão de cancelar visível
+            toast.success("Livro encontrado", {
+              description: "Adicionando em 2s · toque em Cancelar pra revisar.",
+              duration: 1800,
+            });
+            startAutoAddCountdown(2);
           } else {
             toast.success("Livro encontrado");
           }
@@ -356,6 +421,7 @@ export default function ScannerPage() {
   };
 
   const scanNext = () => {
+    cancelAutoAdd();
     setFoundBook(null);
     setNotFoundIsbn(null);
     setDetected(null);
@@ -684,7 +750,12 @@ export default function ScannerPage() {
             </form>
 
             {foundBook && (
-              <div className="glass rounded-2xl p-5 border border-primary/40 shadow-glow animate-scale-in">
+              <div className={cn(
+                "glass rounded-2xl p-5 border shadow-glow animate-scale-in transition-colors",
+                autoAddCountdown != null
+                  ? "border-status-reading/60 bg-status-reading/5"
+                  : "border-primary/40",
+              )}>
                 <div className="flex items-start gap-4">
                   <div className="w-16 h-24 shrink-0 rounded-md overflow-hidden bg-muted">
                     {foundBook.cover_url ? (
@@ -694,20 +765,53 @@ export default function ScannerPage() {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-primary font-medium flex items-center gap-1.5 mb-1">
-                      <Check className="w-3.5 h-3.5" /> Livro encontrado
+                    <p className={cn(
+                      "text-xs font-medium flex items-center gap-1.5 mb-1",
+                      autoAddCountdown != null ? "text-status-reading" : "text-primary",
+                    )}>
+                      <Check className="w-3.5 h-3.5" />
+                      {autoAddCountdown != null
+                        ? `Adicionando em ${autoAddCountdown}s…`
+                        : "Livro encontrado"}
                     </p>
                     <h3 className="font-display font-semibold text-lg leading-tight line-clamp-2">{foundBook.title}</h3>
                     {foundBook.authors?.length ? <p className="text-sm text-muted-foreground line-clamp-1">{foundBook.authors.join(", ")}</p> : null}
-                    <div className="flex flex-wrap gap-2 mt-4">
+                  </div>
+                </div>
+
+                {/* Barra de progresso visual do countdown */}
+                {autoAddCountdown != null && (
+                  <div className="mt-4 h-1 rounded-full bg-foreground/10 overflow-hidden">
+                    <div
+                      className="h-full bg-status-reading transition-[width] ease-linear"
+                      style={{
+                        width: `${((2 - autoAddCountdown) / 2) * 100}%`,
+                        transitionDuration: "1000ms",
+                      }}
+                    />
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2 mt-4">
+                  {autoAddCountdown != null ? (
+                    <>
+                      <Button variant="outline" size="lg" onClick={cancelAutoAdd} className="gap-2 flex-1 min-w-[140px]">
+                        <X className="w-4 h-4" /> Cancelar
+                      </Button>
+                      <Button variant="hero" size="lg" onClick={() => { cancelAutoAdd(); void addFoundBookToLibrary(); }} className="gap-2 flex-1 min-w-[140px]">
+                        <Plus className="w-4 h-4" /> Adicionar agora
+                      </Button>
+                    </>
+                  ) : (
+                    <>
                       <Button variant="hero" onClick={() => navigate(`/livro/${foundBook.id}`)} className="gap-2">
                         Ver livro <ArrowRight className="w-4 h-4" />
                       </Button>
                       <Button variant="outline" onClick={scanNext} className="gap-2">
                         <ScanBarcode className="w-4 h-4" /> Escanear próximo
                       </Button>
-                    </div>
-                  </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}
