@@ -18,6 +18,7 @@ import {
   Settings,
   Sparkles,
   Layers,
+  Shield,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import { NotificationsBell } from "@/components/social/NotificationsBell";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import readifyMark from "@/assets/readify-mark-v8.webp";
 
 type Item = { to: string; label: string; icon: typeof Book; group: string };
@@ -51,14 +53,18 @@ const items: Item[] = [
   { to: "/configuracoes", label: "Configurações", icon: Settings, group: "Você" },
 ];
 
-const groups = ["Descobrir", "Meus livros", "Comunidade", "Você"] as const;
+const baseGroups = ["Descobrir", "Meus livros", "Comunidade", "Você"] as const;
 
 export function MobileHeader() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const { isAdmin } = useIsAdmin();
 
-  const visibleItems = items;
+  const visibleItems: Item[] = isAdmin
+    ? [...items, { to: "/admin", label: "Painel Admin", icon: Shield, group: "Admin" }]
+    : items;
+  const groups = isAdmin ? ([...baseGroups, "Admin"] as const) : baseGroups;
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
