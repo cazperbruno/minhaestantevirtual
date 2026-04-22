@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import {
   Sparkles, BookOpen, Users, BookText, Trophy, Share2, ArrowRight,
-  ChevronLeft, ChevronRight, Calendar, Download,
+  ChevronLeft, ChevronRight, Calendar, Download, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { haptic } from "@/lib/haptics";
@@ -650,6 +650,146 @@ export default function WrappedPage() {
     } else {
       await navigator.clipboard.writeText(`${text}\n${url}`);
       toast.success("Resumo copiado!");
+    }
+  }
+
+  /**
+   * Gera uma imagem 9:16 (1080x1920) estilo story do Instagram com os números
+   * principais do ano. Tenta compartilhar via Web Share API com `files`; se
+   * não suportar, faz download direto.
+   */
+  async function shareStory() {
+    setSavingStory(true);
+    haptic("tap");
+    try {
+      const W = 1080;
+      const H = 1920;
+      const canvas = document.createElement("canvas");
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas indisponível");
+
+      // Gradiente de fundo (cores semânticas do app — convertidas pra hex pra canvas)
+      const grad = ctx.createLinearGradient(0, 0, W, H);
+      grad.addColorStop(0, "#7c3aed");
+      grad.addColorStop(0.5, "#1e1b3a");
+      grad.addColorStop(1, "#0a0613");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+
+      // Glow circular topo direito
+      const glow = ctx.createRadialGradient(W * 0.85, H * 0.15, 50, W * 0.85, H * 0.15, 600);
+      glow.addColorStop(0, "rgba(168, 85, 247, 0.55)");
+      glow.addColorStop(1, "rgba(168, 85, 247, 0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, W, H);
+
+      // Glow circular inferior esquerdo
+      const glow2 = ctx.createRadialGradient(W * 0.1, H * 0.85, 50, W * 0.1, H * 0.85, 700);
+      glow2.addColorStop(0, "rgba(99, 102, 241, 0.45)");
+      glow2.addColorStop(1, "rgba(99, 102, 241, 0)");
+      ctx.fillStyle = glow2;
+      ctx.fillRect(0, 0, W, H);
+
+      // Header
+      ctx.fillStyle = "rgba(255,255,255,0.7)";
+      ctx.font = "600 32px system-ui, -apple-system, 'Segoe UI', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(`WRAPPED · ${data.year}`, W / 2, 200);
+
+      // Big number (livros)
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "800 380px Georgia, 'Times New Roman', serif";
+      ctx.fillText(String(data.totalBooks), W / 2, 600);
+
+      ctx.fillStyle = "rgba(255,255,255,0.95)";
+      ctx.font = "600 56px Georgia, 'Times New Roman', serif";
+      ctx.fillText(data.totalBooks === 1 ? "livro lido" : "livros lidos", W / 2, 700);
+
+      // Páginas
+      if (data.totalPages > 0) {
+        ctx.fillStyle = "rgba(255,255,255,0.75)";
+        ctx.font = "500 38px system-ui, -apple-system, 'Segoe UI', sans-serif";
+        ctx.fillText(
+          `${data.totalPages.toLocaleString("pt-BR")} páginas viradas`,
+          W / 2,
+          780,
+        );
+      }
+
+      // Linha divisória
+      ctx.strokeStyle = "rgba(255,255,255,0.2)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(W * 0.2, 880);
+      ctx.lineTo(W * 0.8, 880);
+      ctx.stroke();
+
+      // Stats grid
+      let y = 1000;
+      const drawStat = (label: string, value: string) => {
+        ctx.fillStyle = "rgba(255,255,255,0.55)";
+        ctx.font = "600 30px system-ui, -apple-system, 'Segoe UI', sans-serif";
+        ctx.fillText(label.toUpperCase(), W / 2, y);
+        y += 55;
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "700 60px Georgia, 'Times New Roman', serif";
+        // Trunca se muito grande
+        let v = value;
+        while (ctx.measureText(v).width > W - 160 && v.length > 12) {
+          v = v.slice(0, -2) + "…";
+        }
+        ctx.fillText(v, W / 2, y);
+        y += 110;
+      };
+
+      if (data.topAuthor) drawStat("Autor mais lido", data.topAuthor.name);
+      if (data.topGenres[0]) drawStat("Gênero favorito", data.topGenres[0].name);
+      if (data.monthlyTop) {
+        drawStat(
+          "Mês mais intenso",
+          `${data.monthlyTop.month} · ${data.monthlyTop.count}`,
+        );
+      }
+
+      // Footer
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.font = "500 32px system-ui, -apple-system, 'Segoe UI', sans-serif";
+      ctx.fillText("readify · seu ano em livros", W / 2, H - 120);
+
+      // Export
+      const blob: Blob = await new Promise((resolve, reject) =>
+        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob falhou"))), "image/png", 0.95),
+      );
+      const file = new File([blob], `wrapped-${data.year}.png`, { type: "image/png" });
+
+      const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
+      if (nav.canShare?.({ files: [file] }) && navigator.share) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: `Meu Wrapped ${data.year}`,
+            text: "Meu ano em livros 📚",
+          });
+          haptic("success");
+        } catch {/* user cancel */}
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `wrapped-${data.year}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast.success("Story salvo na galeria");
+      }
+    } catch (e) {
+      console.error("[wrapped] story error", e);
+      toast.error("Não foi possível gerar a imagem");
+    } finally {
+      setSavingStory(false);
     }
   }
 
