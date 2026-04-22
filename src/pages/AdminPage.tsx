@@ -257,230 +257,254 @@ export default function AdminPage() {
           </div>
         </header>
 
-        {/* Stats */}
-        <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <StatCard icon={<Users className="w-4 h-4" />} label="Usuários" value={stats?.users} loading={loading} />
-          <StatCard icon={<BookOpen className="w-4 h-4" />} label="Livros" value={stats?.books} loading={loading} />
-          <StatCard icon={<Activity className="w-4 h-4" />} label="Atividades" value={stats?.activities} loading={loading} />
-          <StatCard icon={<BarChart3 className="w-4 h-4" />} label="Livros 24h" value={stats?.books_last_24h} loading={loading} highlight />
-          <StatCard icon={<BarChart3 className="w-4 h-4" />} label="Livros 7d" value={stats?.books_last_7d} loading={loading} />
-          <StatCard icon={<ListChecks className="w-4 h-4" />} label="Enrich pendente" value={stats?.enrichment_pending} loading={loading} />
-        </section>
+        <Tabs value={tab} onValueChange={setTab} className="w-full">
+          <TabsList className="grid grid-cols-3 md:grid-cols-6 w-full h-auto gap-1 bg-muted/30 p-1">
+            <TabsTrigger value="overview" className="gap-1.5 text-xs">
+              <LayoutDashboard className="w-3.5 h-3.5" /> Visão geral
+            </TabsTrigger>
+            <TabsTrigger value="users" className="gap-1.5 text-xs">
+              <Users className="w-3.5 h-3.5" /> Usuários
+            </TabsTrigger>
+            <TabsTrigger value="content" className="gap-1.5 text-xs">
+              <Database className="w-3.5 h-3.5" /> Conteúdo
+            </TabsTrigger>
+            <TabsTrigger value="feed" className="gap-1.5 text-xs">
+              <Activity className="w-3.5 h-3.5" /> Feed
+            </TabsTrigger>
+            <TabsTrigger value="system" className="gap-1.5 text-xs">
+              <Server className="w-3.5 h-3.5" /> Sistema
+            </TabsTrigger>
+            <TabsTrigger value="logs" className="gap-1.5 text-xs">
+              <FileSearch className="w-3.5 h-3.5" /> Logs
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Catalog quality (já existente, gated) */}
-        <CatalogQualityPanel />
+          <TabsContent value="overview" className="space-y-5 mt-4">
+            <OverviewTab />
+          </TabsContent>
 
-        {/* Progresso em tempo real da fila de enriquecimento */}
-        <EnrichmentProgressPanel />
+          <TabsContent value="users" className="mt-4">
+            <UsersTab />
+          </TabsContent>
 
-        {/* Busca rápida 1-clique por ISBN com preview */}
-        <IsbnQuickLookup onImported={loadStats} />
+          <TabsContent value="content" className="space-y-5 mt-4">
+            <CatalogQualityPanel />
+            <EnrichmentProgressPanel />
+            <IsbnQuickLookup onImported={loadStats} />
 
-        {/* Importação por ISBN */}
-        <Card className="p-6 space-y-4">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div>
-              <h3 className="font-display text-xl font-semibold flex items-center gap-2">
-                <Download className="w-5 h-5 text-primary" />
-                Importar livros por lista de ISBN
-              </h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Cole ISBNs (10 ou 13 dígitos), um por linha ou separados por vírgula. Processa em <strong>lotes de 100</strong> com 2 lotes paralelos.
-                Cascade: BrasilAPI → OpenLibrary → Google Books → IA fallback.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="md:col-span-2">
-              <Label className="text-xs">ISBNs</Label>
-              <Textarea
-                value={isbnInput}
-                onChange={(e) => setIsbnInput(e.target.value)}
-                placeholder={"9788532530802\n9788576572008\n9788595084742"}
-                rows={8}
-                className="font-mono text-sm"
-                disabled={importing}
-              />
-              {(() => {
-                const d = parseIsbnDetail(isbnInput);
-                const batches = Math.ceil(d.valid.length / 100);
-                return (
-                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5 text-xs">
-                    <Badge variant="secondary" className="font-normal">
-                      {d.valid.length} válidos
-                    </Badge>
-                    {d.invalid.length > 0 && (
-                      <Badge variant="outline" className="font-normal text-warning border-warning/40">
-                        {d.invalid.length} inválidos (ignorados)
-                      </Badge>
-                    )}
-                    {batches > 0 && (
-                      <span className="text-muted-foreground">
-                        · {batches} lote{batches > 1 ? "s" : ""} de até 100
-                      </span>
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
-            <div className="space-y-3">
-              <div>
-                <Label className="text-xs">Idioma preferido</Label>
-                <Select value={language} onValueChange={setLanguage} disabled={importing}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="any">Qualquer</SelectItem>
-                    <SelectItem value="pt">Português (pt-BR prioritário)</SelectItem>
-                    <SelectItem value="en">Inglês</SelectItem>
-                    <SelectItem value="es">Espanhol</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button
-                onClick={runIsbnImport}
-                disabled={importing || parseIsbns(isbnInput).length === 0}
-                className="w-full gap-2"
-              >
-                {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                Importar {parseIsbns(isbnInput).length || ""} ISBNs
-              </Button>
-            </div>
-          </div>
-
-          {progress && (
-            <div className="space-y-1">
-              <Progress value={(progress.done / progress.total) * 100} />
-              <p className="text-xs text-muted-foreground">
-                Processando {progress.done}/{progress.total}…
-              </p>
-            </div>
-          )}
-
-          {importResult && (
-            <div className="rounded-xl border border-border/50 bg-muted/30 p-4 space-y-3">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <p className="text-sm font-semibold">Resultado da importação</p>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  {importResult.batches > 0 && (
-                    <Badge variant="outline" className="font-normal">
-                      {importResult.batches} lote{importResult.batches > 1 ? "s" : ""}
-                    </Badge>
-                  )}
-                  {importResult.duration_ms > 0 && (
-                    <Badge variant="outline" className="font-normal">
-                      {(importResult.duration_ms / 1000).toFixed(1)}s
-                    </Badge>
-                  )}
-                  {importResult.received > 0 && (
-                    <Badge
-                      variant="outline"
-                      className={`font-normal ${
-                        ((importResult.inserted + importResult.already_existed) / importResult.received) >= 0.8
-                          ? "text-success border-success/40"
-                          : "text-warning border-warning/40"
-                      }`}
-                    >
-                      {Math.round(((importResult.inserted + importResult.already_existed) / Math.max(1, importResult.received)) * 100)}% sucesso
-                    </Badge>
-                  )}
+            {/* Importação por ISBN */}
+            <Card className="p-6 space-y-4">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <h3 className="font-display text-xl font-semibold flex items-center gap-2">
+                    <Download className="w-5 h-5 text-primary" />
+                    Importar livros por lista de ISBN
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Cole ISBNs (10 ou 13 dígitos), um por linha ou separados por vírgula. Processa em <strong>lotes de 100</strong> com 2 lotes paralelos.
+                    Cascade: BrasilAPI → OpenLibrary → Google Books → IA fallback.
+                  </p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                <ResultPill label="Recebidos" value={importResult.received} />
-                <ResultPill label="Inválidos" value={importResult.invalid} variant="warn" />
-                <ResultPill label="Já existiam" value={importResult.already_existed} variant="muted" />
-                <ResultPill label="Não encontrados" value={importResult.not_found_external} variant="warn" />
-                <ResultPill label="Inseridos ✓" value={importResult.inserted} variant="success" />
-                <ResultPill label="Na fila enrich" value={importResult.enqueued_for_enrichment} variant="success" />
-                <ResultPill label="IA fallback" value={importResult.ai_fallback_used ?? 0} variant="muted" />
-                <ResultPill
-                  label="Qualidade média"
-                  value={importResult.avg_quality_score ? `${importResult.avg_quality_score}/100` : "—"}
-                  variant={importResult.avg_quality_score >= 70 ? "success" : "warn"}
-                />
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="md:col-span-2">
+                  <Label className="text-xs">ISBNs</Label>
+                  <Textarea
+                    value={isbnInput}
+                    onChange={(e) => setIsbnInput(e.target.value)}
+                    placeholder={"9788532530802\n9788576572008\n9788595084742"}
+                    rows={8}
+                    className="font-mono text-sm"
+                    disabled={importing}
+                  />
+                  {(() => {
+                    const d = parseIsbnDetail(isbnInput);
+                    const batches = Math.ceil(d.valid.length / 100);
+                    return (
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5 text-xs">
+                        <Badge variant="secondary" className="font-normal">
+                          {d.valid.length} válidos
+                        </Badge>
+                        {d.invalid.length > 0 && (
+                          <Badge variant="outline" className="font-normal text-warning border-warning/40">
+                            {d.invalid.length} inválidos (ignorados)
+                          </Badge>
+                        )}
+                        {batches > 0 && (
+                          <span className="text-muted-foreground">
+                            · {batches} lote{batches > 1 ? "s" : ""} de até 100
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs">Idioma preferido</Label>
+                    <Select value={language} onValueChange={setLanguage} disabled={importing}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Qualquer</SelectItem>
+                        <SelectItem value="pt">Português (pt-BR prioritário)</SelectItem>
+                        <SelectItem value="en">Inglês</SelectItem>
+                        <SelectItem value="es">Espanhol</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    onClick={runIsbnImport}
+                    disabled={importing || parseIsbns(isbnInput).length === 0}
+                    className="w-full gap-2"
+                  >
+                    {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                    Importar {parseIsbns(isbnInput).length || ""} ISBNs
+                  </Button>
+                </div>
               </div>
-              {importResult.sample?.length > 0 && (
-                <details className="text-xs">
-                  <summary className="cursor-pointer text-muted-foreground">
-                    {importResult.sample.length} amostras inseridas
-                  </summary>
-                  <ul className="mt-2 space-y-1">
-                    {importResult.sample.slice(0, 20).map((s: any, i: number) => (
-                      <li key={i} className="flex items-center justify-between gap-2">
-                        <span className="truncate">{s.title}</span>
-                        <span className="shrink-0 text-muted-foreground">
-                          {s.score}/100 · {s.source}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-              {importResult.errors?.length > 0 && (
-                <details className="text-xs">
-                  <summary className="cursor-pointer text-warning">{importResult.errors.length} erros</summary>
-                  <pre className="mt-2 whitespace-pre-wrap text-muted-foreground">
-                    {importResult.errors.slice(0, 5).join("\n")}
-                  </pre>
-                </details>
-              )}
-            </div>
-          )}
-        </Card>
 
-        {/* Operações de sistema */}
-        <Card className="p-6 space-y-4">
-          <h3 className="font-display text-xl font-semibold flex items-center gap-2">
-            <Database className="w-5 h-5 text-primary" />
-            Operações do sistema
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => runFn("seed-book-database", "Seed", { mode: "mixed", limit: 200 })}>
-              Importar lote (200 livros)
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => runFn("clean-book-database", "Limpeza inteligente", { mode: "auto", limit: 200 })}>
-              Limpeza inteligente
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => runFn("validate-isbns", "Validar ISBNs", { mode: "recent", limit: 1000 })}>
-              Validar ISBNs
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => runFn("process-enrichment-queue", "Processar enrich")}>
-              Processar fila enrich
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => runFn("process-normalization-queue", "Processar normalize")}>
-              Processar fila normalize
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => runFn("backfill-series", "Reprocessar séries")}>
-              Reprocessar séries
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => runFn("fix-book-covers", "Corrigir capas", { limit: 100 })}>
-              Corrigir capas
-            </Button>
-          </div>
-        </Card>
+              {progress && (
+                <div className="space-y-1">
+                  <Progress value={(progress.done / progress.total) * 100} />
+                  <p className="text-xs text-muted-foreground">
+                    Processando {progress.done}/{progress.total}…
+                  </p>
+                </div>
+              )}
 
-        {/* Logs — últimas 10 operações */}
-        <Card className="p-6 space-y-3">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h3 className="font-display text-xl font-semibold flex items-center gap-2">
-              <FileSearch className="w-5 h-5 text-primary" />
-              Últimas 10 operações
-            </h3>
-            <span className="text-xs text-muted-foreground">
-              {logs.length} registro{logs.length !== 1 ? "s" : ""}
-            </span>
-          </div>
-          {loading ? (
-            <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
-          ) : logs.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sem registros.</p>
-          ) : (
-            <div className="divide-y divide-border/50">
-              {logs.map((l) => <AuditLogRow key={l.id} log={l} />)}
-            </div>
-          )}
-        </Card>
+              {importResult && (
+                <div className="rounded-xl border border-border/50 bg-muted/30 p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <p className="text-sm font-semibold">Resultado da importação</p>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      {importResult.batches > 0 && (
+                        <Badge variant="outline" className="font-normal">
+                          {importResult.batches} lote{importResult.batches > 1 ? "s" : ""}
+                        </Badge>
+                      )}
+                      {importResult.duration_ms > 0 && (
+                        <Badge variant="outline" className="font-normal">
+                          {(importResult.duration_ms / 1000).toFixed(1)}s
+                        </Badge>
+                      )}
+                      {importResult.received > 0 && (
+                        <Badge
+                          variant="outline"
+                          className={`font-normal ${
+                            ((importResult.inserted + importResult.already_existed) / importResult.received) >= 0.8
+                              ? "text-success border-success/40"
+                              : "text-warning border-warning/40"
+                          }`}
+                        >
+                          {Math.round(((importResult.inserted + importResult.already_existed) / Math.max(1, importResult.received)) * 100)}% sucesso
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                    <ResultPill label="Recebidos" value={importResult.received} />
+                    <ResultPill label="Inválidos" value={importResult.invalid} variant="warn" />
+                    <ResultPill label="Já existiam" value={importResult.already_existed} variant="muted" />
+                    <ResultPill label="Não encontrados" value={importResult.not_found_external} variant="warn" />
+                    <ResultPill label="Inseridos ✓" value={importResult.inserted} variant="success" />
+                    <ResultPill label="Na fila enrich" value={importResult.enqueued_for_enrichment} variant="success" />
+                    <ResultPill label="IA fallback" value={importResult.ai_fallback_used ?? 0} variant="muted" />
+                    <ResultPill
+                      label="Qualidade média"
+                      value={importResult.avg_quality_score ? `${importResult.avg_quality_score}/100` : "—"}
+                      variant={importResult.avg_quality_score >= 70 ? "success" : "warn"}
+                    />
+                  </div>
+                  {importResult.sample?.length > 0 && (
+                    <details className="text-xs">
+                      <summary className="cursor-pointer text-muted-foreground">
+                        {importResult.sample.length} amostras inseridas
+                      </summary>
+                      <ul className="mt-2 space-y-1">
+                        {importResult.sample.slice(0, 20).map((s: any, i: number) => (
+                          <li key={i} className="flex items-center justify-between gap-2">
+                            <span className="truncate">{s.title}</span>
+                            <span className="shrink-0 text-muted-foreground">
+                              {s.score}/100 · {s.source}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                  {importResult.errors?.length > 0 && (
+                    <details className="text-xs">
+                      <summary className="cursor-pointer text-warning">{importResult.errors.length} erros</summary>
+                      <pre className="mt-2 whitespace-pre-wrap text-muted-foreground">
+                        {importResult.errors.slice(0, 5).join("\n")}
+                      </pre>
+                    </details>
+                  )}
+                </div>
+              )}
+            </Card>
+
+            {/* Operações rápidas de conteúdo */}
+            <Card className="p-6 space-y-4">
+              <h3 className="font-display text-xl font-semibold flex items-center gap-2">
+                <Wrench className="w-5 h-5 text-primary" />
+                Operações rápidas
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={() => runFn("seed-book-database", "Seed", { mode: "mixed", limit: 200 })}>
+                  Importar lote (200 livros)
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => runFn("clean-book-database", "Limpeza inteligente", { mode: "auto", limit: 200 })}>
+                  Limpeza inteligente
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => runFn("validate-isbns", "Validar ISBNs", { mode: "recent", limit: 1000 })}>
+                  Validar ISBNs
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => runFn("backfill-series", "Reprocessar séries")}>
+                  Reprocessar séries
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => runFn("fix-book-covers", "Corrigir capas", { limit: 100 })}>
+                  Corrigir capas
+                </Button>
+              </div>
+            </Card>
+
+            {/* Últimas 10 operações */}
+            <Card className="p-6 space-y-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <h3 className="font-display text-xl font-semibold flex items-center gap-2">
+                  <FileSearch className="w-5 h-5 text-primary" />
+                  Últimas 10 operações
+                </h3>
+                <span className="text-xs text-muted-foreground">
+                  {logs.length} registro{logs.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+              {loading ? (
+                <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
+              ) : logs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Sem registros.</p>
+              ) : (
+                <div className="divide-y divide-border/50">
+                  {logs.map((l) => <AuditLogRow key={l.id} log={l} />)}
+                </div>
+              )}
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="feed" className="mt-4">
+            <FeedTab />
+          </TabsContent>
+
+          <TabsContent value="system" className="mt-4">
+            <SystemTab />
+          </TabsContent>
+
+          <TabsContent value="logs" className="mt-4">
+            <LogsTab />
+          </TabsContent>
+        </Tabs>
       </div>
     </AppShell>
   );
