@@ -1,10 +1,11 @@
-import { Book, BookOpen, Library, Heart, User as UserIcon, LogOut, Search, ScanBarcode, ArrowRightLeft, MessageSquare, Trophy, Users, Repeat, Sparkles, Layers, Download, Settings } from "lucide-react";
+import { Book, BookOpen, Library, Heart, User as UserIcon, LogOut, Search, ScanBarcode, ArrowRightLeft, MessageSquare, Trophy, Users, Repeat, Sparkles, Layers, Download, Settings, Shield } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { NotificationsBell } from "@/components/social/NotificationsBell";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import readifyMark from "@/assets/readify-mark-v8.webp";
 
 const items = [
@@ -29,6 +30,7 @@ const items = [
 
 export function Sidebar() {
   const navigate = useNavigate();
+  const { isAdmin } = useIsAdmin();
   const handleLogout = async () => {
     await supabase.auth.signOut();
     toast.success("Até logo!");
@@ -81,6 +83,21 @@ export function Sidebar() {
         >
           <Search className="h-4 w-4 shrink-0" /> Buscar livros
         </NavLink>
+        {isAdmin && (
+          <NavLink
+            to="/admin"
+            className={({ isActive }) =>
+              cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                isActive
+                  ? "bg-primary/15 text-primary shadow-glow"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground",
+              )
+            }
+          >
+            <Shield className="h-4 w-4 shrink-0" /> Admin
+          </NavLink>
+        )}
       </nav>
       <div className="pt-3 mt-2 border-t border-sidebar-border shrink-0">
         <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={handleLogout}>
