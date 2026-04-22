@@ -17,6 +17,7 @@ import { useShelfNavigation } from "@/hooks/useShelfNavigation";
 import { Book, UserBook } from "@/types/book";
 import { trackBookView } from "@/lib/ai-tracking";
 import { trackEvent } from "@/lib/track";
+import { NextInSeriesBanner } from "@/components/series/NextInSeriesBanner";
 
 export default function BookDetail() {
   const { id } = useParams();
@@ -93,6 +94,8 @@ export default function BookDetail() {
           onShare={share}
           onBookUpdated={updateBookCache}
         />
+
+        <NextInSeriesBanner book={book} ub={ub ?? null} />
 
         <div className="px-5 md:px-10 pb-20 max-w-6xl mx-auto grid md:grid-cols-[1fr_340px] gap-10 md:gap-14 mt-4 min-w-0 w-full">
           <div className="min-w-0">

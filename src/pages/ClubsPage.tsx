@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +26,8 @@ import { ClubMembersStack } from "@/components/clubs/ClubMembersStack";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { CLUB_CATEGORIES, getCategoryMeta, type ClubCategory } from "@/lib/club-categories";
 import { cn } from "@/lib/utils";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
+import { queryClient } from "@/lib/query-client";
 
 interface MineRow {
   id: string;
@@ -161,8 +163,18 @@ export default function ClubsPage() {
 
   const isSearching = debouncedQuery.trim().length >= 2;
 
+  const onRefresh = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["clubs-summary"] }),
+      queryClient.invalidateQueries({ queryKey: ["featured-club"] }),
+      queryClient.invalidateQueries({ queryKey: ["recommended-clubs"] }),
+      queryClient.invalidateQueries({ queryKey: ["my-club-invitations"] }),
+    ]);
+  }, []);
+
   return (
     <AppShell>
+      <PullToRefresh onRefresh={onRefresh}>
       <div className="px-5 md:px-10 pt-8 pb-16 max-w-5xl mx-auto">
         {/* Hero */}
         <header className="mb-6 animate-fade-in">
@@ -382,6 +394,7 @@ export default function ClubsPage() {
           </>
         )}
       </div>
+      </PullToRefresh>
     </AppShell>
   );
 }

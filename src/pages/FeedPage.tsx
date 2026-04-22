@@ -13,6 +13,8 @@ import { ContentTypeFilter, useContentFilter } from "@/components/books/ContentT
 import { ReviewFeedCard } from "@/components/social/ReviewFeedCard";
 import { ActivityCard } from "@/components/social/ActivityCard";
 import { FeedStoriesBar } from "@/components/social/FeedStoriesBar";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
+import { queryClient } from "@/lib/query-client";
 
 type FeedRow =
   | { kind: "review"; ts: string; id: string; review: FeedReview }
@@ -107,8 +109,18 @@ export default function FeedPage() {
     return () => io.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage, hasMoreActs, isFetchingActs, fetchActs]);
 
+  const onRefresh = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["feed"] }),
+      queryClient.invalidateQueries({ queryKey: ["activity-feed"] }),
+      queryClient.invalidateQueries({ queryKey: ["recommendations", "public"] }),
+      queryClient.invalidateQueries({ queryKey: ["stories"] }),
+    ]);
+  }, []);
+
   return (
     <AppShell>
+      <PullToRefresh onRefresh={onRefresh}>
       <div className="px-5 md:px-10 pt-8 md:pt-12 pb-20 max-w-2xl mx-auto">
         <header className="mb-6 animate-fade-in">
           <h1 className="font-display text-4xl md:text-5xl font-bold">Feed</h1>
@@ -197,6 +209,7 @@ export default function FeedPage() {
           </>
         )}
       </div>
+      </PullToRefresh>
     </AppShell>
   );
 }

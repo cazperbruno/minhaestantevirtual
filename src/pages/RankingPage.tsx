@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,6 +13,8 @@ import { useWeeklyRankingInfinite, useAmbassadors } from "@/hooks/useWeeklyRanki
 import { LeagueBadge } from "@/components/gamification/LeagueBadge";
 import { SeasonalChallengesCard } from "@/components/gamification/SeasonalChallengesCard";
 import { trackEvent } from "@/lib/track";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
+import { queryClient } from "@/lib/query-client";
 
 const TIER_LABEL: Record<string, string> = {
   legend: "Lenda 🔥",
@@ -28,8 +30,18 @@ export default function RankingPage() {
     trackEvent("league_viewed");
   }, []);
 
+  const onRefresh = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["weekly-ranking"] }),
+      queryClient.invalidateQueries({ queryKey: ["ranking"] }),
+      queryClient.invalidateQueries({ queryKey: ["ambassadors"] }),
+      queryClient.invalidateQueries({ queryKey: ["weekly-league"] }),
+    ]);
+  }, []);
+
   return (
     <AppShell>
+      <PullToRefresh onRefresh={onRefresh}>
       <div className="px-5 md:px-10 pt-8 pb-16 max-w-3xl mx-auto">
         <header className="mb-6 animate-fade-in">
           <h1 className="font-display text-4xl font-bold text-gradient-gold flex items-center gap-3">
@@ -64,6 +76,7 @@ export default function RankingPage() {
           <TabsContent value="ambassadors"><AmbassadorsTab /></TabsContent>
         </Tabs>
       </div>
+      </PullToRefresh>
     </AppShell>
   );
 }
