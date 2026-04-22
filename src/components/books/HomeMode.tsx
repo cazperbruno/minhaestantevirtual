@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Home as HomeIcon, ArrowDownAZ, BookOpen, Tag, User } from "lucide-react";
+import { localizeCategory } from "@/lib/category-i18n";
 
 type Group = "author" | "category" | "status" | "az";
 type ReadFilter = "all" | "read" | "unread";
@@ -49,10 +50,17 @@ export function HomeMode({ items }: Props) {
     return Array.from(s).sort();
   }, [items]);
 
+  // Gêneros únicos já normalizados em PT-BR (sem duplicar Fiction/Ficção, etc.)
   const genres = useMemo(() => {
     const s = new Set<string>();
-    items.forEach((i) => i.book?.categories?.forEach((c) => c && s.add(c)));
-    return Array.from(s).sort();
+    items.forEach((i) =>
+      i.book?.categories?.forEach((c) => {
+        if (!c) return;
+        const loc = localizeCategory(c);
+        if (loc && loc !== "Outros") s.add(loc);
+      }),
+    );
+    return Array.from(s).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [items]);
 
   const filtered = useMemo(() => {
@@ -60,7 +68,11 @@ export function HomeMode({ items }: Props) {
     if (readFilter === "read") r = r.filter((i) => i.status === "read");
     else if (readFilter === "unread") r = r.filter((i) => i.status !== "read");
     if (author !== "all") r = r.filter((i) => i.book?.authors?.includes(author));
-    if (genre !== "all") r = r.filter((i) => i.book?.categories?.includes(genre));
+    if (genre !== "all") {
+      r = r.filter((i) =>
+        i.book?.categories?.some((c) => localizeCategory(c) === genre),
+      );
+    }
     return r;
   }, [items, readFilter, author, genre]);
 
@@ -78,9 +90,11 @@ export function HomeMode({ items }: Props) {
       });
     } else if (group === "category") {
       filtered.forEach((ub) => {
-        const cats = ub.book?.categories ?? [];
+        const cats = (ub.book?.categories ?? [])
+          .map((c) => localizeCategory(c))
+          .filter((c) => c && c !== "Outros");
         if (cats.length === 0) push("Sem categoria", ub);
-        else cats.slice(0, 1).forEach((c) => push(c || "Sem categoria", ub));
+        else push(cats[0], ub);
       });
     } else if (group === "status") {
       filtered.forEach((ub) => push(STATUS_LABEL[ub.status] || ub.status, ub));

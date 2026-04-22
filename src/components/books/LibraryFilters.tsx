@@ -9,6 +9,7 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import { BookStatus, STATUS_LABEL, UserBook } from "@/types/book";
+import { localizeCategory } from "@/lib/category-i18n";
 
 export type SortKey = "recent" | "rating" | "az" | "last_read" | "year_new" | "year_old";
 
@@ -60,10 +61,17 @@ export function LibraryFilters({ items, value, onChange, showStatusFilter }: Pro
     return Array.from(s).sort();
   }, [items]);
 
+  // Categorias normalizadas em PT-BR (mescla "Fiction"/"Ficção", "Sci-Fi"/"Ficção científica" etc.)
   const categories = useMemo(() => {
     const s = new Set<string>();
-    items.forEach((i) => i.book?.categories?.forEach((c) => c && s.add(c)));
-    return Array.from(s).sort();
+    items.forEach((i) =>
+      i.book?.categories?.forEach((c) => {
+        if (!c) return;
+        const loc = localizeCategory(c);
+        if (loc && loc !== "Outros") s.add(loc);
+      }),
+    );
+    return Array.from(s).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [items]);
 
   const publishers = useMemo(() => {
@@ -278,7 +286,10 @@ export function applyLibraryFilters(items: UserBook[], f: LibraryFiltersValue): 
     });
   }
   if (f.author !== "all") r = r.filter((i) => i.book?.authors?.includes(f.author));
-  if (f.category !== "all") r = r.filter((i) => i.book?.categories?.includes(f.category));
+  if (f.category !== "all")
+    r = r.filter((i) =>
+      i.book?.categories?.some((c) => localizeCategory(c) === f.category),
+    );
   if (f.publisher !== "all") r = r.filter((i) => i.book?.publisher === f.publisher);
   if (f.year !== "all") r = r.filter((i) => String(i.book?.published_year ?? "") === f.year);
   if (f.minRating > 0) r = r.filter((i) => (i.rating ?? 0) >= f.minRating);

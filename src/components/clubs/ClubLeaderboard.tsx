@@ -8,12 +8,14 @@ import { cn } from "@/lib/utils";
 
 const MEDAL = ["🥇", "🥈", "🥉"];
 
-const ACHIEVEMENT_META: Record<string, { icon: string; tone: string }> = {
-  Maratonista: { icon: "🏃", tone: "bg-orange-500/15 text-orange-500" },
-  Conversador: { icon: "💬", tone: "bg-sky-500/15 text-sky-500" },
-  Curador: { icon: "📚", tone: "bg-violet-500/15 text-violet-500" },
-  Influenciador: { icon: "✨", tone: "bg-pink-500/15 text-pink-500" },
-  Concluidor: { icon: "🏆", tone: "bg-emerald-500/15 text-emerald-500" },
+/** Slugs vêm do RPC `club_leaderboard`. Mantemos o mapping aqui para i18n + cor. */
+const ACHIEVEMENT_META: Record<string, { label: string; icon: string; tone: string }> = {
+  maratonista: { label: "Maratonista", icon: "🏃", tone: "bg-orange-500/15 text-orange-500" },
+  conversador: { label: "Conversador", icon: "💬", tone: "bg-sky-500/15 text-sky-500" },
+  curador: { label: "Curador", icon: "📚", tone: "bg-violet-500/15 text-violet-500" },
+  inspirador: { label: "Inspirador", icon: "✨", tone: "bg-pink-500/15 text-pink-500" },
+  concluinte: { label: "Concluinte", icon: "🏆", tone: "bg-emerald-500/15 text-emerald-500" },
+  citador_mes: { label: "Citador do mês", icon: "📜", tone: "bg-amber-500/15 text-amber-600" },
 };
 
 interface Props {
@@ -151,14 +153,14 @@ function LeaderboardItem({
         {row.achievements && row.achievements.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1.5">
             {row.achievements.map((a) => {
-              const meta = ACHIEVEMENT_META[a] || { icon: "✨", tone: "bg-muted text-foreground" };
+              const meta = ACHIEVEMENT_META[a] || { label: a, icon: "✨", tone: "bg-muted text-foreground" };
               return (
                 <Badge
                   key={a}
                   variant="secondary"
                   className={cn("text-[10px] px-1.5 py-0 h-4 gap-0.5 font-semibold", meta.tone)}
                 >
-                  <span aria-hidden>{meta.icon}</span> {a}
+                  <span aria-hidden>{meta.icon}</span> {meta.label}
                 </Badge>
               );
             })}
