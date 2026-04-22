@@ -2429,6 +2429,7 @@ export type Database = {
         }
         Returns: number
       }
+      create_streak_risk_notifications: { Args: never; Returns: number }
       decline_buddy_read: {
         Args: { _buddy_id: string }
         Returns: {
@@ -2492,6 +2493,13 @@ export type Database = {
           _title: string
         }
         Returns: string
+      }
+      friends_reading_now: {
+        Args: { _limit?: number; _user_id: string }
+        Returns: {
+          book_id: string
+          friends_count: number
+        }[]
       }
       get_affiliate_interactions_admin: {
         Args: { _from: string }
@@ -2588,6 +2596,14 @@ export type Database = {
       merge_books: {
         Args: { _canonical_id: string; _duplicate_id: string }
         Returns: Json
+      }
+      my_streak_at_risk: {
+        Args: never
+        Returns: {
+          at_risk: boolean
+          current_days: number
+          freezes_available: number
+        }[]
       }
       parse_series_title: {
         Args: { _title: string }
@@ -2716,11 +2732,26 @@ export type Database = {
           username: string
         }[]
       }
+      streak_at_risk_today: {
+        Args: never
+        Returns: {
+          current_days: number
+          freezes_available: number
+          user_id: string
+        }[]
+      }
       track_book_dismiss: { Args: { _book_id: string }; Returns: undefined }
       track_book_view: { Args: { _book_id: string }; Returns: undefined }
       track_rec_click: { Args: { _book_id: string }; Returns: undefined }
       track_recs_shown: { Args: { _count: number }; Returns: undefined }
       track_search: { Args: { _query: string }; Returns: undefined }
+      trending_in_circle: {
+        Args: { _limit?: number; _user_id: string }
+        Returns: {
+          book_id: string
+          score: number
+        }[]
+      }
       update_buddy_progress: {
         Args: { _buddy_id: string; _current_page: number; _percent: number }
         Returns: {
