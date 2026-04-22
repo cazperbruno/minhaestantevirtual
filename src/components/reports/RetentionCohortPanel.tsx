@@ -153,6 +153,49 @@ export function RetentionCohortPanel() {
           </div>
         )}
       </div>
+
+      {/* Profundidade de uso — eventos críticos últimos 14 dias */}
+      <div>
+        <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2 flex items-center gap-1.5">
+          <Layers className="w-3 h-3" /> Profundidade de uso · últimos 14 dias
+        </p>
+        {ld ? (
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-9 w-full" />
+            ))}
+          </div>
+        ) : !depth || depth.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">
+            Nenhum evento de profundidade registrado ainda.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-xs uppercase tracking-wider text-muted-foreground">
+                <tr className="border-b border-border/60">
+                  <th className="text-left py-2 px-2 font-medium">Evento</th>
+                  <th className="text-right py-2 px-2 font-medium">Usuários</th>
+                  <th className="text-right py-2 px-2 font-medium">Total</th>
+                  <th className="text-right py-2 px-2 font-medium">Média/usuário</th>
+                </tr>
+              </thead>
+              <tbody>
+                {depth.map((d) => (
+                  <tr key={d.event} className="border-b border-border/30">
+                    <td className="py-2 px-2 font-medium">{DEPTH_LABELS[d.event] ?? d.event}</td>
+                    <td className="py-2 px-2 text-right tabular-nums">{d.unique_users}</td>
+                    <td className="py-2 px-2 text-right tabular-nums">{d.total_events}</td>
+                    <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">
+                      {d.avg_per_user != null ? d.avg_per_user.toFixed(1) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </Card>
   );
 }
