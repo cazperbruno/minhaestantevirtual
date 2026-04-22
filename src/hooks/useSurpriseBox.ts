@@ -48,7 +48,11 @@ export function useOpenSurpriseBox(userId: string | undefined) {
       return row as SurpriseClaim;
     },
     onSuccess: (claim) => {
-      if (!claim.already_claimed) {
+      if (claim.already_claimed) {
+        toast.info("Você já abriu a caixa de hoje", {
+          description: "Volte amanhã pra uma nova surpresa 🎁",
+        });
+      } else {
         const labels: Record<SurpriseRarity, string> = {
           common: "Comum",
           rare: "Raro!",
@@ -65,6 +69,12 @@ export function useOpenSurpriseBox(userId: string | undefined) {
         qc.invalidateQueries({ queryKey: ["profile", userId] });
         qc.invalidateQueries({ queryKey: qk.ranking() });
       }
+    },
+    onError: (err) => {
+      console.error("[surprise-box] open error", err);
+      toast.error("Não foi possível abrir a caixa", {
+        description: "Tente novamente em instantes",
+      });
     },
   });
 }
