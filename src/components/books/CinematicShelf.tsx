@@ -150,7 +150,32 @@ export function CinematicShelf({
           )}
           style={{ scrollPaddingInline: "1rem" }}
         >
-          {children}
+          {visibleChildren}
+
+          {/* "Ver mais" inline ao final da prateleira — carrega lote sem travar UI */}
+          {hasMore && (
+            <div className="shrink-0 snap-start flex items-stretch">
+              <button
+                type="button"
+                onClick={loadMore}
+                aria-label={`Ver mais ${Math.min(step, remaining)} de ${remaining} restantes`}
+                className={cn(
+                  "group/more h-full min-h-[12rem] w-28 md:w-36 rounded-md border border-dashed border-border/70",
+                  "flex flex-col items-center justify-center gap-2 text-muted-foreground",
+                  "bg-muted/20 hover:bg-primary/10 hover:border-primary/50 hover:text-primary",
+                  "transition-all duration-200 active:scale-[0.97]",
+                )}
+              >
+                <span className="w-10 h-10 rounded-full bg-background/80 border border-border flex items-center justify-center group-hover/more:border-primary/50 group-hover/more:bg-primary/10 transition-colors">
+                  <Plus className="w-5 h-5" />
+                </span>
+                <span className="text-xs font-semibold leading-tight">Ver mais</span>
+                <span className="text-[10px] opacity-80">
+                  +{Math.min(step, remaining)} de {remaining}
+                </span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </section>
