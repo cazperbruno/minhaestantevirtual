@@ -11,13 +11,15 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useAdminCsrfToken } from "@/hooks/useAdminCsrfToken";
+import { invokeAdmin } from "@/lib/admin-invoke";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CatalogQualityPanel } from "@/components/reports/CatalogQualityPanel";
 import { EnrichmentProgressPanel } from "@/components/reports/EnrichmentProgressPanel";
 import {
   Shield, Users, BookOpen, Activity, Loader2, Database, Download,
-  ListChecks, BarChart3, RefreshCw, FileSearch,
+  ListChecks, BarChart3, RefreshCw, FileSearch, ShieldCheck, ShieldAlert,
 } from "lucide-react";
 
 interface Stats {
@@ -39,6 +41,7 @@ interface AuditRow {
 
 export default function AdminPage() {
   const { isAdmin, loading: adminLoading } = useIsAdmin();
+  const csrf = useAdminCsrfToken();
   const [stats, setStats] = useState<Stats | null>(null);
   const [logs, setLogs] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
