@@ -259,7 +259,7 @@ export default function AdminPage() {
         </header>
 
         <Tabs value={tab} onValueChange={setTab} className="w-full">
-          <TabsList className="grid grid-cols-3 md:grid-cols-6 w-full h-auto gap-1 bg-muted/30 p-1">
+          <TabsList className="grid grid-cols-4 md:grid-cols-7 w-full h-auto gap-1 bg-muted/30 p-1">
             <TabsTrigger value="overview" className="gap-1.5 text-xs">
               <LayoutDashboard className="w-3.5 h-3.5" /> Visão geral
             </TabsTrigger>
@@ -268,6 +268,9 @@ export default function AdminPage() {
             </TabsTrigger>
             <TabsTrigger value="content" className="gap-1.5 text-xs">
               <Database className="w-3.5 h-3.5" /> Conteúdo
+            </TabsTrigger>
+            <TabsTrigger value="automation" className="gap-1.5 text-xs">
+              <Zap className="w-3.5 h-3.5" /> Automação
             </TabsTrigger>
             <TabsTrigger value="feed" className="gap-1.5 text-xs">
               <Activity className="w-3.5 h-3.5" /> Feed
