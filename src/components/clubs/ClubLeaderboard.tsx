@@ -8,12 +8,14 @@ import { cn } from "@/lib/utils";
 
 const MEDAL = ["🥇", "🥈", "🥉"];
 
-const ACHIEVEMENT_META: Record<string, { icon: string; tone: string }> = {
-  Maratonista: { icon: "🏃", tone: "bg-orange-500/15 text-orange-500" },
-  Conversador: { icon: "💬", tone: "bg-sky-500/15 text-sky-500" },
-  Curador: { icon: "📚", tone: "bg-violet-500/15 text-violet-500" },
-  Influenciador: { icon: "✨", tone: "bg-pink-500/15 text-pink-500" },
-  Concluidor: { icon: "🏆", tone: "bg-emerald-500/15 text-emerald-500" },
+/** Slugs vêm do RPC `club_leaderboard`. Mantemos o mapping aqui para i18n + cor. */
+const ACHIEVEMENT_META: Record<string, { label: string; icon: string; tone: string }> = {
+  maratonista: { label: "Maratonista", icon: "🏃", tone: "bg-orange-500/15 text-orange-500" },
+  conversador: { label: "Conversador", icon: "💬", tone: "bg-sky-500/15 text-sky-500" },
+  curador: { label: "Curador", icon: "📚", tone: "bg-violet-500/15 text-violet-500" },
+  inspirador: { label: "Inspirador", icon: "✨", tone: "bg-pink-500/15 text-pink-500" },
+  concluinte: { label: "Concluinte", icon: "🏆", tone: "bg-emerald-500/15 text-emerald-500" },
+  citador_mes: { label: "Citador do mês", icon: "📜", tone: "bg-amber-500/15 text-amber-600" },
 };
 
 interface Props {
