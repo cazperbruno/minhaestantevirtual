@@ -1,1 +1,7 @@
 project_id = "gjlzkviwzqxyiwaajoly"
+
+[functions.process-enrichment-queue]
+verify_jwt = false
+
+[functions.process-normalization-queue]
+verify_jwt = false
