@@ -819,6 +819,50 @@ export type Database = {
           },
         ]
       }
+      club_invite_links: {
+        Row: {
+          club_id: string
+          created_at: string
+          created_by: string
+          expires_at: string | null
+          id: string
+          max_uses: number | null
+          revoked: boolean
+          token: string
+          uses: number
+        }
+        Insert: {
+          club_id: string
+          created_at?: string
+          created_by: string
+          expires_at?: string | null
+          id?: string
+          max_uses?: number | null
+          revoked?: boolean
+          token: string
+          uses?: number
+        }
+        Update: {
+          club_id?: string
+          created_at?: string
+          created_by?: string
+          expires_at?: string | null
+          id?: string
+          max_uses?: number | null
+          revoked?: boolean
+          token?: string
+          uses?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_invite_links_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "book_clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       club_join_requests: {
         Row: {
           club_id: string
@@ -2579,6 +2623,16 @@ export type Database = {
         }
         Returns: number
       }
+      create_club_invite_link: {
+        Args: {
+          _club_id: string
+          _expires_in_days?: number
+          _max_uses?: number
+        }
+        Returns: {
+          token: string
+        }[]
+      }
       create_league_finale_notifications: { Args: never; Returns: number }
       create_streak_risk_notifications: { Args: never; Returns: number }
       daily_surprise_status: {
@@ -2865,6 +2919,14 @@ export type Database = {
           w_collab: number
           w_content: number
           w_trending: number
+        }[]
+      }
+      redeem_club_invite_token: {
+        Args: { _token: string }
+        Returns: {
+          club_id: string
+          message: string
+          success: boolean
         }[]
       }
       redeem_invite: {

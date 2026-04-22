@@ -30,6 +30,7 @@ import { useClubPresence } from "@/hooks/useClubPresence";
 import { useClubChatPresence } from "@/hooks/useClubChatPresence";
 import { useClubReactions } from "@/hooks/useClubReactions";
 import { ClubLeaderboard } from "@/components/clubs/ClubLeaderboard";
+import { MentionInput } from "@/components/clubs/MentionInput";
 
 interface Profile {
   id: string;
@@ -660,16 +661,22 @@ export default function ClubDetailPage() {
                   currentBook={club.current_book ? { id: club.current_book.id, title: club.current_book.title } : null}
                   onAttach={(q) => setPendingQuote(q)}
                 />
-                <Input
+                <MentionInput
                   ref={inputRef}
                   value={input}
-                  onChange={(e) => {
-                    setInput(e.target.value);
-                    sendTypingRef.current?.();
-                  }}
-                  placeholder={replyTo ? "Sua resposta..." : pendingQuote ? "Comente a citação..." : "Mensagem..."}
+                  onChange={setInput}
+                  onTyping={() => sendTypingRef.current?.()}
+                  placeholder={replyTo ? "Sua resposta... (use @ para mencionar)" : pendingQuote ? "Comente a citação..." : "Mensagem... use @ para mencionar"}
                   disabled={sending}
                   maxLength={2000}
+                  members={members
+                    .filter((m) => m.user_id !== user?.id)
+                    .map((m) => ({
+                      user_id: m.user_id,
+                      display_name: m.profile?.display_name ?? null,
+                      username: m.profile?.username ?? null,
+                      avatar_url: m.profile?.avatar_url ?? null,
+                    }))}
                 />
                 <Button
                   type="submit"

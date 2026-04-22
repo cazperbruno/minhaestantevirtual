@@ -19,6 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CLUB_CATEGORIES, type ClubCategory } from "@/lib/club-categories";
 import { ClubBooksAdmin } from "@/components/clubs/ClubBooksAdmin";
 import { ExportClubReportButton } from "@/components/clubs/ExportClubReportButton";
+import { ClubInviteLinkPanel } from "@/components/clubs/ClubInviteLinkPanel";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -77,6 +78,9 @@ export function ClubAdminPanel({ clubId, ownerId }: Props) {
 
       {/* GERENCIAR LIVROS */}
       <ClubBooksAdmin clubId={clubId} />
+
+      {/* LINK DE CONVITE */}
+      <ClubInviteLinkPanel clubId={clubId} />
 
       {/* CATEGORIA */}
       <section>

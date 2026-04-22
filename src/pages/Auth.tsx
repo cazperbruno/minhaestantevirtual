@@ -21,7 +21,17 @@ export default function Auth() {
   const [busy, setBusy] = useState<null | "google" | "apple" | "email">(null);
 
   if (loading) return <FullPageLoader />;
-  if (user) return <Navigate to="/" replace />;
+  if (user) {
+    let redirectTo = "/";
+    try {
+      const pending = sessionStorage.getItem("pending_club_invite");
+      if (pending) {
+        sessionStorage.removeItem("pending_club_invite");
+        redirectTo = `/clubes/convite/${pending}`;
+      }
+    } catch {/* ignore */}
+    return <Navigate to={redirectTo} replace />;
+  }
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
