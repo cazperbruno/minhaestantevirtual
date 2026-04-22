@@ -88,19 +88,28 @@ const SLIDES: Slide[] = [
 
 interface Props {
   open: boolean;
+  /** Slide inicial (0-based). Útil para retomar de onde parou. */
+  startAt?: number;
   onClose: () => void;
   onFinish: () => void;
+  /** Salva o slide atual cada vez que o usuário avança/retorna. */
+  onStep?: (step: number) => void;
+  /** Pular: salva o ponto atual e fecha. */
+  onSkip?: (currentStep: number) => void;
 }
 
-export function WelcomeTutorial({ open, onClose, onFinish }: Props) {
-  const [index, setIndex] = useState(0);
+export function WelcomeTutorial({ open, startAt = 0, onClose, onFinish, onStep, onSkip }: Props) {
+  const [index, setIndex] = useState(() => Math.max(0, Math.min(startAt, SLIDES.length - 1)));
   const startX = useRef<number | null>(null);
   const isLast = index === SLIDES.length - 1;
 
-  // Reset ao reabrir
+  // Quando abrir, posiciona no startAt fornecido (sem resetar para 0).
   useEffect(() => {
-    if (open) setIndex(0);
-  }, [open]);
+    if (open) {
+      const safe = Math.max(0, Math.min(startAt, SLIDES.length - 1));
+      setIndex(safe);
+    }
+  }, [open, startAt]);
 
   // Trava scroll do body
   useEffect(() => {
@@ -111,6 +120,11 @@ export function WelcomeTutorial({ open, onClose, onFinish }: Props) {
       document.body.style.overflow = prev;
     };
   }, [open]);
+
+  // Persiste o step atual quando muda
+  useEffect(() => {
+    if (open) onStep?.(index);
+  }, [index, open, onStep]);
 
   // Atalhos de teclado
   useEffect(() => {
@@ -144,7 +158,8 @@ export function WelcomeTutorial({ open, onClose, onFinish }: Props) {
 
   function handleSkip() {
     haptic("toggle");
-    onFinish();
+    if (onSkip) onSkip(index);
+    else onFinish();
   }
 
   // Swipe nativo (mobile)
@@ -162,6 +177,7 @@ export function WelcomeTutorial({ open, onClose, onFinish }: Props) {
   }
 
   const progress = useMemo(() => ((index + 1) / SLIDES.length) * 100, [index]);
+  const resumed = startAt > 0 && index === startAt;
 
   if (!open) return null;
 
@@ -218,6 +234,7 @@ export function WelcomeTutorial({ open, onClose, onFinish }: Props) {
           onClick={handleSkip}
           className="text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md"
           aria-label="Pular tutorial"
+          title="Pular — vamos lembrar onde você parou"
         >
           Pular
         </button>
@@ -249,6 +266,11 @@ export function WelcomeTutorial({ open, onClose, onFinish }: Props) {
           <span className="text-xs md:text-sm uppercase tracking-[0.25em] text-muted-foreground">
             {slide.eyebrow}
           </span>
+          {resumed && (
+            <span className="ml-2 text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30 animate-fade-in">
+              Continuando de onde parou
+            </span>
+          )}
         </div>
 
         {/* Título gigante */}

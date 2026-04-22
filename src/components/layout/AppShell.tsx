@@ -16,7 +16,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const { user } = useAuth();
   const tickedRef = useRef(false);
-  const { open: tutorialOpen, closeTutorial, finishTutorial } = useTutorial();
+  const { open: tutorialOpen, startAt, closeTutorial, finishTutorial, skipTutorial, saveStep } = useTutorial();
   // Stale-while-revalidate: assina canais Realtime e invalida queries.
   useRealtimeInvalidation();
   // Tick de streak diário (1x por sessão)
@@ -40,7 +40,14 @@ export function AppShell({ children }: { children: ReactNode }) {
       <XpBurstHost />
       <UpdatePrompt />
       <OfflineBanner />
-      <WelcomeTutorial open={tutorialOpen} onClose={closeTutorial} onFinish={finishTutorial} />
+      <WelcomeTutorial
+        open={tutorialOpen}
+        startAt={startAt}
+        onClose={closeTutorial}
+        onFinish={finishTutorial}
+        onSkip={skipTutorial}
+        onStep={saveStep}
+      />
     </div>
   );
 }
