@@ -297,6 +297,7 @@ export type Database = {
       }
       book_clubs: {
         Row: {
+          category: Database["public"]["Enums"]["club_category"]
           cover_url: string | null
           created_at: string
           current_book_id: string | null
@@ -308,6 +309,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          category?: Database["public"]["Enums"]["club_category"]
           cover_url?: string | null
           created_at?: string
           current_book_id?: string | null
@@ -319,6 +321,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          category?: Database["public"]["Enums"]["club_category"]
           cover_url?: string | null
           created_at?: string
           current_book_id?: string | null
@@ -861,18 +864,21 @@ export type Database = {
         Row: {
           club_id: string
           joined_at: string
+          last_seen_at: string
           role: string
           user_id: string
         }
         Insert: {
           club_id: string
           joined_at?: string
+          last_seen_at?: string
           role?: string
           user_id: string
         }
         Update: {
           club_id?: string
           joined_at?: string
+          last_seen_at?: string
           role?: string
           user_id?: string
         }
@@ -2442,6 +2448,16 @@ export type Database = {
         }[]
       }
       cleanup_expired_admin_csrf_tokens: { Args: never; Returns: number }
+      club_online_count: { Args: { _club_id: string }; Returns: number }
+      clubs_categories_summary: {
+        Args: never
+        Returns: {
+          category: Database["public"]["Enums"]["club_category"]
+          clubs_count: number
+          members_count: number
+          online_count: number
+        }[]
+      }
       cohort_retention: {
         Args: { _weeks_back?: number }
         Returns: {
@@ -2822,6 +2838,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      touch_club_presence: { Args: { _club_id: string }; Returns: undefined }
       track_book_dismiss: { Args: { _book_id: string }; Returns: undefined }
       track_book_view: { Args: { _book_id: string }; Returns: undefined }
       track_rec_click: { Args: { _book_id: string }; Returns: undefined }
@@ -2909,6 +2926,18 @@ export type Database = {
     Enums: {
       app_role: "admin" | "user"
       book_status: "not_read" | "reading" | "read" | "wishlist"
+      club_category:
+        | "manga"
+        | "fantasia"
+        | "romance"
+        | "hq"
+        | "autoajuda"
+        | "classicos"
+        | "nao_ficcao"
+        | "sci_fi"
+        | "terror"
+        | "infantojuvenil"
+        | "geral"
       content_type: "book" | "manga" | "comic" | "magazine"
       loan_status: "lent" | "returned" | "overdue"
       trade_status:
@@ -3046,6 +3075,19 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "user"],
       book_status: ["not_read", "reading", "read", "wishlist"],
+      club_category: [
+        "manga",
+        "fantasia",
+        "romance",
+        "hq",
+        "autoajuda",
+        "classicos",
+        "nao_ficcao",
+        "sci_fi",
+        "terror",
+        "infantojuvenil",
+        "geral",
+      ],
       content_type: ["book", "manga", "comic", "magazine"],
       loan_status: ["lent", "returned", "overdue"],
       trade_status: [
