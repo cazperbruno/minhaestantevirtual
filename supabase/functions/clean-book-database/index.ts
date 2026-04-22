@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const guard = await requireAdmin(req);
+    const guard = await requireAdminOrCron(req);
     if (!guard.ok) return jsonResponse({ error: guard.error }, guard.status ?? 403);
     const sb = guard.sb;
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -144,6 +144,12 @@ Deno.serve(async (req) => {
     const mode = body.mode === "aggressive" ? "aggressive" : "auto";
     const limit = Math.min(body.limit ?? (mode === "aggressive" ? 1000 : 200), 2000);
     const dryRun = body.dryRun === true;
+
+    const run = await startRun(sb, {
+      job_type: `clean-${mode}`,
+      source: guard.isService ? "cron" : "admin",
+      triggered_by: guard.userId ?? null,
+    });
 
     const summary = {
       mode,
