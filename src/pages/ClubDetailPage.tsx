@@ -602,23 +602,28 @@ export default function ClubDetailPage() {
                               );
                             })()}
 
-                          <div
-                            className={cn(
-                              "rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words",
-                              mine ? "bg-primary text-primary-foreground" : "bg-muted",
-                            )}
+                          <SpoilerWrapper
+                            spoilerPage={m.spoiler_page ?? null}
+                            readerPage={mine ? Number.MAX_SAFE_INTEGER : myCurrentPage}
                           >
-                            {m.book_quote && <QuoteBlock quote={m.book_quote} />}
-                            <MessageContent
-                              text={m.content}
-                              members={members.map((mb) => ({
-                                user_id: mb.user_id,
-                                username: mb.profile?.username ?? null,
-                                display_name: mb.profile?.display_name ?? null,
-                              }))}
-                              highlightClassName={mine ? "text-primary-foreground" : "text-primary"}
-                            />
-                          </div>
+                            <div
+                              className={cn(
+                                "rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words",
+                                mine ? "bg-primary text-primary-foreground" : "bg-muted",
+                              )}
+                            >
+                              {m.book_quote && <QuoteBlock quote={m.book_quote} />}
+                              <MessageContent
+                                text={m.content}
+                                members={members.map((mb) => ({
+                                  user_id: mb.user_id,
+                                  username: mb.profile?.username ?? null,
+                                  display_name: mb.profile?.display_name ?? null,
+                                }))}
+                                highlightClassName={mine ? "text-primary-foreground" : "text-primary"}
+                              />
+                            </div>
+                          </SpoilerWrapper>
 
                           <MessageReactions
                             messageId={m.id}
