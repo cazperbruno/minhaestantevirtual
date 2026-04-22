@@ -1,5 +1,14 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import {
+  fixPortugueseAccents,
+  normalizeAuthors as ptNormalizeAuthors,
+  computeQualityScore,
+  isPortuguese,
+  mergeBest,
+  findDuplicateByTitleAuthor,
+  aiFallbackInferBook,
+} from "../_shared/isbn-intelligence.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
