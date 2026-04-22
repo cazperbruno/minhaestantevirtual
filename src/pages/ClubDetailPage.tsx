@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { BookCover } from "@/components/books/BookCover";
 import {
   ArrowLeft, Send, Loader2, Users, LogOut, Lock, Globe2, Clock, Crown, X, Reply,
-  MessageSquare, BookOpen, Activity,
+  MessageSquare, BookOpen, Activity, Quote,
 } from "lucide-react";
 import { ClubBookOfTheMonth } from "@/components/clubs/ClubBookOfTheMonth";
 import { ClubAdminPanel } from "@/components/clubs/ClubAdminPanel";
