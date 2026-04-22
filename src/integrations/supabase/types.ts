@@ -2284,15 +2284,6 @@ export type Database = {
         }
         Relationships: []
       }
-      engagement_depth_daily: {
-        Row: {
-          day: string | null
-          event: string | null
-          total_events: number | null
-          unique_users: number | null
-        }
-        Relationships: []
-      }
       ranking_view: {
         Row: {
           avatar_url: string | null
