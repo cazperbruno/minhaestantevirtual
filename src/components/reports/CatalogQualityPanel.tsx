@@ -4,6 +4,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { useAdminCsrfToken } from "@/hooks/useAdminCsrfToken";
+import { invokeAdmin } from "@/lib/admin-invoke";
 import { toast } from "sonner";
 import { Database, Sparkles, Loader2, RefreshCw, BookOpen, Image, FileText, Tag, Wand2, GitMerge, Brush, Zap, Download, ShieldCheck } from "lucide-react";
 
@@ -24,7 +26,15 @@ interface QueueStat {
   count: number;
 }
 
+interface QueueDrainResult {
+  processed?: number;
+  success?: number;
+  skipped?: number;
+  failed?: number;
+}
+
 export function CatalogQualityPanel() {
+  const csrf = useAdminCsrfToken();
   const [quality, setQuality] = useState<Quality | null>(null);
   const [enrichQueue, setEnrichQueue] = useState<QueueStat[]>([]);
   const [normQueue, setNormQueue] = useState<QueueStat[]>([]);
@@ -59,8 +69,10 @@ export function CatalogQualityPanel() {
   const drain = async (kind: "enrich" | "normalize") => {
     setDraining(kind);
     try {
+      const csrfToken = await csrf.ensureToken();
+      if (!csrfToken) throw new Error("Token de segurança ausente. Recarregue a página do painel.");
       const fn = kind === "enrich" ? "process-enrichment-queue" : "process-normalization-queue";
-      const { data, error } = await supabase.functions.invoke(fn);
+      const { data, error } = await invokeAdmin<QueueDrainResult>(fn, { csrfToken, body: {} });
       if (error) throw error;
       toast.success(`Processados ${data?.processed ?? 0} (${data?.success ?? 0} OK, ${data?.skipped ?? 0} pulados, ${data?.failed ?? 0} falhas)`);
       await load();
@@ -74,7 +86,10 @@ export function CatalogQualityPanel() {
   const runClean = async (mode: "auto" | "aggressive") => {
     setDraining(mode === "aggressive" ? "clean-aggressive" : "clean");
     try {
-      const { data, error } = await supabase.functions.invoke("clean-book-database", {
+      const csrfToken = await csrf.ensureToken();
+      if (!csrfToken) throw new Error("Token de segurança ausente. Recarregue a página do painel.");
+      const { data, error } = await invokeAdmin("clean-book-database", {
+        csrfToken,
         body: { mode, limit: mode === "aggressive" ? 500 : 200 },
       });
       if (error) throw error;
@@ -95,7 +110,10 @@ export function CatalogQualityPanel() {
   const runSeed = async () => {
     setDraining("seed");
     try {
-      const { data, error } = await supabase.functions.invoke("seed-book-database", {
+      const csrfToken = await csrf.ensureToken();
+      if (!csrfToken) throw new Error("Token de segurança ausente. Recarregue a página do painel.");
+      const { data, error } = await invokeAdmin("seed-book-database", {
+        csrfToken,
         body: { mode: "mixed", limit: 200 },
       });
       if (error) throw error;
@@ -119,7 +137,10 @@ export function CatalogQualityPanel() {
   const runValidateIsbns = async () => {
     setDraining("isbn");
     try {
-      const { data, error } = await supabase.functions.invoke("validate-isbns", {
+      const csrfToken = await csrf.ensureToken();
+      if (!csrfToken) throw new Error("Token de segurança ausente. Recarregue a página do painel.");
+      const { data, error } = await invokeAdmin("validate-isbns", {
+        csrfToken,
         body: { mode: "recent", limit: 1000 },
       });
       if (error) throw error;
