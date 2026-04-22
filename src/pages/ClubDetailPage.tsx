@@ -106,7 +106,13 @@ export default function ClubDetailPage() {
       : { data: [] as Profile[] };
     const profMap = new Map((profs || []).map((p) => [p.id, p as Profile]));
     setMembers((ms || []).map((m) => ({ ...m, profile: profMap.get(m.user_id) })));
-    setMessages((msgs || []).map((m) => ({ ...m, profile: profMap.get(m.user_id) })) as Message[]);
+    setMessages(
+      ((msgs || []) as any[]).map((m) => ({
+        ...m,
+        book_quote: (m.book_quote as BookQuotePayload | null) ?? null,
+        profile: profMap.get(m.user_id),
+      })) as Message[],
+    );
     setLoading(false);
     setTimeout(
       () => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }),
