@@ -14,7 +14,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-csrf-token",
 };
 
-const BATCH_SIZE = 20;
+const BATCH_SIZE = 50;
 const MAX_ATTEMPTS = 4;
 
 Deno.serve(async (req) => {
