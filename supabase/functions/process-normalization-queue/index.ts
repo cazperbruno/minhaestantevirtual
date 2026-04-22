@@ -82,7 +82,11 @@ Deno.serve(async (req) => {
     try {
       const r = await fetch(`${SUPABASE_URL}/functions/v1/normalize-book-meta`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_ROLE}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SERVICE_ROLE}`,
+          apikey: SERVICE_ROLE,
+        },
         body: JSON.stringify({ book_id: job.book_id }),
       });
       httpStatus = r.status;
