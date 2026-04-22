@@ -9,6 +9,7 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import { BookStatus, STATUS_LABEL, UserBook } from "@/types/book";
+import { localizeCategory } from "@/lib/category-i18n";
 
 export type SortKey = "recent" | "rating" | "az" | "last_read" | "year_new" | "year_old";
 
