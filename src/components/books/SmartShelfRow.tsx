@@ -14,6 +14,7 @@ interface Props {
   title: string;
   subtitle?: string;
   items: UserBook[];
+  emoji?: string;
 }
 
 const LONG_PRESS_MS = 500;
@@ -25,11 +26,20 @@ const LONG_PRESS_MS = 500;
  * - Long-press (mobile): abre o menu de ações sem navegar
  * - Toque/click curto: abre o detalhe mantendo contexto da prateleira
  */
-export function SmartShelfRow({ id, title, subtitle, items }: Props) {
+export function SmartShelfRow({ id, title, subtitle, items, emoji }: Props) {
   if (!items.length) return null;
 
+  const displayTitle = emoji ? (
+    <span className="inline-flex items-center gap-2">
+      <span aria-hidden className="text-[1.1em] leading-none">{emoji}</span>
+      <span>{title}</span>
+    </span>
+  ) : (
+    title
+  );
+
   return (
-    <CinematicShelf title={title} subtitle={subtitle}>
+    <CinematicShelf title={displayTitle as unknown as string} subtitle={subtitle}>
       {items.map((ub) => (
         <ShelfItem key={`${id}-${ub.id}`} width="wide">
           <SmartShelfCard shelfId={id} shelfTitle={title} ub={ub} />
