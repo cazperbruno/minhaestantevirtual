@@ -198,7 +198,26 @@ export default function AdminPage() {
               expiresAt={csrf.expiresAt}
               loading={csrf.loading}
               error={csrf.error}
-              onRotate={() => void csrf.rotate()}
+              onRotate={async () => {
+                const id = toast.loading("Rotacionando token CSRF…");
+                try {
+                  // Limpa estado antigo da sessão antes de pedir um novo
+                  try {
+                    sessionStorage.removeItem("readify.admin.csrf");
+                  } catch { /* noop */ }
+                  const newToken = await csrf.rotate();
+                  if (newToken) {
+                    toast.success("Novo token CSRF emitido com sucesso", { id });
+                  } else {
+                    toast.error(
+                      csrf.error ?? "Falha ao emitir novo token CSRF",
+                      { id },
+                    );
+                  }
+                } catch (e: any) {
+                  toast.error(e?.message ?? "Falha ao rotacionar token CSRF", { id });
+                }
+              }}
             />
             <Button variant="outline" onClick={loadStats} disabled={loading} className="gap-2">
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
@@ -413,11 +432,23 @@ function CsrfBadge({
   expiresAt: number | null;
   loading: boolean;
   error: string | null;
-  onRotate: () => void;
+  onRotate: () => void | Promise<void>;
 }) {
+  const [rotating, setRotating] = useState(false);
   const now = Date.now();
   const valid = !!token && !!expiresAt && expiresAt > now;
   const minsLeft = expiresAt ? Math.max(0, Math.round((expiresAt - now) / 60000)) : 0;
+  const busy = loading || rotating;
+
+  const handleRotate = async () => {
+    if (busy) return;
+    setRotating(true);
+    try {
+      await onRotate();
+    } finally {
+      setRotating(false);
+    }
+  };
 
   return (
     <div
@@ -436,7 +467,9 @@ function CsrfBadge({
             : "Sem token CSRF — operações bloqueadas"
       }
     >
-      {error ? (
+      {rotating ? (
+        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+      ) : error ? (
         <ShieldAlert className="w-3.5 h-3.5" />
       ) : valid ? (
         <ShieldCheck className="w-3.5 h-3.5" />
@@ -444,21 +477,23 @@ function CsrfBadge({
         <Shield className="w-3.5 h-3.5" />
       )}
       <span className="font-medium">
-        {loading
-          ? "Token CSRF…"
-          : error
-            ? "CSRF falhou"
-            : valid
-              ? `CSRF ativo (${minsLeft}m)`
-              : "CSRF inativo"}
+        {rotating
+          ? "Rotacionando…"
+          : loading
+            ? "Token CSRF…"
+            : error
+              ? "CSRF falhou"
+              : valid
+                ? `CSRF ativo (${minsLeft}m)`
+                : "CSRF inativo"}
       </span>
       <button
         type="button"
-        onClick={onRotate}
-        className="opacity-70 hover:opacity-100 underline"
-        disabled={loading}
+        onClick={handleRotate}
+        className="opacity-70 hover:opacity-100 underline disabled:opacity-40 disabled:no-underline"
+        disabled={busy}
       >
-        rotacionar
+        {rotating ? "aguarde…" : "rotacionar"}
       </button>
     </div>
   );
