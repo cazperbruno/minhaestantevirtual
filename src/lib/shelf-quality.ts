@@ -23,7 +23,6 @@ export function bookQualityScore(b: Book | null | undefined): number {
   if (!b) return 0;
   let s = 0;
   if (b.cover_url) s += 35;
-  if ((b.cover_quality ?? 0) >= 60) s += 10;
   if (isPortugueseEdition(b)) s += 25;
   if (b.description && b.description.length > 80) s += 10;
   if (b.published_year && b.published_year > 1900) s += 5;
