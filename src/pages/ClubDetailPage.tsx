@@ -722,6 +722,12 @@ export default function ClubDetailPage() {
                   currentBook={club.current_book ? { id: club.current_book.id, title: club.current_book.title } : null}
                   onAttach={(q) => setPendingQuote(q)}
                 />
+                {club.current_book && (
+                  <SpoilerComposeButton
+                    value={pendingSpoilerPage}
+                    onChange={setPendingSpoilerPage}
+                  />
+                )}
                 <MentionInput
                   ref={inputRef}
                   value={input}
