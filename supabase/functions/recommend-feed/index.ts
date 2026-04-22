@@ -166,6 +166,62 @@ Deno.serve(async (req) => {
       }
     }
 
+    // 2.5) Amigos lendo agora — quem eu sigo está lendo nas últimas 2 semanas
+    const { data: friendsReading } = await supabase.rpc("friends_reading_now", {
+      _user_id: user.id, _limit: 14,
+    });
+    if (friendsReading && friendsReading.length > 0) {
+      const ids = friendsReading.map((f: any) => f.book_id);
+      const { data: books } = await supabase
+        .from("books").select("*").in("id", ids).not("cover_url", "is", null);
+      if (books && books.length > 0) {
+        const byId = new Map(books.map((b: any) => [b.id, b]));
+        const countById = new Map(friendsReading.map((f: any) => [f.book_id, f.friends_count]));
+        const ordered = ids
+          .map((id: string) => {
+            const b = byId.get(id);
+            const c = countById.get(id);
+            return b ? { ...b, _reason: `${c} ${c === 1 ? "amigo está lendo" : "amigos estão lendo"}` } : null;
+          })
+          .filter(Boolean);
+        if (ordered.length > 0) {
+          shelves.push({
+            id: "friends_reading",
+            title: "Amigos lendo agora",
+            reason: "Pessoas que você segue estão lendo isso",
+            books: ordered,
+          });
+        }
+      }
+    }
+
+    // 2.6) Em alta no seu círculo — atividades recentes (rate/finish/add) entre quem sigo
+    const { data: circleTrending } = await supabase.rpc("trending_in_circle", {
+      _user_id: user.id, _limit: 14,
+    });
+    if (circleTrending && circleTrending.length > 0) {
+      const ids = circleTrending.map((t: any) => t.book_id);
+      const { data: books } = await supabase
+        .from("books").select("*").in("id", ids).not("cover_url", "is", null);
+      if (books && books.length > 0) {
+        const byId = new Map(books.map((b: any) => [b.id, b]));
+        const ordered = ids
+          .map((id: string) => {
+            const b = byId.get(id);
+            return b ? { ...b, _reason: "Em alta no seu círculo" } : null;
+          })
+          .filter(Boolean);
+        if (ordered.length > 0) {
+          shelves.push({
+            id: "trending_in_circle",
+            title: "Em alta no seu círculo",
+            reason: "Mais comentado por quem você segue",
+            books: ordered,
+          });
+        }
+      }
+    }
+
     // 3) Tendências globais
     const { data: trending } = await supabase
       .from("trending_books")
