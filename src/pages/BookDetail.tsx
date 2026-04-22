@@ -9,6 +9,7 @@ import { ReviewSection } from "@/components/books/ReviewSection";
 import { BookSuggestions } from "@/components/books/BookSuggestions";
 import { ShelfNavigator } from "@/components/books/ShelfNavigator";
 import { BookDetailSkeleton } from "@/components/ui/skeletons";
+import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useBook, useUserBook, useCommitUserBook } from "@/hooks/useBookDetail";
@@ -114,6 +115,7 @@ export default function BookDetail() {
           <BookSuggestions book={book} />
         </div>
       </ShelfNavigator>
+      <ScrollToTopButton />
     </AppShell>
   );
 }
