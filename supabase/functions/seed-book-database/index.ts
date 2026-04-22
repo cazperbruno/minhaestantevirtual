@@ -231,6 +231,7 @@ Deno.serve(async (req) => {
 
     if (uniq.length === 0) {
       summary.duration_ms = Date.now() - t0;
+      await finishRun(sb, run, { status: "success", result: { ...summary, note: "no candidates" } });
       return jsonResponse(summary);
     }
 
@@ -247,6 +248,7 @@ Deno.serve(async (req) => {
     const toInsert = uniq.filter((c) => !existingSet.has(c.source_id));
     if (toInsert.length === 0) {
       summary.duration_ms = Date.now() - t0;
+      await finishRun(sb, run, { status: "success", result: { ...summary, note: "all already existed" } });
       return jsonResponse(summary);
     }
 
@@ -336,6 +338,10 @@ Deno.serve(async (req) => {
     }
 
     summary.duration_ms = Date.now() - t0;
+    await finishRun(sb, run, {
+      status: "success",
+      result: { ...summary, isbn_validation_picked: isbn_validation?.picked ?? 0 },
+    });
     return jsonResponse({ ...summary, isbn_validation });
   } catch (e) {
     console.error("seed-book-database error", e);
