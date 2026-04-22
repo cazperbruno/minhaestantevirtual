@@ -22,6 +22,7 @@ import { FollowingReadsShelfRow } from "@/components/books/FollowingReadsShelfRo
 import { useBecauseYouRead } from "@/hooks/useBecauseYouRead";
 import { dedupeByIsbn } from "@/lib/dedupe";
 import { StreakAtRiskBanner } from "@/components/gamification/StreakAtRiskBanner";
+import { DailySurpriseBox } from "@/components/gamification/DailySurpriseBox";
 
 export default function Discover() {
   const { user } = useAuth();
@@ -145,6 +146,9 @@ export default function Discover() {
 
         {/* Streak em risco — alerta amistoso (Fase 1 retenção) */}
         <StreakAtRiskBanner />
+
+        {/* Caixa Surpresa Diária — recompensa variável (Fase 2 retenção) */}
+        <DailySurpriseBox />
 
         {/* Stories de leitura (24h) */}
         <section className="mb-8 -mt-4">

@@ -951,6 +951,36 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_surprise_claims: {
+        Row: {
+          bonus_xp: number
+          book_id: string | null
+          claim_date: string
+          claimed_at: string
+          id: string
+          rarity: string
+          user_id: string
+        }
+        Insert: {
+          bonus_xp?: number
+          book_id?: string | null
+          claim_date: string
+          claimed_at?: string
+          id?: string
+          rarity?: string
+          user_id: string
+        }
+        Update: {
+          bonus_xp?: number
+          book_id?: string | null
+          claim_date?: string
+          claimed_at?: string
+          id?: string
+          rarity?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       enrichment_queue: {
         Row: {
           attempts: number
@@ -2412,6 +2442,19 @@ export type Database = {
         }[]
       }
       cleanup_expired_admin_csrf_tokens: { Args: never; Returns: number }
+      cohort_retention: {
+        Args: { _weeks_back?: number }
+        Returns: {
+          cohort_size: number
+          cohort_week: string
+          d1_pct: number
+          d1_returned: number
+          d30_pct: number
+          d30_returned: number
+          d7_pct: number
+          d7_returned: number
+        }[]
+      }
       compute_book_quality_score: {
         Args: {
           _authors: string[]
@@ -2430,6 +2473,15 @@ export type Database = {
         Returns: number
       }
       create_streak_risk_notifications: { Args: never; Returns: number }
+      daily_surprise_status: {
+        Args: never
+        Returns: {
+          available: boolean
+          last_bonus_xp: number
+          last_book_id: string
+          last_rarity: string
+        }[]
+      }
       decline_buddy_read: {
         Args: { _buddy_id: string }
         Returns: {
@@ -2445,6 +2497,15 @@ export type Database = {
         }[]
       }
       division_from_xp: { Args: { _xp: number }; Returns: string }
+      engagement_snapshot: {
+        Args: never
+        Returns: {
+          dau: number
+          mau: number
+          sticky_pct: number
+          wau: number
+        }[]
+      }
       enrich_series_apply: {
         Args: {
           _categories: string[]
@@ -2603,6 +2664,16 @@ export type Database = {
           at_risk: boolean
           current_days: number
           freezes_available: number
+        }[]
+      }
+      open_daily_surprise_box: {
+        Args: never
+        Returns: {
+          already_claimed: boolean
+          bonus_xp: number
+          book_id: string
+          claim_date: string
+          rarity: string
         }[]
       }
       parse_series_title: {
