@@ -23,7 +23,8 @@
  * Auth: admin OU service_role (cron).
  */
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import { requireAdmin } from "../_shared/admin-guard.ts";
+import { requireAdminOrCron } from "../_shared/admin-guard.ts";
+import { startRun, finishRun } from "../_shared/automation-runs.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -164,7 +165,7 @@ Deno.serve(async (req) => {
     // 1) pega os livros com pior quality_score (e mais recentes em empate)
     const { data: rows, error: pickErr } = await sb
       .from("books")
-      .select("id,title,authors,publisher,description,cover_url,isbn_13,isbn_10,language,categories,series_id,quality_score")
+      .select("id,title,authors,publisher,description,cover_url,isbn_13,isbn_10,language,categories,series_id,quality_score,last_enriched_at")
       .order("quality_score", { ascending: true })
       .order("updated_at", { ascending: true })
       .limit(limit);
