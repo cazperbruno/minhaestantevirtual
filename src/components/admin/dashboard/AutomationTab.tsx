@@ -8,7 +8,7 @@ import { invokeAdmin } from "@/lib/admin-invoke";
 import { toast } from "sonner";
 import {
   Activity, BookOpen, CheckCircle2, Clock, Database, Image as ImageIcon,
-  Loader2, Play, RefreshCw, Sparkles, XCircle,
+  Loader2, Play, RefreshCw, Sparkles, XCircle, Trophy, Bell,
 } from "lucide-react";
 
 interface RunRow {
@@ -87,6 +87,24 @@ const JOBS: JobConfig[] = [
     fn: "process-enrichment-queue",
     body: {},
     icon: Database,
+  },
+  {
+    id: "streak-risk",
+    label: "Avisar streak em risco",
+    schedule: "1x/dia • 20h BRT",
+    description: "Notifica usuários cujo streak vence hoje (Fase 1)",
+    fn: "notify-streak-risk",
+    body: {},
+    icon: Bell,
+  },
+  {
+    id: "league-finale",
+    label: "Finalística da liga",
+    schedule: "domingo • 18h BRT",
+    description: "Avisa posição na divisão antes do reset semanal (Fase 3)",
+    fn: "notify-league-finale",
+    body: {},
+    icon: Trophy,
   },
 ];
 
