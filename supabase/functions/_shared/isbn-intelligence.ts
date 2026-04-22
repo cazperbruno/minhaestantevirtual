@@ -150,7 +150,83 @@ export function computeQualityScore(b: NormalizedBookLite): number {
 
 export function isPortuguese(b: NormalizedBookLite): boolean {
   const lang = (b.language || "").toLowerCase();
-  return lang === "pt" || lang === "pt-br" || lang === "por";
+  return lang === "pt" || lang === "pt-br" || lang === "pt_br" || lang === "por" || lang === "ptbr";
+}
+
+/**
+ * Pista textual de PT-BR mesmo sem campo `language` confiável.
+ * Usado para detectar edições brasileiras quando a fonte não declara idioma
+ * (ex: OpenLibrary devolve null em quase tudo).
+ *
+ * Heurísticas simples (false-positives ok — só alteram ranking, não filtram):
+ *  - publisher contém "brasil" / editoras BR conhecidas
+ *  - description contém palavras com til/cedilha ou stopwords frequentes do PT
+ *  - subtitle / categories em PT
+ */
+const PT_PUBLISHERS = /\b(companhia das letras|record|rocco|sextante|intrínseca|intrinseca|nova fronteira|globo livros|planeta|martins fontes|saraiva|moderna|fundamento|panini|jbc|nemo|zahar|leya|ftd|ática|atica|aleph|todavia|alfaguara|harper(collins)? brasil|harpercollins brasil|valentina|melhoramentos|cosac naify|verus)\b/i;
+const PT_TEXT_HINTS = /[ãõçáàâéêíóôú]|\b(de|da|do|das|dos|para|com|sem|que|não|nao|uma|sua|seu|ção|ções)\b/i;
+
+export function hasPortugueseHints(b: NormalizedBookLite): boolean {
+  if (b.publisher && PT_PUBLISHERS.test(b.publisher)) return true;
+  const text = `${b.title || ""} ${b.subtitle || ""} ${b.description || ""}`;
+  if (text && PT_TEXT_HINTS.test(text)) {
+    // exigir múltiplas pistas para reduzir falsos-positivos
+    let hits = 0;
+    PT_TEXT_HINTS.lastIndex = 0;
+    const m = text.match(/[ãõçáàâéêíóôú]/g);
+    if (m && m.length >= 2) hits++;
+    if (/\b(de|da|do|para|com|não|nao|uma)\b/i.test(text)) hits++;
+    if (hits >= 2) return true;
+  }
+  if (b.categories?.some((c) => /portug|brasil/i.test(c))) return true;
+  return false;
+}
+
+/**
+ * Score de prioridade por idioma — usado para ranquear resultados.
+ * Quanto MAIOR, melhor. Independente do quality_score.
+ *  - +100 idioma declarado pt/pt-BR/por
+ *  - +40 pistas textuais fortes de PT (publisher, acentos, stopwords)
+ *  - +0 outros idiomas
+ *  - -20 idiomas claramente não-latinos (ja, ko, zh, ar, ru) — só p/ desempate
+ */
+export function langPriorityScore(b: NormalizedBookLite): number {
+  if (isPortuguese(b)) return 100;
+  if (hasPortugueseHints(b)) return 40;
+  const lang = (b.language || "").toLowerCase();
+  if (/^(ja|ko|zh|ar|ru|he|th)\b/.test(lang)) return -20;
+  return 0;
+}
+
+/**
+ * Reordena uma lista colocando PT-BR no topo, mantendo a ordem
+ * relativa dentro de cada bucket (estável).
+ *
+ * Quando vários itens têm a mesma prioridade, usa quality_score como desempate
+ * (se a função for fornecida — caller passa computeQualityScore para evitar dep circular).
+ */
+export function rerankByPortuguese<T extends NormalizedBookLite>(
+  list: T[],
+  qualityFn?: (b: T) => number,
+): T[] {
+  return [...list]
+    .map((b, i) => ({
+      b,
+      i,
+      lang: langPriorityScore(b),
+      q: qualityFn ? qualityFn(b) : 0,
+    }))
+    .sort((a, z) => z.lang - a.lang || z.q - a.q || a.i - z.i)
+    .map((x) => x.b);
+}
+
+/**
+ * Decide se vale parar a cascade — só interrompe cedo quando o resultado
+ * atual é PT-BR confiável E o score já é alto. Para edições não-PT,
+ * sempre tenta as fontes seguintes (uma delas pode ter a edição BR).
+ */
+export function shouldStopCascade(b: NormalizedBookLite, score: number): boolean {
+  return score >= 80 && isPortuguese(b);
 }
 
 // ============================================================
