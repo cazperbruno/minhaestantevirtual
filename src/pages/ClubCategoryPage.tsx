@@ -145,8 +145,9 @@ export default function ClubCategoryPage() {
   const join = async (club: ClubRow) => {
     if (!user) return;
     if (club.is_public) {
-      const { error } = await supabase.from("club_members").insert({ club_id: club.id, user_id: user.id });
-      if (error) toast.error("Erro ao entrar");
+      const { data, error } = await supabase.rpc("join_public_club", { _club_id: club.id });
+      const row = (data as any[])?.[0];
+      if (error || !row?.success) toast.error("Erro ao entrar");
       else {
         toast.success("Você entrou no clube");
         navigate(`/clubes/${club.id}`);
