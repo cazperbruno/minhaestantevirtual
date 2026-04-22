@@ -892,26 +892,64 @@ export type Database = {
           },
         ]
       }
+      club_message_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          id?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "club_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       club_messages: {
         Row: {
+          book_quote: Json | null
           club_id: string
           content: string
           created_at: string
           id: string
+          parent_id: string | null
           user_id: string
         }
         Insert: {
+          book_quote?: Json | null
           club_id: string
           content: string
           created_at?: string
           id?: string
+          parent_id?: string | null
           user_id: string
         }
         Update: {
+          book_quote?: Json | null
           club_id?: string
           content?: string
           created_at?: string
           id?: string
+          parent_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -920,6 +958,13 @@ export type Database = {
             columns: ["club_id"]
             isOneToOne: false
             referencedRelation: "book_clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_messages_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "club_messages"
             referencedColumns: ["id"]
           },
         ]
@@ -2426,6 +2471,10 @@ export type Database = {
           reader_names: string[]
           recent_at: string
         }[]
+      }
+      can_react_to_message: {
+        Args: { _message_id: string; _user_id: string }
+        Returns: boolean
       }
       can_view_library: {
         Args: { _owner: string; _viewer: string }
