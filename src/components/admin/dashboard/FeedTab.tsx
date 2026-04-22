@@ -39,23 +39,19 @@ export function FeedTab() {
     const dayAgo = new Date(Date.now() - 24 * 3600_000).toISOString();
     const hourAgo = new Date(Date.now() - 3600_000).toISOString();
     const minAgo = new Date(Date.now() - 60_000).toISOString();
-    const head = (q: any) => q.select("id", { count: "exact", head: true });
+    const headCount = (q: any) => q.then((r: any) => r.count ?? 0);
     const [total, today, lastHour, lastMin, likesToday, commentsToday, recentR] = await Promise.all([
-      head(supabase.from("activities")),
-      head(supabase.from("activities").gte("created_at", dayAgo)),
-      head(supabase.from("activities").gte("created_at", hourAgo)),
-      head(supabase.from("activities").gte("created_at", minAgo)),
-      head(supabase.from("activity_likes").gte("created_at", dayAgo)),
-      head(supabase.from("activity_comments").gte("created_at", dayAgo)),
+      headCount(supabase.from("activities").select("id", { count: "exact", head: true })),
+      headCount(supabase.from("activities").select("id", { count: "exact", head: true }).gte("created_at", dayAgo)),
+      headCount(supabase.from("activities").select("id", { count: "exact", head: true }).gte("created_at", hourAgo)),
+      headCount(supabase.from("activities").select("id", { count: "exact", head: true }).gte("created_at", minAgo)),
+      headCount(supabase.from("activity_likes").select("user_id", { count: "exact", head: true }).gte("created_at", dayAgo)),
+      headCount(supabase.from("activity_comments").select("id", { count: "exact", head: true }).gte("created_at", dayAgo)),
       supabase.from("activities").select("kind, created_at, user_id").order("created_at", { ascending: false }).limit(15),
     ]);
     setStats({
-      total: total.count ?? 0,
-      today: today.count ?? 0,
-      last_hour: lastHour.count ?? 0,
-      last_minute: lastMin.count ?? 0,
-      likes_today: likesToday.count ?? 0,
-      comments_today: commentsToday.count ?? 0,
+      total, today, last_hour: lastHour, last_minute: lastMin,
+      likes_today: likesToday, comments_today: commentsToday,
     });
     setRecent(((recentR.data as any[]) || []) as RealtimeRow[]);
     setLoading(false);

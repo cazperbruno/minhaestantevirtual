@@ -67,7 +67,7 @@ export function useAdminMetrics({ pollMs = 30_000, enabled = true } = {}) {
         const monthAgo = isoAgo(30 * 24 * 3600 * 1000);
         const hourAgo = isoAgo(3600 * 1000);
 
-        const head = (q: any) => q.select("id", { count: "exact", head: true });
+        const headCount = (q: any) => q.then((r: any) => r.count ?? 0);
 
         const [
           usersTotal, usersToday, usersWeek, usersPrevWeek,
@@ -77,26 +77,28 @@ export function useAdminMetrics({ pollMs = 30_000, enabled = true } = {}) {
           enrichPending, enrichFailed, normPending, mergeSug,
           qualityAvg,
         ] = await Promise.all([
-          head(supabase.from("profiles")),
-          head(supabase.from("profiles").gte("created_at", dayAgo)),
-          head(supabase.from("profiles").gte("created_at", weekAgo)),
-          supabase.from("profiles").select("id", { count: "exact", head: true })
-            .gte("created_at", prevWeekStart).lt("created_at", weekAgo),
+          headCount(supabase.from("profiles").select("id", { count: "exact", head: true })),
+          headCount(supabase.from("profiles").select("id", { count: "exact", head: true }).gte("created_at", dayAgo)),
+          headCount(supabase.from("profiles").select("id", { count: "exact", head: true }).gte("created_at", weekAgo)),
+          headCount(
+            supabase.from("profiles").select("id", { count: "exact", head: true })
+              .gte("created_at", prevWeekStart).lt("created_at", weekAgo),
+          ),
           // DAU/MAU baseado em quem postou atividade no período (proxy honesto)
           supabase.from("activities").select("user_id").gte("created_at", dayAgo).limit(1000),
           supabase.from("activities").select("user_id").gte("created_at", monthAgo).limit(5000),
-          head(supabase.from("books")),
-          head(supabase.from("books").gte("created_at", dayAgo)),
-          head(supabase.from("books").gte("created_at", weekAgo)),
-          head(supabase.from("books").or("cover_url.is.null,cover_url.eq.")),
-          head(supabase.from("books").lt("quality_score", 50)),
-          head(supabase.from("activities")),
-          head(supabase.from("activities").gte("created_at", dayAgo)),
-          head(supabase.from("activities").gte("created_at", hourAgo)),
-          head(supabase.from("enrichment_queue").eq("status", "pending")),
-          head(supabase.from("enrichment_queue").eq("status", "failed")),
-          head(supabase.from("metadata_normalization_queue" as any).eq("status", "pending")),
-          head(supabase.from("merge_suggestions" as any).eq("status", "pending")),
+          headCount(supabase.from("books").select("id", { count: "exact", head: true })),
+          headCount(supabase.from("books").select("id", { count: "exact", head: true }).gte("created_at", dayAgo)),
+          headCount(supabase.from("books").select("id", { count: "exact", head: true }).gte("created_at", weekAgo)),
+          headCount(supabase.from("books").select("id", { count: "exact", head: true }).or("cover_url.is.null,cover_url.eq.")),
+          headCount(supabase.from("books").select("id", { count: "exact", head: true }).lt("quality_score", 50)),
+          headCount(supabase.from("activities").select("id", { count: "exact", head: true })),
+          headCount(supabase.from("activities").select("id", { count: "exact", head: true }).gte("created_at", dayAgo)),
+          headCount(supabase.from("activities").select("id", { count: "exact", head: true }).gte("created_at", hourAgo)),
+          headCount(supabase.from("enrichment_queue").select("id", { count: "exact", head: true }).eq("status", "pending")),
+          headCount(supabase.from("enrichment_queue").select("id", { count: "exact", head: true }).eq("status", "failed")),
+          headCount((supabase.from("metadata_normalization_queue" as any).select("id", { count: "exact", head: true }) as any).eq("status", "pending")),
+          headCount((supabase.from("merge_suggestions" as any).select("id", { count: "exact", head: true }) as any).eq("status", "pending")),
           // Média de qualidade
           (supabase.from("books_quality_report" as any).select("avg_quality_score").maybeSingle() as any),
         ]);
@@ -105,25 +107,25 @@ export function useAdminMetrics({ pollMs = 30_000, enabled = true } = {}) {
         const mauSet = new Set<string>(((mauR.data as any[]) || []).map((r) => r.user_id));
 
         setMetrics({
-          users_total: usersTotal.count ?? 0,
-          users_new_today: usersToday.count ?? 0,
-          users_new_week: usersWeek.count ?? 0,
-          users_new_prev_week: usersPrevWeek.count ?? 0,
+          users_total: usersTotal,
+          users_new_today: usersToday,
+          users_new_week: usersWeek,
+          users_new_prev_week: usersPrevWeek,
           dau: dauSet.size,
           mau: mauSet.size,
-          books_total: booksTotal.count ?? 0,
-          books_new_today: booksToday.count ?? 0,
-          books_new_week: booksWeek.count ?? 0,
-          books_without_cover: booksNoCover.count ?? 0,
-          books_low_quality: booksLowQ.count ?? 0,
+          books_total: booksTotal,
+          books_new_today: booksToday,
+          books_new_week: booksWeek,
+          books_without_cover: booksNoCover,
+          books_low_quality: booksLowQ,
           books_avg_quality: (qualityAvg as any)?.data?.avg_quality_score ?? 0,
-          activities_total: actsTotal.count ?? 0,
-          activities_today: actsToday.count ?? 0,
-          activities_last_hour: actsHour.count ?? 0,
-          enrichment_pending: enrichPending.count ?? 0,
-          enrichment_failed: enrichFailed.count ?? 0,
-          normalization_pending: normPending.count ?? 0,
-          merge_suggestions: mergeSug.count ?? 0,
+          activities_total: actsTotal,
+          activities_today: actsToday,
+          activities_last_hour: actsHour,
+          enrichment_pending: enrichPending,
+          enrichment_failed: enrichFailed,
+          normalization_pending: normPending,
+          merge_suggestions: mergeSug,
           fetched_at: Date.now(),
         });
         setError(null);
