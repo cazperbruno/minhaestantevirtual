@@ -522,10 +522,19 @@ async function ensureCover(book: NormalizedBook): Promise<NormalizedBook> {
   return book;
 }
 
-/** Cascade lookup with logs and fallback. */
+/**
+ * Cascade lookup com SCORE DE QUALIDADE + AI fallback + merge inteligente.
+ *
+ * Estratégia:
+ *  1. Itera fontes públicas (BrasilAPI primeiro pela cobertura PT-BR).
+ *  2. Mescla resultados — sempre preserva o de maior qualidade e prefere PT.
+ *  3. Para cedo se score >= 80 e idioma PT-BR.
+ *  4. Se nada encontrado ou score < 40, dispara AI fallback (Lovable AI).
+ *  5. Aplica fixPortugueseAccents + normalizeAuthors em todas as fontes.
+ */
 async function lookupIsbnCascade(
   variants: { isbn13: string | null; isbn10: string | null },
-): Promise<{ book: NormalizedBook | null; sourcesTried: string[] }> {
+): Promise<{ book: NormalizedBook | null; sourcesTried: string[]; score: number; usedAi: boolean }> {
   const sourcesTried: string[] = [];
   const isbnLabel = variants.isbn13 || variants.isbn10 || "?";
   console.log(`[Cascade] start ISBN ${isbnLabel}`);
@@ -535,29 +544,79 @@ async function lookupIsbnCascade(
     { name: "openlibrary-bibkeys", fn: lookupOpenLibraryBibkeys },
     { name: "openlibrary-isbn-search", fn: lookupOpenLibrarySearch },
     { name: "openlibrary-isbn", fn: lookupOpenLibraryIsbnEndpoint },
+    { name: "google-books", fn: lookupGoogleBooks },
     { name: "library-of-congress", fn: lookupLibraryOfCongress },
     { name: "worldcat-classify", fn: lookupWorldcatClassify },
-    { name: "google-books", fn: lookupGoogleBooks },
   ];
+
+  let merged: NormalizedBook | null = null;
+  let bestScore = 0;
 
   for (const s of sources) {
     sourcesTried.push(s.name);
     try {
       const found = await tryBothVariants(s.fn, variants);
-      if (found && found.title && found.title !== "Sem título") {
-        // Always store both variants when possible
-        if (!found.isbn_13 && variants.isbn13) found.isbn_13 = variants.isbn13;
-        if (!found.isbn_10 && variants.isbn10) found.isbn_10 = variants.isbn10;
-        const withCover = await ensureCover(found);
-        console.log(`[Cascade] resolved by ${s.name} for ${isbnLabel}`);
-        return { book: withCover, sourcesTried };
+      if (!found || !found.title || found.title === "Sem título") continue;
+      if (!found.isbn_13 && variants.isbn13) found.isbn_13 = variants.isbn13;
+      if (!found.isbn_10 && variants.isbn10) found.isbn_10 = variants.isbn10;
+
+      // Aplica padronização PT-BR já na fonte
+      found.title = fixPortugueseAccents(found.title) || found.title;
+      if (found.subtitle) found.subtitle = fixPortugueseAccents(found.subtitle);
+      if (found.description) found.description = fixPortugueseAccents(found.description);
+      found.authors = ptNormalizeAuthors(found.authors || []);
+
+      merged = merged ? mergeBest(merged, found) : found;
+      bestScore = computeQualityScore(merged);
+      console.log(`[Cascade] ${s.name} → score ${bestScore} (pt=${isPortuguese(merged)})`);
+
+      if (bestScore >= 80 && isPortuguese(merged)) {
+        console.log(`[Cascade] early-stop high-quality pt-BR`);
+        break;
       }
     } catch (e) {
       console.warn(`[Cascade] source ${s.name} threw: ${(e as Error).message}`);
     }
   }
-  console.warn(`[Cascade] no source resolved ISBN ${isbnLabel}`);
-  return { book: null, sourcesTried };
+
+  if (merged && !merged.cover_url) merged = await ensureCover(merged);
+  if (merged) bestScore = computeQualityScore(merged);
+
+  // ---- Fallback IA quando nada veio ou score muito baixo ----
+  let usedAi = false;
+  if (!merged || bestScore < 40) {
+    const isbnForAi = variants.isbn13 || variants.isbn10;
+    if (isbnForAi) {
+      console.log(`[Cascade] AI fallback (score atual=${bestScore})`);
+      sourcesTried.push("ai-fallback");
+      const ai = await aiFallbackInferBook(isbnForAi);
+      if (ai && ai.title) {
+        usedAi = true;
+        if (!merged) {
+          merged = {
+            ...ai,
+            authors: ai.authors || [],
+            categories: ai.categories || [],
+            source: "ai-fallback",
+            source_id: null,
+            raw: { ai_inferred: true },
+          } as NormalizedBook;
+        } else {
+          merged = mergeBest(merged, ai);
+          merged.source = `${merged.source}+ai`;
+        }
+        if (!merged.cover_url) merged = await ensureCover(merged);
+        bestScore = computeQualityScore(merged);
+      }
+    }
+  }
+
+  if (merged) {
+    console.log(`[Cascade] resolved ${isbnLabel} score=${bestScore} sources=${sourcesTried.join(",")} ai=${usedAi}`);
+  } else {
+    console.warn(`[Cascade] no source resolved ISBN ${isbnLabel}`);
+  }
+  return { book: merged, sourcesTried, score: bestScore, usedAi };
 }
 
 // ============================================================
