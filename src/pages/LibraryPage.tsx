@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { SmartShelfRow } from "@/components/books/SmartShelfRow";
 import { DiscoveryShelfRow } from "@/components/books/DiscoveryShelfRow";
@@ -21,6 +21,8 @@ import { ContentTypeFilter, useContentFilter } from "@/components/books/ContentT
 import { useViewMode } from "@/hooks/useViewMode";
 import { HomeMode } from "@/components/books/HomeMode";
 import { ShelfFilter, applyShelfFilter, type ShelfFilterValue } from "@/components/books/ShelfFilter";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
+import { queryClient } from "@/lib/query-client";
 
 export default function LibraryPage() {
   const { data: allItems = [], isLoading: loading } = useLibrary();
@@ -56,8 +58,17 @@ export default function LibraryPage() {
   const readingCount = items.filter((i) => i.status === "reading").length;
   const readCount = items.filter((i) => i.status === "read").length;
 
+  const onRefresh = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["library"] }),
+      queryClient.invalidateQueries({ queryKey: ["discovery-shelf"] }),
+      queryClient.invalidateQueries({ queryKey: ["following-reads"] }),
+    ]);
+  }, []);
+
   return (
     <AppShell>
+      <PullToRefresh onRefresh={onRefresh}>
       <div className="px-5 md:px-10 pt-8 md:pt-12 pb-20 max-w-7xl mx-auto">
         {/* Header */}
         <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
