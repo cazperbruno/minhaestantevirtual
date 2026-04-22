@@ -31,6 +31,7 @@ import { useClubChatPresence } from "@/hooks/useClubChatPresence";
 import { useClubReactions } from "@/hooks/useClubReactions";
 import { ClubLeaderboard } from "@/components/clubs/ClubLeaderboard";
 import { MentionInput } from "@/components/clubs/MentionInput";
+import { MessageContent } from "@/components/clubs/MessageContent";
 
 interface Profile {
   id: string;
@@ -547,8 +548,14 @@ export default function ClubDetailPage() {
                                     {parent.profile?.display_name || "Leitor"}
                                   </span>
                                   <span className="ml-1 line-clamp-1">
-                                    {parent.content.slice(0, 80)}
-                                    {parent.content.length > 80 ? "…" : ""}
+                                    <MessageContent
+                                      text={parent.content.slice(0, 80) + (parent.content.length > 80 ? "…" : "")}
+                                      members={members.map((mb) => ({
+                                        user_id: mb.user_id,
+                                        username: mb.profile?.username ?? null,
+                                        display_name: mb.profile?.display_name ?? null,
+                                      }))}
+                                    />
                                   </span>
                                 </div>
                               );
@@ -561,7 +568,15 @@ export default function ClubDetailPage() {
                             )}
                           >
                             {m.book_quote && <QuoteBlock quote={m.book_quote} />}
-                            {m.content}
+                            <MessageContent
+                              text={m.content}
+                              members={members.map((mb) => ({
+                                user_id: mb.user_id,
+                                username: mb.profile?.username ?? null,
+                                display_name: mb.profile?.display_name ?? null,
+                              }))}
+                              highlightClassName={mine ? "text-primary-foreground" : "text-primary"}
+                            />
                           </div>
 
                           <MessageReactions
