@@ -237,7 +237,11 @@ export default function ClubDetailPage() {
     messageIds,
   );
 
-  const send = async (e: React.FormEvent) => {
+  // Modo sem-spoiler: oculta TODA mensagem com spoiler_page até o usuário revelar
+  const { enabled: spoilerFree, toggle: toggleSpoilerFree } = useSpoilerFreeMode(id);
+  const hasAnySpoilerMsg = messages.some((m) => typeof m.spoiler_page === "number" && (m.spoiler_page ?? 0) > 0);
+
+
     e.preventDefault();
     if (!user || !input.trim() || !id) return;
     setSending(true);
