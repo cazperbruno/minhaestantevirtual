@@ -392,6 +392,13 @@ export default function ScannerPage() {
               duration: 1800,
             });
             rescheduleScan(1500);
+          } else if (scanMode === "single") {
+            // Modo single — auto-add em 2s com botão de cancelar visível
+            toast.success("Livro encontrado", {
+              description: "Adicionando em 2s · toque em Cancelar pra revisar.",
+              duration: 1800,
+            });
+            startAutoAddCountdown(2);
           } else {
             toast.success("Livro encontrado");
           }
@@ -414,6 +421,7 @@ export default function ScannerPage() {
   };
 
   const scanNext = () => {
+    cancelAutoAdd();
     setFoundBook(null);
     setNotFoundIsbn(null);
     setDetected(null);
