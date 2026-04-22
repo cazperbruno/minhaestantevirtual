@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   useClubJoinRequests, useApproveRequest, useRejectRequest,
   useClubInvitations, useInviteToClub,
@@ -9,10 +9,15 @@ import { Input } from "@/components/ui/input";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { Check, X, UserPlus, Loader2, Search, Mail, Inbox } from "lucide-react";
+import { Check, X, UserPlus, Loader2, Search, Mail, Inbox, Tag } from "lucide-react";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useQuery } from "@tanstack/react-query";
+import { CLUB_CATEGORIES, type ClubCategory } from "@/lib/club-categories";
+import { toast } from "sonner";
 
 interface Props {
   clubId: string;
@@ -28,6 +33,28 @@ export function ClubAdminPanel({ clubId, ownerId }: Props) {
   const pendingReqs = requests.data || [];
   const sentInvites = (invitations.data || []).filter((i) => i.status === "pending");
 
+  // Categoria atual
+  const [category, setCategory] = useState<ClubCategory>("geral");
+  const [savingCat, setSavingCat] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.from("book_clubs").select("category").eq("id", clubId).maybeSingle();
+      if (!cancelled && data?.category) setCategory(data.category as ClubCategory);
+    })();
+    return () => { cancelled = true; };
+  }, [clubId]);
+
+  const updateCategory = async (next: ClubCategory) => {
+    setSavingCat(true);
+    setCategory(next);
+    const { error } = await supabase.from("book_clubs").update({ category: next }).eq("id", clubId);
+    if (error) toast.error("Erro ao salvar categoria");
+    else toast.success("Categoria atualizada");
+    setSavingCat(false);
+  };
+
   return (
     <div className="glass rounded-2xl p-5 border border-primary/30 mb-4 space-y-5 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -36,6 +63,26 @@ export function ClubAdminPanel({ clubId, ownerId }: Props) {
         </h3>
         <InviteUserDialog clubId={clubId} invitedBy={ownerId} />
       </div>
+
+      {/* CATEGORIA */}
+      <section>
+        <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 font-semibold flex items-center gap-1.5">
+          <Tag className="w-3 h-3" /> Categoria
+        </p>
+        <Select value={category} onValueChange={(v) => updateCategory(v as ClubCategory)} disabled={savingCat}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {CLUB_CATEGORIES.map((c) => (
+              <SelectItem key={c.slug} value={c.slug}>
+                <span className="mr-2" aria-hidden>{c.emoji}</span>{c.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-[11px] text-muted-foreground mt-1.5">
+          Aparece na home de clubes e ajuda leitores a encontrarem o seu clube.
+        </p>
+      </section>
 
       {/* PEDIDOS PENDENTES */}
       <section>
