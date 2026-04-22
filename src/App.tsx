@@ -41,6 +41,7 @@ const BuddyReadsPage = lazy(() => import("./pages/BuddyReadsPage"));
 const BuddyReadDetailPage = lazy(() => import("./pages/BuddyReadDetailPage"));
 const InstallAppPage = lazy(() => import("./pages/InstallAppPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const AdminPage = lazy(() => import("./pages/AdminPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const RouteFallback = () => (
@@ -91,6 +92,7 @@ const App = () => (
             <Route path="/buddy" element={<ProtectedRoute><BuddyReadsPage /></ProtectedRoute>} />
             <Route path="/buddy/:id" element={<ProtectedRoute><BuddyReadDetailPage /></ProtectedRoute>} />
             <Route path="/instalar" element={<InstallAppPage />} />
+            <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
