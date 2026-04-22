@@ -1488,6 +1488,7 @@ export type Database = {
           onboarded_at: string | null
           profile_visibility: string
           tiktok: string | null
+          tutorial_completed_at: string | null
           twitter: string | null
           updated_at: string
           username: string | null
@@ -1508,6 +1509,7 @@ export type Database = {
           onboarded_at?: string | null
           profile_visibility?: string
           tiktok?: string | null
+          tutorial_completed_at?: string | null
           twitter?: string | null
           updated_at?: string
           username?: string | null
@@ -1528,6 +1530,7 @@ export type Database = {
           onboarded_at?: string | null
           profile_visibility?: string
           tiktok?: string | null
+          tutorial_completed_at?: string | null
           twitter?: string | null
           updated_at?: string
           username?: string | null
