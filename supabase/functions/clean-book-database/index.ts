@@ -419,6 +419,19 @@ Deno.serve(async (req) => {
       dirty: looksDirty(b),
     }));
 
+    await finishRun(sb, run, {
+      status: "success",
+      result: {
+        picked: summary.picked,
+        standardized: summary.standardized,
+        enqueued_normalization: summary.enqueued_normalization,
+        enqueued_enrichment: summary.enqueued_enrichment,
+        duplicate_groups: summary.duplicate_groups,
+        avg_score_before: summary.avg_score_before,
+        avg_score_after: summary.avg_score_after,
+      },
+    });
+
     return jsonResponse(summary);
   } catch (e) {
     console.error("clean-book-database error", e);
