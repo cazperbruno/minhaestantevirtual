@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { fetchFeed } from "@/lib/recommend-api";
-import { track } from "@/lib/track";
+import { track, trackEvent } from "@/lib/track";
 import { BookCover } from "@/components/books/BookCover";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,6 +37,8 @@ export default function InfiniteFeedPage() {
       });
       setCursor(page.nextCursor);
       setHasMore(page.hasMore);
+      // Telemetria de profundidade (Fase 3): scroll profundo no feed
+      if (cursor >= 24) trackEvent("feed_scrolled_deep", { cursor });
     } finally {
       setLoading(false);
       loadingRef.current = false;

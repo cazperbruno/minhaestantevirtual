@@ -12,6 +12,7 @@ import { useRanking } from "@/hooks/useRanking";
 import { useWeeklyRankingInfinite, useAmbassadors } from "@/hooks/useWeeklyRanking";
 import { LeagueBadge } from "@/components/gamification/LeagueBadge";
 import { SeasonalChallengesCard } from "@/components/gamification/SeasonalChallengesCard";
+import { trackEvent } from "@/lib/track";
 
 const TIER_LABEL: Record<string, string> = {
   legend: "Lenda 🔥",
@@ -22,6 +23,11 @@ const TIER_LABEL: Record<string, string> = {
 };
 
 export default function RankingPage() {
+  // Telemetria de profundidade (Fase 3) — usuário visualizou a liga
+  useEffect(() => {
+    trackEvent("league_viewed");
+  }, []);
+
   return (
     <AppShell>
       <div className="px-5 md:px-10 pt-8 pb-16 max-w-3xl mx-auto">
