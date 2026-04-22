@@ -6,6 +6,7 @@
 // =====================================================================
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { requireAdminOrCron } from "../_shared/admin-guard.ts";
+import { startRun, finishRun } from "../_shared/automation-runs.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
