@@ -1,5 +1,5 @@
-import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Children, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -10,6 +10,14 @@ interface Props {
   /** Mostra ação à direita do header (ex.: "Ver tudo"). */
   action?: ReactNode;
   className?: string;
+  /**
+   * Carregamento incremental: número inicial de itens renderizados.
+   * Demais aparecem ao clicar em "Ver mais" (em lotes de `step`).
+   * Default: 12 (suficiente para preencher 1–2 páginas horizontais).
+   */
+  initialCount?: number;
+  /** Tamanho do lote ao clicar em "Ver mais". Default: 12. */
+  step?: number;
 }
 
 /**
@@ -19,10 +27,35 @@ interface Props {
  *  - fade gradient nas bordas (esquerda/direita) para sugerir mais conteúdo
  *  - GPU-accelerated; mantém 60fps mesmo com 30+ itens
  */
-export function CinematicShelf({ title, subtitle, children, action, className }: Props) {
+export function CinematicShelf({
+  title,
+  subtitle,
+  children,
+  action,
+  className,
+  initialCount = 12,
+  step = 12,
+}: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(false);
+
+  // Carregamento incremental: corta os filhos visíveis em lotes.
+  const allChildren = useMemo(() => Children.toArray(children), [children]);
+  const total = allChildren.length;
+  const [visibleCount, setVisibleCount] = useState(() => Math.min(initialCount, total));
+
+  // Quando o conjunto de filhos muda (novo dataset), reinicia.
+  useEffect(() => {
+    setVisibleCount(Math.min(initialCount, total));
+  }, [initialCount, total]);
+
+  const visibleChildren = total > visibleCount ? allChildren.slice(0, visibleCount) : allChildren;
+  const hasMore = visibleCount < total;
+  const remaining = total - visibleCount;
+  const loadMore = useCallback(() => {
+    setVisibleCount((c) => Math.min(c + step, total));
+  }, [step, total]);
 
   const update = useCallback(() => {
     const el = ref.current;
@@ -117,7 +150,32 @@ export function CinematicShelf({ title, subtitle, children, action, className }:
           )}
           style={{ scrollPaddingInline: "1rem" }}
         >
-          {children}
+          {visibleChildren}
+
+          {/* "Ver mais" inline ao final da prateleira — carrega lote sem travar UI */}
+          {hasMore && (
+            <div className="shrink-0 snap-start flex items-stretch">
+              <button
+                type="button"
+                onClick={loadMore}
+                aria-label={`Ver mais ${Math.min(step, remaining)} de ${remaining} restantes`}
+                className={cn(
+                  "group/more h-full min-h-[12rem] w-28 md:w-36 rounded-md border border-dashed border-border/70",
+                  "flex flex-col items-center justify-center gap-2 text-muted-foreground",
+                  "bg-muted/20 hover:bg-primary/10 hover:border-primary/50 hover:text-primary",
+                  "transition-all duration-200 active:scale-[0.97]",
+                )}
+              >
+                <span className="w-10 h-10 rounded-full bg-background/80 border border-border flex items-center justify-center group-hover/more:border-primary/50 group-hover/more:bg-primary/10 transition-colors">
+                  <Plus className="w-5 h-5" />
+                </span>
+                <span className="text-xs font-semibold leading-tight">Ver mais</span>
+                <span className="text-[10px] opacity-80">
+                  +{Math.min(step, remaining)} de {remaining}
+                </span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </section>
