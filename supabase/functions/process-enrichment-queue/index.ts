@@ -6,6 +6,7 @@
 // =====================================================================
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { requireAdminOrCron } from "../_shared/admin-guard.ts";
+import { startRun, finishRun } from "../_shared/automation-runs.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -73,6 +74,12 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+
+  const run = await startRun(sb, {
+    job_type: "enrich-queue",
+    source: guard.isService ? "cron" : "admin",
+    triggered_by: guard.userId ?? null,
+  });
 
   // Marca como processing (otimistic — uma rodada por vez via cron 5min, sem race)
   await sb
@@ -172,7 +179,7 @@ Deno.serve(async (req) => {
     console.error("[process-enrichment-queue] ALL jobs failed with auth — verifique config de auth de enrich-book");
   }
 
-  return new Response(JSON.stringify({
+  const result = {
     ok: !allAuthFailed,
     processed: jobs.length,
     success: okCount,
@@ -180,7 +187,15 @@ Deno.serve(async (req) => {
     failed: failCount,
     auth_failed: authFailCount,
     recovered: stuck?.length ?? 0,
-  }), {
+  };
+
+  await finishRun(sb, run, {
+    status: allAuthFailed ? "error" : "success",
+    result,
+    error: allAuthFailed ? "all jobs failed with auth" : null,
+  });
+
+  return new Response(JSON.stringify(result), {
     status: allAuthFailed ? 502 : 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });

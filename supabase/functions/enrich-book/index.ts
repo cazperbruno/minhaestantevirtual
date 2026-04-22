@@ -131,13 +131,11 @@ Deno.serve(async (req) => {
     }
 
     const filled: string[] = Object.keys(patch);
-    if (filled.length === 0) {
-      return new Response(JSON.stringify({ ok: true, fields_filled: [], skipped: "nothing-to-fill" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Sempre marca tentativa para pular esse livro pelas próximas semanas
+    // (evita reprocessar o que já está bom)
+    const finalPatch: Record<string, any> = { ...patch, last_enriched_at: new Date().toISOString() };
 
-    const { error: upErr } = await sb.from("books").update(patch).eq("id", bookId);
+    const { error: upErr } = await sb.from("books").update(finalPatch).eq("id", bookId);
     if (upErr) {
       return new Response(JSON.stringify({ error: upErr.message }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },

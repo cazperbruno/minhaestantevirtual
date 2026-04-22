@@ -220,6 +220,45 @@ export type Database = {
         }
         Relationships: []
       }
+      automation_runs: {
+        Row: {
+          duration_ms: number | null
+          error: string | null
+          finished_at: string | null
+          id: string
+          job_type: string
+          result: Json | null
+          source: string
+          started_at: string
+          status: string
+          triggered_by: string | null
+        }
+        Insert: {
+          duration_ms?: number | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          job_type: string
+          result?: Json | null
+          source?: string
+          started_at?: string
+          status?: string
+          triggered_by?: string | null
+        }
+        Update: {
+          duration_ms?: number | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          job_type?: string
+          result?: Json | null
+          source?: string
+          started_at?: string
+          status?: string
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
       book_audit_log: {
         Row: {
           action: string
@@ -409,6 +448,7 @@ export type Database = {
           authors_text: string | null
           categories: string[] | null
           content_type: Database["public"]["Enums"]["content_type"]
+          cover_quality: number
           cover_url: string | null
           created_at: string
           description: string | null
@@ -416,6 +456,8 @@ export type Database = {
           isbn_10: string | null
           isbn_13: string | null
           language: string | null
+          last_cover_check_at: string | null
+          last_enriched_at: string | null
           page_count: number | null
           published_year: number | null
           publisher: string | null
@@ -434,6 +476,7 @@ export type Database = {
           authors_text?: string | null
           categories?: string[] | null
           content_type?: Database["public"]["Enums"]["content_type"]
+          cover_quality?: number
           cover_url?: string | null
           created_at?: string
           description?: string | null
@@ -441,6 +484,8 @@ export type Database = {
           isbn_10?: string | null
           isbn_13?: string | null
           language?: string | null
+          last_cover_check_at?: string | null
+          last_enriched_at?: string | null
           page_count?: number | null
           published_year?: number | null
           publisher?: string | null
@@ -459,6 +504,7 @@ export type Database = {
           authors_text?: string | null
           categories?: string[] | null
           content_type?: Database["public"]["Enums"]["content_type"]
+          cover_quality?: number
           cover_url?: string | null
           created_at?: string
           description?: string | null
@@ -466,6 +512,8 @@ export type Database = {
           isbn_10?: string | null
           isbn_13?: string | null
           language?: string | null
+          last_cover_check_at?: string | null
+          last_enriched_at?: string | null
           page_count?: number | null
           published_year?: number | null
           publisher?: string | null

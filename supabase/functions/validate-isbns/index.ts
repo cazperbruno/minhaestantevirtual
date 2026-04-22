@@ -21,7 +21,8 @@
  * Auth: admin OU service_role (cron / chamada do próprio seed).
  */
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import { requireAdmin } from "../_shared/admin-guard.ts";
+import { requireAdminOrCron } from "../_shared/admin-guard.ts";
+import { startRun, finishRun } from "../_shared/automation-runs.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -172,7 +173,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const guard = await requireAdmin(req);
+    const guard = await requireAdminOrCron(req);
     if (!guard.ok) return jsonResponse({ error: guard.error }, guard.status ?? 403);
     const sb = guard.sb;
 
@@ -180,6 +181,12 @@ Deno.serve(async (req) => {
     const mode = body.mode || "recent";
     const limit = Math.min(Math.max(body.limit ?? 500, 1), 5000);
     const dryRun = body.dryRun === true;
+
+    const run = await startRun(sb, {
+      job_type: `validate-isbns-${mode}`,
+      source: guard.isService ? "cron" : "admin",
+      triggered_by: guard.userId ?? null,
+    });
 
     const summary = {
       mode,
@@ -374,6 +381,7 @@ Deno.serve(async (req) => {
     }
 
     summary.duration_ms = Date.now() - t0;
+    await finishRun(sb, run, { status: "success", result: summary });
     return jsonResponse(summary);
   } catch (e) {
     console.error("validate-isbns error", e);

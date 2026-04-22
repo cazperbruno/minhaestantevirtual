@@ -25,7 +25,13 @@
 // ============================================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import { requireAdmin } from "../_shared/admin-guard.ts";
+import { requireAdminOrCron } from "../_shared/admin-guard.ts";
+import { startRun, finishRun } from "../_shared/automation-runs.ts";
+
+// Cooldown: livros com capa OK validada há menos de COOLDOWN_DAYS NÃO são reprocessados
+const COVER_OK_COOLDOWN_DAYS = 30;
+// Livros com capa quebrada são re-tentados em até este intervalo
+const COVER_FAIL_COOLDOWN_DAYS = 3;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -171,7 +177,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const guard = await requireAdmin(req);
+    const guard = await requireAdminOrCron(req);
     if (!guard.ok) {
       return new Response(JSON.stringify({ error: guard.error }), {
         status: guard.status ?? 403,
@@ -185,8 +191,19 @@ Deno.serve(async (req) => {
     const limit = Math.min(body.limit ?? 25, 100);
     const noAi = body.noAi ?? true; // default: batch jobs skip AI
 
+    // Registra execução p/ painel — só quando é batch (não p/ single book on demand)
+    const isBatch = mode !== "book";
+    const run = isBatch
+      ? await startRun(supabase, {
+          job_type: `fix-covers-${mode}`,
+          source: guard.isService ? "cron" : "admin",
+          triggered_by: guard.userId ?? null,
+        })
+      : { id: null as string | null, startedAt: Date.now() };
+
     // ---- Pick batch ----
     let books: BookRow[] = [];
+    const okCutoff = new Date(Date.now() - COVER_OK_COOLDOWN_DAYS * 86400_000).toISOString();
     if (mode === "book") {
       if (!body.bookId) {
         return new Response(JSON.stringify({ error: "bookId required" }), {
@@ -200,32 +217,25 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (data) books = [data as BookRow];
     } else if (mode === "missing") {
+      // missing: prioriza quem nunca foi checado ou foi há mais de COVER_FAIL_COOLDOWN_DAYS
+      const failCutoff = new Date(Date.now() - COVER_FAIL_COOLDOWN_DAYS * 86400_000).toISOString();
       const { data } = await supabase
         .from("books")
-        .select("id,title,authors,isbn_10,isbn_13,cover_url")
+        .select("id,title,authors,isbn_10,isbn_13,cover_url,last_cover_check_at")
         .is("cover_url", null)
-        .order("created_at", { ascending: false })
+        .or(`last_cover_check_at.is.null,last_cover_check_at.lt.${failCutoff}`)
+        .order("last_cover_check_at", { ascending: true, nullsFirst: true })
         .limit(limit);
       books = (data as BookRow[]) ?? [];
     } else {
-      // auto: prioritize books with views/adds — join via user_interactions
-      const { data } = await supabase.rpc("books_for_cover_audit", { _limit: limit }).select();
-      if (data && Array.isArray(data) && data.length > 0) {
-        const ids = data.map((d: any) => d.book_id);
-        const { data: rows } = await supabase
-          .from("books")
-          .select("id,title,authors,isbn_10,isbn_13,cover_url")
-          .in("id", ids);
-        books = (rows as BookRow[]) ?? [];
-      } else {
-        // Fallback: random sample
-        const { data: rows } = await supabase
-          .from("books")
-          .select("id,title,authors,isbn_10,isbn_13,cover_url")
-          .order("updated_at", { ascending: true })
-          .limit(limit);
-        books = (rows as BookRow[]) ?? [];
-      }
+      // auto: pula livros com capa de boa qualidade já validada recentemente
+      const { data: rows } = await supabase
+        .from("books")
+        .select("id,title,authors,isbn_10,isbn_13,cover_url,last_cover_check_at,cover_quality")
+        .or(`last_cover_check_at.is.null,last_cover_check_at.lt.${okCutoff},cover_quality.lt.60`)
+        .order("last_cover_check_at", { ascending: true, nullsFirst: true })
+        .limit(limit);
+      books = (rows as BookRow[]) ?? [];
     }
 
     // ---- Validate + replace ----
@@ -234,18 +244,39 @@ Deno.serve(async (req) => {
     for (const book of books) {
       summary.checked++;
       const probe = await probeCover(book.cover_url);
+      const stamp = new Date().toISOString();
       if (probe.ok) {
         summary.ok++;
+        // Capa OK — registra qualidade alta + cooldown longo
+        await supabase
+          .from("books")
+          .update({ last_cover_check_at: stamp, cover_quality: 90 })
+          .eq("id", book.id);
         continue;
       }
       const replacement = await findReplacement(book, noAi);
       if (replacement) {
         summary.replaced++;
+        await supabase
+          .from("books")
+          .update({ last_cover_check_at: stamp, cover_quality: 80 })
+          .eq("id", book.id);
         summary.details.push({ id: book.id, title: book.title, reason: probe.reason, new: replacement });
       } else {
         summary.failed++;
+        await supabase
+          .from("books")
+          .update({ last_cover_check_at: stamp, cover_quality: book.cover_url ? 30 : 0 })
+          .eq("id", book.id);
         summary.details.push({ id: book.id, title: book.title, reason: probe.reason, new: null });
       }
+    }
+
+    if (isBatch) {
+      await finishRun(supabase, run, {
+        status: "success",
+        result: { mode, ...summary, details: summary.details.slice(0, 5) },
+      });
     }
 
     return new Response(JSON.stringify(summary), {

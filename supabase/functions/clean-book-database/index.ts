@@ -23,7 +23,8 @@
  * Auth: admin OU service_role (cron).
  */
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import { requireAdmin } from "../_shared/admin-guard.ts";
+import { requireAdminOrCron } from "../_shared/admin-guard.ts";
+import { startRun, finishRun } from "../_shared/automation-runs.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -50,7 +51,11 @@ interface BookRow {
   categories: string[] | null;
   series_id: string | null;
   quality_score: number;
+  last_enriched_at: string | null;
 }
+
+// Livros enriquecidos nos últimos N dias NÃO voltam para a fila de enrich
+const ENRICH_COOLDOWN_DAYS = 14;
 
 function jsonResponse(body: any, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -129,7 +134,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const guard = await requireAdmin(req);
+    const guard = await requireAdminOrCron(req);
     if (!guard.ok) return jsonResponse({ error: guard.error }, guard.status ?? 403);
     const sb = guard.sb;
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -139,6 +144,12 @@ Deno.serve(async (req) => {
     const mode = body.mode === "aggressive" ? "aggressive" : "auto";
     const limit = Math.min(body.limit ?? (mode === "aggressive" ? 1000 : 200), 2000);
     const dryRun = body.dryRun === true;
+
+    const run = await startRun(sb, {
+      job_type: `clean-${mode}`,
+      source: guard.isService ? "cron" : "admin",
+      triggered_by: guard.userId ?? null,
+    });
 
     const summary = {
       mode,
@@ -160,7 +171,7 @@ Deno.serve(async (req) => {
     // 1) pega os livros com pior quality_score (e mais recentes em empate)
     const { data: rows, error: pickErr } = await sb
       .from("books")
-      .select("id,title,authors,publisher,description,cover_url,isbn_13,isbn_10,language,categories,series_id,quality_score")
+      .select("id,title,authors,publisher,description,cover_url,isbn_13,isbn_10,language,categories,series_id,quality_score,last_enriched_at")
       .order("quality_score", { ascending: true })
       .order("updated_at", { ascending: true })
       .limit(limit);
@@ -263,7 +274,11 @@ Deno.serve(async (req) => {
       }
 
       if (looksDirty(b)) dirtyIds.push(b.id);
-      if (missingFields(b).length >= 2) incompleteIds.push(b.id);
+      // Cooldown: pula livros enriquecidos com sucesso recentemente
+      const enrichedRecently =
+        b.last_enriched_at &&
+        Date.now() - new Date(b.last_enriched_at).getTime() < ENRICH_COOLDOWN_DAYS * 86400_000;
+      if (!enrichedRecently && missingFields(b).length >= 2) incompleteIds.push(b.id);
     }
 
     // 3) enfileira normalização IA — só p/ os realmente sujos
@@ -403,6 +418,19 @@ Deno.serve(async (req) => {
       missing: missingFields(b),
       dirty: looksDirty(b),
     }));
+
+    await finishRun(sb, run, {
+      status: "success",
+      result: {
+        picked: summary.picked,
+        standardized: summary.standardized,
+        enqueued_normalization: summary.enqueued_normalization,
+        enqueued_enrichment: summary.enqueued_enrichment,
+        duplicate_groups: summary.duplicate_groups,
+        avg_score_before: summary.avg_score_before,
+        avg_score_after: summary.avg_score_after,
+      },
+    });
 
     return jsonResponse(summary);
   } catch (e) {
