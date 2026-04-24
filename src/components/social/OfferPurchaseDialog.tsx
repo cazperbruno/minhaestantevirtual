@@ -43,35 +43,53 @@ export function OfferPurchaseDialog({ receiverId, receiverName, book, trigger }:
       toast.error("Informe um valor válido");
       return;
     }
+    if (!book?.id) {
+      toast.error("Livro não identificado");
+      return;
+    }
     setSending(true);
+    const amount_cents = Math.round(value * 100);
     const formatted = value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
     const { data: me } = await supabase
       .from("profiles")
       .select("display_name,username")
       .eq("id", user.id)
       .maybeSingle();
     const myName = me?.display_name || me?.username || "Alguém";
-    const bookTitle = book?.title || "seu livro";
 
-    const { error } = await supabase.from("notifications").insert({
+    // 1) Grava a oferta
+    const { error: offerErr } = await supabase.from("purchase_offers").insert({
+      offerer_id: user.id,
+      receiver_id: receiverId,
+      book_id: book.id,
+      amount_cents,
+      currency: "BRL",
+      message: message.trim() || null,
+    });
+    if (offerErr) {
+      setSending(false);
+      toast.error("Não foi possível enviar a oferta");
+      return;
+    }
+
+    // 2) Notifica o destinatário (best-effort)
+    await supabase.from("notifications").insert({
       user_id: receiverId,
       kind: "purchase_offer",
-      title: `${myName} quer comprar ${bookTitle}`,
+      title: `${myName} quer comprar ${book.title || "seu livro"}`,
       body: `Oferta: ${formatted}${message.trim() ? ` — "${message.trim()}"` : ""}`,
-      link: book?.id ? `/livro/${book.id}` : "/trocas",
+      link: `/trocas?tab=offers`,
       meta: {
         from_user_id: user.id,
-        book_id: book?.id ?? null,
-        amount: value,
+        book_id: book.id,
+        amount_cents,
         currency: "BRL",
         message: message.trim() || null,
       },
     });
+
     setSending(false);
-    if (error) {
-      toast.error("Não foi possível enviar a oferta");
-      return;
-    }
     toast.success("Oferta enviada! 💸", {
       description: `${receiverName || "A pessoa"} vai receber sua proposta.`,
     });
