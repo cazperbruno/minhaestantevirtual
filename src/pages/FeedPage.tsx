@@ -15,6 +15,9 @@ import { ActivityCard } from "@/components/social/ActivityCard";
 import { FeedStoriesBar } from "@/components/social/FeedStoriesBar";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { queryClient } from "@/lib/query-client";
+import { SpotlightTutorial } from "@/components/onboarding/SpotlightTutorial";
+import { usePageTutorial } from "@/hooks/usePageTutorial";
+import { getPageTutorial } from "@/lib/page-tutorials";
 
 type FeedRow =
   | { kind: "review"; ts: string; id: string; review: FeedReview }
@@ -22,6 +25,7 @@ type FeedRow =
 
 export default function FeedPage() {
   const [tab, setTab] = useState<"all" | "following" | "you">("all");
+  const tutorial = usePageTutorial("feed");
   const {
     data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage,
   } = useFeed(tab);
@@ -210,6 +214,7 @@ export default function FeedPage() {
         )}
       </div>
       </PullToRefresh>
+      <SpotlightTutorial open={tutorial.open} steps={getPageTutorial("feed") || []} onClose={tutorial.close} />
     </AppShell>
   );
 }

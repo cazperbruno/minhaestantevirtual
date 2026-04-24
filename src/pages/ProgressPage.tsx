@@ -14,6 +14,9 @@ import { toast } from "sonner";
 import * as Icons from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RankPositionCard } from "@/components/gamification/RankPositionCard";
+import { SpotlightTutorial } from "@/components/onboarding/SpotlightTutorial";
+import { usePageTutorial } from "@/hooks/usePageTutorial";
+import { getPageTutorial } from "@/lib/page-tutorials";
 
 function getIcon(name: string) {
   return (Icons as any)[name] || Icons.Target;
@@ -27,6 +30,7 @@ export default function ProgressPage() {
   const { data: invite } = useInvite(userId);
   const { data: ambassadors = [] } = useAmbassadors(20);
   const claim = useClaimChallenge(userId!);
+  const tutorial = usePageTutorial("progress");
 
   const daily = challenges.filter((c) => c.category === "daily");
   const weekly = challenges.filter((c) => c.category === "weekly");
@@ -201,6 +205,7 @@ export default function ProgressPage() {
           )}
         </div>
       </div>
+      <SpotlightTutorial open={tutorial.open} steps={getPageTutorial("progress") || []} onClose={tutorial.close} />
     </AppShell>
   );
 }

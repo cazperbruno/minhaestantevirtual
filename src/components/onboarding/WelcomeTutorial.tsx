@@ -76,11 +76,11 @@ const SLIDES: Slide[] = [
     glow: "bg-status-read/40",
   },
   {
-    id: "ready",
+    id: "scanner",
     eyebrow: "Tudo pronto",
-    title: "Vamos começar\nessa história.",
-    body: "Adicione seu primeiro livro agora. Em menos de um minuto sua estante ganha vida.",
-    icon: Heart,
+    title: "Aponte o scanner\ne comece já.",
+    body: "Aperte o botão central de scanner, aponte pro código de barras do seu livro e veja a mágica acontecer.",
+    icon: ScanLine,
     gradient: "from-primary/40 via-accent/20 to-background",
     glow: "bg-primary/50",
   },
@@ -323,9 +323,9 @@ export function WelcomeTutorial({ open, startAt = 0, onClose, onFinish, onStep, 
               </Button>
             )}
             {isLast ? (
-              <Link to="/buscar" onClick={onFinish}>
+              <Link to="/scanner" onClick={onFinish}>
                 <Button variant="hero" size="lg" className="gap-2 shadow-lg">
-                  Adicionar meu primeiro livro
+                  Abrir o scanner agora
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               </Link>
