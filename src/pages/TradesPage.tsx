@@ -87,7 +87,7 @@ export default function TradesPage() {
   const load = async () => {
     if (!user) return;
     setLoading(true);
-    const [{ data: tradesData }, { data: matchesData }] = await Promise.all([
+    const [{ data: tradesData }, { data: matchesData }, { data: offersData }] = await Promise.all([
       supabase
         .from("trades")
         .select("*, proposer_book:proposer_book_id(id,title,authors,cover_url), receiver_book:receiver_book_id(id,title,authors,cover_url)")
@@ -101,13 +101,21 @@ export default function TradesPage() {
         .eq("status", "pending")
         .order("detected_at", { ascending: false })
         .limit(50),
+      supabase
+        .from("purchase_offers")
+        .select("*, book:book_id(id,title,authors,cover_url)")
+        .or(`offerer_id.eq.${user.id},receiver_id.eq.${user.id}`)
+        .order("created_at", { ascending: false })
+        .limit(100),
     ]);
     const list = (tradesData || []) as Trade[];
     const matchList = (matchesData || []) as any[];
+    const offerList = (offersData || []) as any[];
     const userIds = [
       ...new Set([
         ...list.flatMap((t) => [t.proposer_id, t.receiver_id]),
         ...matchList.flatMap((m: any) => [m.offerer_id, m.wisher_id]),
+        ...offerList.flatMap((o: any) => [o.offerer_id, o.receiver_id]),
       ]),
     ];
     const bookIds = [...new Set(matchList.map((m: any) => m.book_id))];
@@ -139,6 +147,16 @@ export default function TradesPage() {
         };
       }),
     );
+    setOffers(
+      offerList.map((o: any) => {
+        const iAmReceiver = o.receiver_id === user.id;
+        return {
+          ...o,
+          other: m.get(iAmReceiver ? o.offerer_id : o.receiver_id),
+          iAmReceiver,
+        };
+      }),
+    );
     setLoading(false);
   };
 
@@ -149,10 +167,46 @@ export default function TradesPage() {
       .channel(`trades:${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "trades" }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "trade_matches" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "purchase_offers" }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  const updateOffer = async (id: string, status: PurchaseOffer["status"]) => {
+    const prev = offers;
+    setPendingId(id);
+    setOffers((arr) => arr.map((o) => (o.id === id ? { ...o, status } : o)));
+    const { error } = await supabase.from("purchase_offers").update({ status }).eq("id", id);
+    setPendingId(null);
+    if (error) {
+      setOffers(prev);
+      toast.error("Erro ao atualizar oferta");
+      return;
+    }
+    // notifica o ofertante
+    const offer = prev.find((o) => o.id === id);
+    if (offer && status !== "cancelled") {
+      const labels: Record<string, string> = {
+        accepted: "aceitou sua oferta 🎉",
+        declined: "recusou sua oferta",
+      };
+      await supabase.from("notifications").insert({
+        user_id: offer.offerer_id,
+        kind: "purchase_offer_response",
+        title: `${offer.other?.display_name || "A pessoa"} ${labels[status] || "respondeu"}`,
+        body: offer.book?.title ? `Livro: ${offer.book.title}` : null,
+        link: "/trocas?tab=offers",
+        meta: { offer_id: id, status, book_id: offer.book_id },
+      });
+    }
+    const labels: Record<string, string> = {
+      accepted: "Oferta aceita — combine entrega e pagamento",
+      declined: "Oferta recusada",
+      cancelled: "Oferta cancelada",
+    };
+    toast.success(labels[status] || "Atualizado");
+  };
 
   const update = async (id: string, status: Trade["status"]) => {
     const prev = trades;
