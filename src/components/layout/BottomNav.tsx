@@ -17,7 +17,7 @@ import { prefetch } from "@/lib/prefetch";
  */
 const left = [
   { to: "/biblioteca", label: "Biblioteca", icon: Library },
-  { to: "/feed-infinito", label: "Social", icon: Heart },
+  { to: "/feed", label: "Social", icon: Heart },
 ];
 const right = [
   { to: "/progresso", label: "Progresso", icon: Sparkles },
@@ -31,7 +31,7 @@ export function BottomNav() {
 
   const prefetchFor = (to: string) => {
     if (to === "/biblioteca") prefetch.library(user?.id);
-    else if (to === "/feed-infinito" || to === "/feed") prefetch.feed();
+    else if (to === "/feed" || to === "/feed-infinito") prefetch.feed();
     else if (to === "/perfil" && user?.id) prefetch.profile(user.id);
     // /clubes não tem prefetch dedicado — carrega rápido pela query padrão
   };
