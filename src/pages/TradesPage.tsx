@@ -14,6 +14,9 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { profilePath } from "@/lib/profile-path";
 import { TradeMatchDialog } from "@/components/social/TradeMatchDialog";
+import { SpotlightTutorial } from "@/components/onboarding/SpotlightTutorial";
+import { usePageTutorial } from "@/hooks/usePageTutorial";
+import { getPageTutorial } from "@/lib/page-tutorials";
 
 interface Trade {
   id: string;
@@ -51,6 +54,7 @@ export default function TradesPage() {
   const [loading, setLoading] = useState(true);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [activeMatchId, setActiveMatchId] = useState<string | null>(null);
+  const tutorial = usePageTutorial("trades");
 
   // Abre o dialog de match cinemático quando vem com ?match=
   useEffect(() => {
@@ -186,7 +190,7 @@ export default function TradesPage() {
         </header>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="mb-6">
-          <TabsList className="grid grid-cols-4 max-w-xl">
+          <TabsList data-tour="trades-tabs" className="grid grid-cols-4 max-w-xl">
             <TabsTrigger value="matches" className="gap-1.5">
               <Zap className="w-3.5 h-3.5" /> Matches
               {matches.length > 0 && <Badge variant="default" className="h-4 px-1.5 ml-1">{matches.length}</Badge>}
@@ -358,6 +362,7 @@ export default function TradesPage() {
         open={!!activeMatchId}
         onClose={() => { setActiveMatchId(null); searchParams.delete("match"); setSearchParams(searchParams); }}
       />
+      <SpotlightTutorial open={tutorial.open} steps={getPageTutorial("trades") || []} onClose={tutorial.close} />
     </AppShell>
   );
 }
