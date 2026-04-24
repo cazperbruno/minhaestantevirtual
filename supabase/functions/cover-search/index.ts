@@ -419,9 +419,20 @@ Deno.serve(async (req) => {
 
   try {
     const body: Body = await req.json();
-    const { bookId, isbn_13, isbn_10, title, authors, persist, noAi } = body;
+    const {
+      bookId, isbn_13, isbn_10, title, authors, persist, noAi,
+      subtitle, publisher, content_type, volume_number,
+    } = body;
     const author = authors?.[0];
     const isbns = [isbn_13, isbn_10].filter(Boolean) as string[];
+
+    // Título enriquecido com volume — desambigua "Berserk Vol. 12" vs "Berserk".
+    // Para mangás/quadrinhos buscamos por "Título N" ou "Título Vol N" para
+    // tentar pegar a capa correta do volume.
+    const isSerial = content_type === "manga" || content_type === "comic";
+    const titleWithVolume = (title && volume_number && volume_number > 1)
+      ? `${title} ${isSerial ? volume_number : `Vol. ${volume_number}`}`
+      : title;
 
     // ---- 1. Run all sources in PARALLEL ----
     const tasks: Promise<Candidate[]>[] = [];
@@ -430,11 +441,24 @@ Deno.serve(async (req) => {
       tasks.push(srcGoogleBooksByIsbn(isbn));
     }
     if (title) {
-      tasks.push(srcGoogleBooksByTitle(title, author));
-      tasks.push(srcOpenLibrarySearch(title, author));
-      tasks.push(srcItunes(title, author));
-      tasks.push(srcArchiveOrg(title, author));
-      tasks.push(srcWikidata(title, author));
+      // Mangás/quadrinhos: AniList primeiro (melhor fonte para esse nicho).
+      if (content_type === "manga" || content_type === "comic") {
+        tasks.push(srcAnilist(title, volume_number));
+      }
+      // Title-based searches usam o título enriquecido com volume quando aplicável.
+      const tq = titleWithVolume || title;
+      tasks.push(srcGoogleBooksByTitle(tq, author));
+      tasks.push(srcOpenLibrarySearch(tq, author));
+      // iTunes ebook é fraco para mangá BR; só rodamos para books "tradicionais".
+      if (content_type !== "manga" && content_type !== "comic") {
+        tasks.push(srcItunes(tq, author));
+      }
+      tasks.push(srcArchiveOrg(tq, author));
+      tasks.push(srcWikidata(tq, author));
+      // Subtitle pode mudar drasticamente o resultado (ex.: subtítulo da edição BR).
+      if (subtitle && subtitle.trim() && subtitle.trim() !== title) {
+        tasks.push(srcGoogleBooksByTitle(`${title} ${subtitle}`, author));
+      }
     }
 
     const results = await Promise.allSettled(tasks);
@@ -465,7 +489,7 @@ Deno.serve(async (req) => {
 
     // ---- 4. AI fallback if no candidate passed validation ----
     if (!winner && title && !noAi) {
-      const aiCands = await srcAiFallback(title, author);
+      const aiCands = await srcAiFallback(title, author, content_type);
       for (const c of aiCands) {
         const dims = await probeImage(c.url);
         if (dims) {
