@@ -170,7 +170,8 @@ export default function TradesPage() {
   const visible =
     tab === "incoming" ? [...incoming, ...active]
     : tab === "outgoing" ? [...outgoing, ...active]
-    : history;
+    : tab === "history" ? history
+    : [];
 
   return (
     <AppShell>
@@ -185,17 +186,68 @@ export default function TradesPage() {
         </header>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="mb-6">
-          <TabsList className="grid grid-cols-3 max-w-md">
-            <TabsTrigger value="incoming" className="gap-2">
+          <TabsList className="grid grid-cols-4 max-w-xl">
+            <TabsTrigger value="matches" className="gap-1.5">
+              <Zap className="w-3.5 h-3.5" /> Matches
+              {matches.length > 0 && <Badge variant="default" className="h-4 px-1.5 ml-1">{matches.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="incoming" className="gap-1.5">
               <Inbox className="w-3.5 h-3.5" /> Recebidas
               {incoming.length > 0 && <Badge variant="default" className="h-4 px-1.5 ml-1">{incoming.length}</Badge>}
             </TabsTrigger>
-            <TabsTrigger value="outgoing" className="gap-2">
+            <TabsTrigger value="outgoing" className="gap-1.5">
               <Send className="w-3.5 h-3.5" /> Enviadas
             </TabsTrigger>
-            <TabsTrigger value="history" className="gap-2">Histórico</TabsTrigger>
+            <TabsTrigger value="history" className="gap-1.5">Histórico</TabsTrigger>
           </TabsList>
         </Tabs>
+
+        {tab === "matches" ? (
+          loading ? (
+            <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+          ) : matches.length === 0 ? (
+            <div className="glass rounded-2xl p-10 text-center animate-fade-in">
+              <Zap className="w-10 h-10 text-primary/40 mx-auto mb-3" />
+              <h2 className="font-display text-xl mb-1">Nenhum match ainda</h2>
+              <p className="text-sm text-muted-foreground mb-5">
+                Marque livros como "disponível pra troca" e adicione livros à lista de desejos. Quando houver complementaridade com outro leitor, avisamos por aqui.
+              </p>
+              <Link to="/biblioteca">
+                <Button variant="hero">Ir para Biblioteca</Button>
+              </Link>
+            </div>
+          ) : (
+            <ul className="space-y-3 animate-stagger">
+              {matches.map((mm) => (
+                <li key={mm.id}>
+                  <button
+                    onClick={() => { setActiveMatchId(mm.id); setSearchParams({ match: mm.id }); }}
+                    className="w-full glass rounded-2xl p-4 hover:border-primary/40 transition-all flex items-center gap-4 text-left"
+                  >
+                    <div className="relative shrink-0">
+                      {mm.book && <BookCover book={mm.book} size="sm" />}
+                      <Zap className="absolute -top-1 -right-1 w-5 h-5 text-primary bg-background rounded-full p-0.5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Match!</p>
+                      <p className="font-display font-semibold line-clamp-1">{mm.book?.title || "Livro"}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-1">
+                        {mm.iAmWisher
+                          ? <><strong>{mm.other?.display_name || "Alguém"}</strong> tem pra troca</>
+                          : <><strong>{mm.other?.display_name || "Alguém"}</strong> quer este livro</>}
+                      </p>
+                    </div>
+                    <ArrowRightLeft className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )
+        ) : null}
+
+        {tab !== "matches" && (
+          <>
+        {loading ? (
 
         {loading ? (
           <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
