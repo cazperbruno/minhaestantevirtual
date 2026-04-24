@@ -24,6 +24,9 @@ import { HomeMode } from "@/components/books/HomeMode";
 import { ShelfFilter, applyShelfFilter, type ShelfFilterValue } from "@/components/books/ShelfFilter";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { queryClient } from "@/lib/query-client";
+import { SpotlightTutorial } from "@/components/onboarding/SpotlightTutorial";
+import { usePageTutorial } from "@/hooks/usePageTutorial";
+import { getPageTutorial } from "@/lib/page-tutorials";
 
 export default function LibraryPage() {
   const { data: allItems = [], isLoading: loading } = useLibrary();
