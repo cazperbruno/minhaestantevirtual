@@ -15,7 +15,7 @@ const corsHeaders = {
 
 const ALLOWED_CATEGORIES = [
   "manga", "fantasia", "romance", "hq", "autoajuda",
-  "classicos", "nao_ficcao", "sci_fi", "terror", "infantojuvenil", "geral",
+  "classicos", "nao_ficcao", "sci_fi", "terror", "infantojuvenil", "tecnicos", "geral",
 ] as const;
 
 const SYSTEM_PROMPT = `Você é um classificador de clubes de leitura. Receberá nome, descrição e (se houver) o livro do mês de um clube. Responda SOMENTE com um JSON no formato {"category":"<slug>"} onde slug é UM destes:
@@ -29,6 +29,7 @@ const SYSTEM_PROMPT = `Você é um classificador de clubes de leitura. Receberá
 - nao_ficcao (história, ciência, biografia, ensaio)
 - autoajuda (autoajuda, hábitos, produtividade, mindset)
 - infantojuvenil (infantil ou jovem adulto)
+- tecnicos (livros técnicos, acadêmicos, programação, engenharia, vestibular, concursos, didáticos)
 - geral (quando não houver sinal claro)
 
 Use 'geral' apenas quando realmente não der pra inferir. Sem texto extra.`;

@@ -15,6 +15,7 @@ import { bookCoverTransitionName } from "@/lib/view-transitions";
 import { refreshBookData } from "@/lib/refresh-book";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { localizeCategories } from "@/lib/category-i18n";
 
 interface Props {
   book: Book;

@@ -34,7 +34,12 @@ interface Body {
 // Assuntos rotativos OpenLibrary — variamos a cada execução p/ não trazer sempre o mesmo
 const SUBJECTS = {
   popular: ["fantasy", "science_fiction", "thriller", "romance", "biography", "history", "philosophy", "mystery", "self_help", "business"],
-  pt: ["brazilian_literature", "literatura_brasileira", "portuguese_literature", "literatura_portuguesa"],
+  // PT expandido: 12 subjects (era 4) — sempre prioridade nos seeds automáticos
+  pt: [
+    "brazilian_literature", "literatura_brasileira", "portuguese_literature", "literatura_portuguesa",
+    "literatura_infantojuvenil_brasileira", "ficcao_brasileira", "romance_brasileiro", "poesia_brasileira",
+    "contos_brasileiros", "cronicas", "literatura_nacional", "autores_brasileiros",
+  ],
   manga: ["manga", "graphic_novels", "comics", "shonen", "shojo", "seinen"],
 };
 
