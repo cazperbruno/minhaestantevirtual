@@ -40,6 +40,11 @@ interface Body {
   isbn_10?: string | null;
   title?: string;
   authors?: string[];
+  // Desambiguação adicional (mangás, quadrinhos, séries):
+  subtitle?: string | null;
+  publisher?: string | null;
+  content_type?: string | null;
+  volume_number?: number | null;
   persist?: boolean;
   /** Disable AI fallback (e.g. batch jobs to save credits) */
   noAi?: boolean;
@@ -61,13 +66,14 @@ interface ScoredCandidate extends Candidate {
 
 // ---------- Source confidence weights (tuned dynamically over time) ----------
 const TRUST: Record<string, number> = {
+  "anilist": 0.97,           // melhor fonte para mangá/light novel
   "google-isbn": 0.95,
   "openlibrary-isbn": 0.92,
   "itunes": 0.90,
   "google-title": 0.85,
   "openlibrary-search": 0.80,
-  "archive-org": 0.70,
   "wikidata": 0.75,
+  "archive-org": 0.70,
   "ai-fallback": 0.40,
 };
 
@@ -334,10 +340,46 @@ async function srcWikidata(title: string, author?: string): Promise<Candidate[]>
   } catch { return []; }
 }
 
+// ---------- AniList (mangá, light novel, manhwa) ----------
+// API GraphQL gratuita sem key. Capas extraLarge ~600x900, alta confiança.
+async function srcAnilist(title: string, volumeNumber?: number | null): Promise<Candidate[]> {
+  // Estratégia de busca: título + número do volume quando aplicável,
+  // depois título puro. AniList retorna a obra; capa é da obra (vol 1 normalmente).
+  // Quando há volume_number e a obra tem capa por volume na descrição,
+  // tentamos o título com "vol N" antes.
+  const queries = [title];
+  if (volumeNumber && volumeNumber > 1) {
+    queries.unshift(`${title} ${volumeNumber}`);
+  }
+  const out: Candidate[] = [];
+  for (const q of queries) {
+    const r = await fetchSafe("https://graphql.anilist.co", 7000, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        query: `query($s:String){Page(perPage:3){media(search:$s,type:MANGA,sort:[SEARCH_MATCH,POPULARITY_DESC]){coverImage{extraLarge large}}}}`,
+        variables: { s: q },
+      }),
+    });
+    if (!r?.ok) continue;
+    try {
+      const j = await r.json();
+      const items = j.data?.Page?.media || [];
+      for (const m of items) {
+        const url = m.coverImage?.extraLarge || m.coverImage?.large;
+        if (url) out.push({ url, source: "anilist", trust: TRUST["anilist"] });
+      }
+      if (out.length) break; // primeira query que retornou já basta
+    } catch { /* continue */ }
+  }
+  return out;
+}
+
 // ---------- AI fallback (Lovable AI Gateway) ----------
-async function srcAiFallback(title: string, author?: string): Promise<Candidate[]> {
+async function srcAiFallback(title: string, author?: string, contentType?: string | null): Promise<Candidate[]> {
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) return [];
+  const typeHint = contentType === "manga" ? "mangá" : contentType === "comic" ? "quadrinho/HQ" : contentType === "magazine" ? "revista" : "livro";
   // Ask Gemini to find a likely cover URL from web knowledge
   try {
     const r = await fetchSafe("https://ai.gateway.lovable.dev/v1/chat/completions", 12000, {
@@ -347,9 +389,9 @@ async function srcAiFallback(title: string, author?: string): Promise<Candidate[
         model: "google/gemini-2.5-flash",
         messages: [{
           role: "user",
-          content: `Forneça APENAS uma URL direta (https://...jpg ou png) de uma capa de alta resolução para o livro:
+          content: `Forneça APENAS uma URL direta (https://...jpg ou png) de uma capa de alta resolução para o ${typeHint}:
 Título: "${title}"${author ? `\nAutor: ${author}` : ""}
-Prefira openlibrary.org, books.google.com, archive.org. Responda SOMENTE a URL, sem texto adicional.`,
+Prefira openlibrary.org, books.google.com, anilist.co, archive.org. Responda SOMENTE a URL, sem texto adicional.`,
         }],
         max_tokens: 200,
       }),
