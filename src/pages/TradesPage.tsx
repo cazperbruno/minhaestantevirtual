@@ -536,3 +536,14 @@ function StatusBadge({ status }: { status: Trade["status"] }) {
   const m = map[status];
   return <Badge variant="outline" className={m.cls}>{m.label}</Badge>;
 }
+
+function OfferStatusBadge({ status }: { status: PurchaseOffer["status"] }) {
+  const map = {
+    pending: { label: "Pendente", cls: "bg-status-reading/15 text-status-reading border-status-reading/30" },
+    accepted: { label: "Aceita", cls: "bg-status-read/15 text-status-read border-status-read/30" },
+    declined: { label: "Recusada", cls: "bg-destructive/15 text-destructive border-destructive/30" },
+    cancelled: { label: "Cancelada", cls: "bg-muted text-muted-foreground border-border" },
+  } as const;
+  const m = map[status];
+  return <Badge variant="outline" className={m.cls}>{m.label}</Badge>;
+}
