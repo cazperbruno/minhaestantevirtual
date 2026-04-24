@@ -252,10 +252,18 @@ export default function TradesPage() {
         </header>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="mb-6">
-          <TabsList data-tour="trades-tabs" className="grid grid-cols-4 max-w-xl">
+          <TabsList data-tour="trades-tabs" className="grid grid-cols-5 max-w-2xl">
             <TabsTrigger value="matches" className="gap-1.5">
               <Zap className="w-3.5 h-3.5" /> Matches
               {matches.length > 0 && <Badge variant="default" className="h-4 px-1.5 ml-1">{matches.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="offers" className="gap-1.5">
+              <HandCoins className="w-3.5 h-3.5" /> Ofertas
+              {offers.filter((o) => o.status === "pending" && o.iAmReceiver).length > 0 && (
+                <Badge variant="default" className="h-4 px-1.5 ml-1">
+                  {offers.filter((o) => o.status === "pending" && o.iAmReceiver).length}
+                </Badge>
+              )}
             </TabsTrigger>
             <TabsTrigger value="incoming" className="gap-1.5">
               <Inbox className="w-3.5 h-3.5" /> Recebidas
