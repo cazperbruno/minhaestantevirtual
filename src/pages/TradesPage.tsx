@@ -45,23 +45,42 @@ interface TradeMatch {
   iAmWisher?: boolean;
 }
 
+interface PurchaseOffer {
+  id: string;
+  offerer_id: string;
+  receiver_id: string;
+  book_id: string;
+  amount_cents: number;
+  currency: string;
+  message: string | null;
+  status: "pending" | "accepted" | "declined" | "cancelled";
+  created_at: string;
+  book?: any;
+  other?: any;
+  iAmReceiver?: boolean;
+}
+
 export default function TradesPage() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [tab, setTab] = useState<"matches" | "incoming" | "outgoing" | "history">("matches");
+  const [tab, setTab] = useState<"matches" | "offers" | "incoming" | "outgoing" | "history">("matches");
   const [trades, setTrades] = useState<Trade[]>([]);
   const [matches, setMatches] = useState<TradeMatch[]>([]);
+  const [offers, setOffers] = useState<PurchaseOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [activeMatchId, setActiveMatchId] = useState<string | null>(null);
   const tutorial = usePageTutorial("trades");
 
-  // Abre o dialog de match cinemático quando vem com ?match=
+  // Abre o dialog de match cinemático quando vem com ?match= ; permite ?tab=offers
   useEffect(() => {
     const m = searchParams.get("match");
+    const t = searchParams.get("tab");
     if (m) {
       setActiveMatchId(m);
       setTab("matches");
+    } else if (t === "offers" || t === "incoming" || t === "outgoing" || t === "history" || t === "matches") {
+      setTab(t as any);
     }
   }, [searchParams]);
 
