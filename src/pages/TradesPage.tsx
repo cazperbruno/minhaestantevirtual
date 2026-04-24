@@ -248,8 +248,6 @@ export default function TradesPage() {
         {tab !== "matches" && (
           <>
         {loading ? (
-
-        {loading ? (
           <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
         ) : visible.length === 0 ? (
           <div className="glass rounded-2xl p-10 text-center animate-fade-in">
