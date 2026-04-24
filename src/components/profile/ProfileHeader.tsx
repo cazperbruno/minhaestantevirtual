@@ -4,6 +4,7 @@ import { Progress } from "@/components/ui/progress";
 import { Trophy, ExternalLink, Share2, Edit3 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { sanitizeText } from "@/lib/sanitize";
 
 interface Props {
   profile: any;
@@ -51,7 +52,7 @@ export function ProfileHeader({ profile, email, publicHref, onEdit }: Props) {
             <p className="text-primary text-sm font-medium truncate">@{profile.username}</p>
           )}
           {profile.bio ? (
-            <p className="text-muted-foreground text-sm mt-1 line-clamp-2">{profile.bio}</p>
+            <p className="text-muted-foreground text-sm mt-1 line-clamp-2">{sanitizeText(profile.bio)}</p>
           ) : (
             <p className="text-muted-foreground/60 text-xs mt-1 italic">Adicione uma bio em Configurações</p>
           )}

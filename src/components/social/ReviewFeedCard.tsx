@@ -17,6 +17,7 @@ import { haptic } from "@/lib/haptics";
 import { toast } from "sonner";
 import type { FeedReview } from "@/hooks/useFeed";
 import { cn } from "@/lib/utils";
+import { sanitizeText } from "@/lib/sanitize";
 
 interface Props {
   review: FeedReview;
@@ -145,8 +146,8 @@ function ReviewFeedCardImpl({ review: r, onToggleLike }: Props) {
         </Link>
       </div>
 
-      {/* Texto da resenha */}
-      <p className="text-sm leading-relaxed whitespace-pre-line text-foreground/90">{r.content}</p>
+      {/* Texto da resenha (sanitizado contra XSS armazenado) */}
+      <p className="text-sm leading-relaxed whitespace-pre-line text-foreground/90">{sanitizeText(r.content)}</p>
 
       {/* Avatares dos likers */}
       <LikersAvatars reviewId={r.id} totalLikes={r.likes_count} className="mt-3" />
