@@ -114,17 +114,7 @@ export default function Auth() {
             Continuar com Google
           </Button>
 
-          <Button
-            type="button"
-            variant="outline"
-            size="lg"
-            disabled={busy !== null}
-            onClick={() => oauth("apple")}
-            className="w-full h-12 rounded-full border-border bg-card hover:bg-card/80 text-foreground font-medium gap-2 tap-scale"
-          >
-            {busy === "apple" ? <Loader2 className="w-4 h-4 animate-spin" /> : <AppleIcon />}
-            Continuar com Apple
-          </Button>
+          {/* Apple Sign-In ocultado a pedido — descomentar quando o BYOC estiver configurado */}
 
           <button
             type="button"
