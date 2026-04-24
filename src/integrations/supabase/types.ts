@@ -3171,6 +3171,7 @@ export type Database = {
           old_volume: number
         }[]
       }
+      reset_my_library: { Args: never; Returns: Json }
       search_books_internal: {
         Args: { lim?: number; q: string }
         Returns: {
