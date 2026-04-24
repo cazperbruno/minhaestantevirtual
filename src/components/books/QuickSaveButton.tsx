@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Bookmark, BookmarkCheck, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -6,8 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { ensurePersistedBook, isExternal } from "@/lib/import-book";
 import { haptic } from "@/lib/haptics";
 import { toast } from "sonner";
-import { invalidate, queryClient, qk } from "@/lib/query-client";
-import type { Book, UserBook } from "@/types/book";
+import { invalidate } from "@/lib/query-client";
+import type { Book } from "@/types/book";
 
 interface Props {
   book: Book;
@@ -24,6 +25,7 @@ interface Props {
  */
 export function QuickSaveButton({ book, floating = true, className }: Props) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -33,21 +35,19 @@ export function QuickSaveButton({ book, floating = true, className }: Props) {
     if (!user || busy || saved) return;
     setBusy(true);
     haptic("tap");
-    // Optimistic
     setSaved(true);
     try {
       const persisted = isExternal(book) ? await ensurePersistedBook(book) : book;
       if (!persisted?.id) throw new Error("import_failed");
 
-      // Insere na wishlist (ignore conflito se já existir)
       const { error } = await supabase
         .from("user_books")
         .insert({ user_id: user.id, book_id: persisted.id, status: "wishlist" });
       if (error && !`${error.message}`.includes("duplicate")) throw error;
 
       invalidate.library(user.id);
-      // toast discreto
-      toast.success("Salvo na lista de desejos", { duration: 1800 });
+      toast.success("Salvo na lista de desejos", { duration: 1400 });
+      navigate("/desejos");
     } catch {
       setSaved(false);
       toast.error("Não conseguimos salvar agora");
