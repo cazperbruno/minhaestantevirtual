@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BookCover } from "@/components/books/BookCover";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRightLeft, Check, X, Loader2, Send, Inbox, Sparkles, Zap } from "lucide-react";
+import { ArrowRightLeft, Check, X, Loader2, Send, Inbox, Sparkles, Zap, HandCoins } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -45,30 +45,49 @@ interface TradeMatch {
   iAmWisher?: boolean;
 }
 
+interface PurchaseOffer {
+  id: string;
+  offerer_id: string;
+  receiver_id: string;
+  book_id: string;
+  amount_cents: number;
+  currency: string;
+  message: string | null;
+  status: "pending" | "accepted" | "declined" | "cancelled";
+  created_at: string;
+  book?: any;
+  other?: any;
+  iAmReceiver?: boolean;
+}
+
 export default function TradesPage() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [tab, setTab] = useState<"matches" | "incoming" | "outgoing" | "history">("matches");
+  const [tab, setTab] = useState<"matches" | "offers" | "incoming" | "outgoing" | "history">("matches");
   const [trades, setTrades] = useState<Trade[]>([]);
   const [matches, setMatches] = useState<TradeMatch[]>([]);
+  const [offers, setOffers] = useState<PurchaseOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [activeMatchId, setActiveMatchId] = useState<string | null>(null);
   const tutorial = usePageTutorial("trades");
 
-  // Abre o dialog de match cinemático quando vem com ?match=
+  // Abre o dialog de match cinemático quando vem com ?match= ; permite ?tab=offers
   useEffect(() => {
     const m = searchParams.get("match");
+    const t = searchParams.get("tab");
     if (m) {
       setActiveMatchId(m);
       setTab("matches");
+    } else if (t === "offers" || t === "incoming" || t === "outgoing" || t === "history" || t === "matches") {
+      setTab(t as any);
     }
   }, [searchParams]);
 
   const load = async () => {
     if (!user) return;
     setLoading(true);
-    const [{ data: tradesData }, { data: matchesData }] = await Promise.all([
+    const [{ data: tradesData }, { data: matchesData }, { data: offersData }] = await Promise.all([
       supabase
         .from("trades")
         .select("*, proposer_book:proposer_book_id(id,title,authors,cover_url), receiver_book:receiver_book_id(id,title,authors,cover_url)")
@@ -82,13 +101,21 @@ export default function TradesPage() {
         .eq("status", "pending")
         .order("detected_at", { ascending: false })
         .limit(50),
+      supabase
+        .from("purchase_offers")
+        .select("*, book:book_id(id,title,authors,cover_url)")
+        .or(`offerer_id.eq.${user.id},receiver_id.eq.${user.id}`)
+        .order("created_at", { ascending: false })
+        .limit(100),
     ]);
     const list = (tradesData || []) as Trade[];
     const matchList = (matchesData || []) as any[];
+    const offerList = (offersData || []) as any[];
     const userIds = [
       ...new Set([
         ...list.flatMap((t) => [t.proposer_id, t.receiver_id]),
         ...matchList.flatMap((m: any) => [m.offerer_id, m.wisher_id]),
+        ...offerList.flatMap((o: any) => [o.offerer_id, o.receiver_id]),
       ]),
     ];
     const bookIds = [...new Set(matchList.map((m: any) => m.book_id))];
@@ -120,6 +147,16 @@ export default function TradesPage() {
         };
       }),
     );
+    setOffers(
+      offerList.map((o: any) => {
+        const iAmReceiver = o.receiver_id === user.id;
+        return {
+          ...o,
+          other: m.get(iAmReceiver ? o.offerer_id : o.receiver_id),
+          iAmReceiver,
+        };
+      }),
+    );
     setLoading(false);
   };
 
@@ -130,10 +167,46 @@ export default function TradesPage() {
       .channel(`trades:${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "trades" }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "trade_matches" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "purchase_offers" }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  const updateOffer = async (id: string, status: PurchaseOffer["status"]) => {
+    const prev = offers;
+    setPendingId(id);
+    setOffers((arr) => arr.map((o) => (o.id === id ? { ...o, status } : o)));
+    const { error } = await supabase.from("purchase_offers").update({ status }).eq("id", id);
+    setPendingId(null);
+    if (error) {
+      setOffers(prev);
+      toast.error("Erro ao atualizar oferta");
+      return;
+    }
+    // notifica o ofertante
+    const offer = prev.find((o) => o.id === id);
+    if (offer && status !== "cancelled") {
+      const labels: Record<string, string> = {
+        accepted: "aceitou sua oferta 🎉",
+        declined: "recusou sua oferta",
+      };
+      await supabase.from("notifications").insert({
+        user_id: offer.offerer_id,
+        kind: "purchase_offer_response",
+        title: `${offer.other?.display_name || "A pessoa"} ${labels[status] || "respondeu"}`,
+        body: offer.book?.title ? `Livro: ${offer.book.title}` : null,
+        link: "/trocas?tab=offers",
+        meta: { offer_id: id, status, book_id: offer.book_id },
+      });
+    }
+    const labels: Record<string, string> = {
+      accepted: "Oferta aceita — combine entrega e pagamento",
+      declined: "Oferta recusada",
+      cancelled: "Oferta cancelada",
+    };
+    toast.success(labels[status] || "Atualizado");
+  };
 
   const update = async (id: string, status: Trade["status"]) => {
     const prev = trades;
@@ -179,10 +252,18 @@ export default function TradesPage() {
         </header>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="mb-6">
-          <TabsList data-tour="trades-tabs" className="grid grid-cols-4 max-w-xl">
+          <TabsList data-tour="trades-tabs" className="grid grid-cols-5 max-w-2xl">
             <TabsTrigger value="matches" className="gap-1.5">
               <Zap className="w-3.5 h-3.5" /> Matches
               {matches.length > 0 && <Badge variant="default" className="h-4 px-1.5 ml-1">{matches.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="offers" className="gap-1.5">
+              <HandCoins className="w-3.5 h-3.5" /> Ofertas
+              {offers.filter((o) => o.status === "pending" && o.iAmReceiver).length > 0 && (
+                <Badge variant="default" className="h-4 px-1.5 ml-1">
+                  {offers.filter((o) => o.status === "pending" && o.iAmReceiver).length}
+                </Badge>
+              )}
             </TabsTrigger>
             <TabsTrigger value="incoming" className="gap-1.5">
               <Inbox className="w-3.5 h-3.5" /> Recebidas
@@ -238,7 +319,95 @@ export default function TradesPage() {
           )
         ) : null}
 
-        {tab !== "matches" && (
+        {tab === "offers" && (
+          loading ? (
+            <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+          ) : offers.length === 0 ? (
+            <div className="glass rounded-2xl p-10 text-center animate-fade-in">
+              <HandCoins className="w-10 h-10 text-primary/40 mx-auto mb-3" />
+              <h2 className="font-display text-xl mb-1">Nenhuma oferta ainda</h2>
+              <p className="text-sm text-muted-foreground mb-5">
+                Em vez de trocar, você pode oferecer pagar por um livro que outra pessoa tem disponível. As propostas aparecem aqui.
+              </p>
+              <Link to="/biblioteca">
+                <Button variant="hero">Ir para Biblioteca</Button>
+              </Link>
+            </div>
+          ) : (
+            <ul className="space-y-3 animate-stagger">
+              {offers.map((o) => {
+                const value = (o.amount_cents / 100).toLocaleString("pt-BR", { style: "currency", currency: o.currency || "BRL" });
+                return (
+                  <li key={o.id} className="glass rounded-2xl p-4 hover:border-primary/30 transition-all">
+                    <div className="flex items-start gap-3">
+                      <Link to={profilePath(o.other)}>
+                        <Avatar className="w-10 h-10">
+                          <AvatarImage src={o.other?.avatar_url} />
+                          <AvatarFallback className="bg-gradient-gold text-primary-foreground text-xs">
+                            {(o.other?.display_name || "?").charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      </Link>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <p className="text-xs text-muted-foreground">
+                            {o.iAmReceiver ? "Oferta de" : "Você ofereceu para"}{" "}
+                            <Link to={profilePath(o.other)} className="font-semibold text-foreground hover:text-primary">
+                              {o.other?.display_name || "Leitor"}
+                            </Link>
+                          </p>
+                          <OfferStatusBadge status={o.status} />
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {o.book && <BookCover book={o.book} size="sm" />}
+                          <div className="min-w-0 flex-1">
+                            <p className="font-display font-semibold line-clamp-2 text-sm">{o.book?.title || "Livro"}</p>
+                            <p className="text-lg font-bold text-primary mt-1 flex items-center gap-1">
+                              <HandCoins className="w-4 h-4" /> {value}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {formatDistanceToNow(new Date(o.created_at), { addSuffix: true, locale: ptBR })}
+                            </p>
+                          </div>
+                        </div>
+                        {o.message && (
+                          <p className="text-sm italic mt-3 px-3 py-2 bg-muted/30 rounded-lg text-foreground/80">
+                            "{o.message}"
+                          </p>
+                        )}
+                        {o.status === "pending" && (
+                          <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-border/40">
+                            {o.iAmReceiver ? (
+                              <>
+                                <Button size="sm" variant="ghost" onClick={() => updateOffer(o.id, "declined")} disabled={pendingId === o.id} className="gap-1.5">
+                                  {pendingId === o.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />} Recusar
+                                </Button>
+                                <Button size="sm" variant="hero" onClick={() => updateOffer(o.id, "accepted")} disabled={pendingId === o.id} className="gap-1.5">
+                                  {pendingId === o.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Aceitar
+                                </Button>
+                              </>
+                            ) : (
+                              <Button size="sm" variant="outline" onClick={() => updateOffer(o.id, "cancelled")} disabled={pendingId === o.id}>
+                                {pendingId === o.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Cancelar"}
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                        {o.status === "accepted" && (
+                          <p className="text-xs text-status-read mt-3 pt-3 border-t border-border/40">
+                            ✓ Combine entrega e pagamento direto com a pessoa.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )
+        )}
+
+        {tab !== "matches" && tab !== "offers" && (
           <>
         {loading ? (
           <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
@@ -362,6 +531,17 @@ function StatusBadge({ status }: { status: Trade["status"] }) {
     accepted: { label: "Aceita", cls: "bg-primary/15 text-primary border-primary/30" },
     declined: { label: "Recusada", cls: "bg-destructive/15 text-destructive border-destructive/30" },
     completed: { label: "Concluída", cls: "bg-status-read/15 text-status-read border-status-read/30" },
+    cancelled: { label: "Cancelada", cls: "bg-muted text-muted-foreground border-border" },
+  } as const;
+  const m = map[status];
+  return <Badge variant="outline" className={m.cls}>{m.label}</Badge>;
+}
+
+function OfferStatusBadge({ status }: { status: PurchaseOffer["status"] }) {
+  const map = {
+    pending: { label: "Pendente", cls: "bg-status-reading/15 text-status-reading border-status-reading/30" },
+    accepted: { label: "Aceita", cls: "bg-status-read/15 text-status-read border-status-read/30" },
+    declined: { label: "Recusada", cls: "bg-destructive/15 text-destructive border-destructive/30" },
     cancelled: { label: "Cancelada", cls: "bg-muted text-muted-foreground border-border" },
   } as const;
   const m = map[status];

@@ -1578,6 +1578,63 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_offers: {
+        Row: {
+          amount_cents: number
+          book_id: string
+          created_at: string
+          currency: string
+          id: string
+          message: string | null
+          offerer_id: string
+          receiver_id: string
+          responded_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          book_id: string
+          created_at?: string
+          currency?: string
+          id?: string
+          message?: string | null
+          offerer_id: string
+          receiver_id: string
+          responded_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          book_id?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          message?: string | null
+          offerer_id?: string
+          receiver_id?: string
+          responded_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_offers_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_offers_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "trending_books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_subscriptions: {
         Row: {
           auth: string
