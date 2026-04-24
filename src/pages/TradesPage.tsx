@@ -30,6 +30,18 @@ interface Trade {
   receiver?: any;
 }
 
+interface TradeMatch {
+  id: string;
+  book_id: string;
+  offerer_id: string;
+  wisher_id: string;
+  status: string;
+  detected_at: string;
+  book?: any;
+  other?: any;
+  iAmWisher?: boolean;
+}
+
 export default function TradesPage() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
