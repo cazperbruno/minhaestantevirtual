@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,11 +8,12 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BookCover } from "@/components/books/BookCover";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRightLeft, Check, X, Loader2, Send, Inbox, Sparkles } from "lucide-react";
+import { ArrowRightLeft, Check, X, Loader2, Send, Inbox, Sparkles, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { profilePath } from "@/lib/profile-path";
+import { TradeMatchDialog } from "@/components/social/TradeMatchDialog";
 
 interface Trade {
   id: string;
