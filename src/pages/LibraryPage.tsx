@@ -34,6 +34,7 @@ export default function LibraryPage() {
   const [filters, setFilters] = useState<LibraryFiltersValue>(DEFAULT_FILTERS);
   const [shelfFilter, setShelfFilter] = useState<ShelfFilterValue>({ kind: "none" });
   const { active: activeTypes, available } = useContentFilter();
+  const tutorial = usePageTutorial("library", { enabled: allItems.length > 0 });
 
   // Filtra a biblioteca pelos tipos de conteúdo ativos do usuário.
   const items = useMemo(() => {
@@ -138,16 +139,18 @@ export default function LibraryPage() {
           // ─── MODOS INTERATIVO / GRADE ──────────────────────
           <>
             {available.length > 1 && <ContentTypeFilter className="mb-4" />}
-            <LibraryFilters
-              items={items}
-              value={filters}
-              onChange={setFilters}
-              showStatusFilter={view === "grid"}
-            />
+            <div data-tour="library-filters">
+              <LibraryFilters
+                items={items}
+                value={filters}
+                onChange={setFilters}
+                showStatusFilter={view === "grid"}
+              />
+            </div>
 
             {view === "interactive" ? (
               <>
-                <ShelfFilter items={shelfFiltered} value={shelfFilter} onChange={setShelfFilter} />
+                <div data-tour="library-shelf"><ShelfFilter items={shelfFiltered} value={shelfFilter} onChange={setShelfFilter} /></div>
 
                 {shelfFiltered.length === 0 ? (
                   <NoMatchState />
@@ -202,6 +205,7 @@ export default function LibraryPage() {
         )}
       </div>
       </PullToRefresh>
+      <SpotlightTutorial open={tutorial.open} steps={getPageTutorial("library") || []} onClose={tutorial.close} />
     </AppShell>
   );
 }
