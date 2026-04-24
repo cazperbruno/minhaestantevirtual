@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
 import { ArrowRightLeft, BookOpen } from "lucide-react";
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function AvailabilityToggles({ userBookId, initialTrade = false, initialLoan = false, compact = false }: Props) {
+  const navigate = useNavigate();
   const [trade, setTrade] = useState(initialTrade);
   const [loan, setLoan] = useState(initialLoan);
 
@@ -20,7 +22,24 @@ export function AvailabilityToggles({ userBookId, initialTrade = false, initialL
       ? { available_for_trade: value }
       : { available_for_loan: value };
     const { error } = await supabase.from("user_books").update(patch).eq("id", userBookId);
-    if (error) toast.error("Erro ao atualizar");
+    if (error) {
+      toast.error("Erro ao atualizar");
+      return;
+    }
+    if (field === "available_for_trade" && value) {
+      toast.success("Livro disponível pra troca! ✨", {
+        description: "Adicionado às suas trocas e ao feed social.",
+        action: {
+          label: "Ver trocas",
+          onClick: () => navigate("/trocas"),
+        },
+        duration: 6000,
+      });
+    } else if (field === "available_for_loan" && value) {
+      toast.success("Livro disponível pra empréstimo");
+    } else if (!value) {
+      toast.success("Disponibilidade removida");
+    }
   };
 
   return (

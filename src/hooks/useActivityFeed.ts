@@ -14,7 +14,10 @@ export type ActivityKind =
   | "completed_series"
   | "leveled_up"
   | "ranked_up"
-  | "book_lent";
+  | "book_lent"
+  | "book_available_for_trade"
+  | "wishlist_added"
+  | "trade_match";
 
 export interface ActivityItem {
   id: string;

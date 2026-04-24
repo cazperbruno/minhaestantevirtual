@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { BookCover } from "@/components/books/BookCover";
 import { CommentsThread } from "@/components/social/CommentsThread";
 import {
-  Heart, BookPlus, BookOpen, CheckCircle2, Star, UserPlus, Trophy, Library, Sparkles,
+  Heart, BookPlus, BookOpen, CheckCircle2, Star, UserPlus, Trophy, Library, Sparkles, ArrowRightLeft, Zap,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -32,6 +32,9 @@ const KIND_META: Record<ActivityKind, { icon: any; label: (a: ActivityItem) => s
   leveled_up: { icon: Trophy, label: (a) => `subiu para o nível ${a.meta?.level ?? ""}`, color: "text-yellow-500" },
   ranked_up: { icon: Trophy, label: () => "subiu no ranking", color: "text-orange-500" },
   book_lent: { icon: BookPlus, label: () => "emprestou um livro", color: "text-muted-foreground" },
+  book_available_for_trade: { icon: ArrowRightLeft, label: () => "disponibilizou um livro pra troca", color: "text-primary" },
+  wishlist_added: { icon: Heart, label: () => "adicionou à lista de desejos", color: "text-pink-500" },
+  trade_match: { icon: Zap, label: (a) => `deu match de troca com ${a.meta?.wisher_name ?? "alguém"}`, color: "text-primary" },
   // kinds extras emitidos por outras triggers (recomendação, etc.) — fallback amigável
   book_recommended: { icon: Sparkles, label: () => "recomendou um livro", color: "text-primary" } as any,
   trade_completed: { icon: BookPlus, label: () => "completou uma troca", color: "text-emerald-500" } as any,
