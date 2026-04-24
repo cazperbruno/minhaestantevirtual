@@ -32,10 +32,22 @@ interface Trade {
 
 export default function TradesPage() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<"incoming" | "outgoing" | "history">("incoming");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [tab, setTab] = useState<"matches" | "incoming" | "outgoing" | "history">("matches");
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [matches, setMatches] = useState<TradeMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [activeMatchId, setActiveMatchId] = useState<string | null>(null);
+
+  // Abre o dialog de match cinemático quando vem com ?match=
+  useEffect(() => {
+    const m = searchParams.get("match");
+    if (m) {
+      setActiveMatchId(m);
+      setTab("matches");
+    }
+  }, [searchParams]);
 
   const load = async () => {
     if (!user) return;

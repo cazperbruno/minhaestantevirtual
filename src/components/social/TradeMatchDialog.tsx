@@ -121,7 +121,7 @@ export function TradeMatchDialog({ matchId, open, onClose }: Props) {
               <div className="relative flex items-center justify-center gap-6 py-6 animate-scale-in">
                 <Avatar className={cn("w-14 h-14 ring-2 ring-primary/40", iAmWisher && "ring-primary")}>
                   <AvatarImage src={match.wisher?.avatar_url} />
-                  <AvatarFallback className="bg-pink-500/20"><Heart className="w-5 h-5 text-pink-500" /></AvatarFallback>
+                  <AvatarFallback className="bg-accent/20"><Heart className="w-5 h-5 text-accent" /></AvatarFallback>
                 </Avatar>
 
                 <div className="relative">
