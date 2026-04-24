@@ -91,7 +91,7 @@ export function ShelfFilter({ items, value, onChange }: Props) {
           </SelectTrigger>
           <SelectContent>
             {genres.length === 0 && <SelectItem value="__none" disabled>Nenhum gênero</SelectItem>}
-            {genres.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+            {genres.map((g) => <SelectItem key={g} value={g}>{localizeCategory(g)}</SelectItem>)}
           </SelectContent>
         </Select>
       )}

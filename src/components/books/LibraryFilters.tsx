@@ -179,7 +179,7 @@ export function LibraryFilters({ items, value, onChange, showStatusFilter }: Pro
                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas categorias</SelectItem>
-                  {categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {categories.map((c) => <SelectItem key={c} value={c}>{localizeCategory(c)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </FilterRow>
