@@ -17,6 +17,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { AddBookManualDialog } from "@/components/books/AddBookManualDialog";
 import { toast } from "sonner";
+import { SpotlightTutorial } from "@/components/onboarding/SpotlightTutorial";
+import { usePageTutorial } from "@/hooks/usePageTutorial";
+import { getPageTutorial } from "@/lib/page-tutorials";
 
 const TRENDING = [
   "Machado de Assis",
@@ -318,8 +321,14 @@ export default function SearchPage() {
           </div>
         )}
       </div>
+      <SearchTutorialMount />
     </AppShell>
   );
+}
+
+function SearchTutorialMount() {
+  const tutorial = usePageTutorial("search");
+  return <SpotlightTutorial open={tutorial.open} steps={getPageTutorial("search") || []} onClose={tutorial.close} />;
 }
 
 function Tip({

@@ -28,6 +28,9 @@ import { CLUB_CATEGORIES, getCategoryMeta, type ClubCategory } from "@/lib/club-
 import { cn } from "@/lib/utils";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { queryClient } from "@/lib/query-client";
+import { SpotlightTutorial } from "@/components/onboarding/SpotlightTutorial";
+import { usePageTutorial } from "@/hooks/usePageTutorial";
+import { getPageTutorial } from "@/lib/page-tutorials";
 
 interface MineRow {
   id: string;
@@ -44,6 +47,7 @@ export default function ClubsPage() {
   const recommended = useRecommendedClubs(6);
   const [mine, setMine] = useState<MineRow[]>([]);
   const [loadingMine, setLoadingMine] = useState(true);
+  const tutorial = usePageTutorial("clubs");
 
   // Membros (avatares) para os cards de "Meus clubes" e recomendados
   const memberClubIds = useMemo(
@@ -395,6 +399,7 @@ export default function ClubsPage() {
         )}
       </div>
       </PullToRefresh>
+      <SpotlightTutorial open={tutorial.open} steps={getPageTutorial("clubs") || []} onClose={tutorial.close} />
     </AppShell>
   );
 }

@@ -27,6 +27,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { haptic } from "@/lib/haptics";
 import { markScanStart, markScanSuccess, markScanCancelled, getScanStats } from "@/lib/scan-metrics";
 import { trackEvent } from "@/lib/track";
+import { SpotlightTutorial } from "@/components/onboarding/SpotlightTutorial";
+import { usePageTutorial } from "@/hooks/usePageTutorial";
+import { getPageTutorial } from "@/lib/page-tutorials";
 
 type Mode = "barcode" | "cover" | "page";
 
@@ -986,8 +989,14 @@ export default function ScannerPage() {
           </section>
         )}
       </div>
+      <ScannerTutorialMount />
     </AppShell>
   );
+}
+
+function ScannerTutorialMount() {
+  const tutorial = usePageTutorial("scanner");
+  return <SpotlightTutorial open={tutorial.open} steps={getPageTutorial("scanner") || []} onClose={tutorial.close} />;
 }
 
 function CapturePanel({
