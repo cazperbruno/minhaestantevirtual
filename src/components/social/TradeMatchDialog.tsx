@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Sparkles, ArrowRightLeft, Heart, Loader2, X } from "lucide-react";
 import { ProposeTradeDialog } from "./ProposeTradeDialog";
+import { OfferPurchaseDialog } from "./OfferPurchaseDialog";
+import { HandCoins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { haptic } from "@/lib/haptics";
 
