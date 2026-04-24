@@ -352,7 +352,14 @@ export default function TradesPage() {
             })}
           </ul>
         )}
+          </>
+        )}
       </div>
+      <TradeMatchDialog
+        matchId={activeMatchId}
+        open={!!activeMatchId}
+        onClose={() => { setActiveMatchId(null); searchParams.delete("match"); setSearchParams(searchParams); }}
+      />
     </AppShell>
   );
 }
