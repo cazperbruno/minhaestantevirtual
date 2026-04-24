@@ -12,6 +12,10 @@ e este projeto adota [Semantic Versioning](https://semver.org/lang/pt-BR/).
 - **Coverage no CI**: vitest configurado com thresholds (35% lines, 60% branches) e relatórios v8
 - **Content Security Policy**: meta tags CSP + X-Content-Type-Options + Permissions-Policy no `index.html`
 - **Tabela `admin_audit_log`**: log expandido de ações administrativas sensíveis (login, role, ações destrutivas) com RLS de leitura só para admins
+- **LGPD — portabilidade**: edge function `export-user-data` + botão "Exportar meus dados (JSON)" em /configuracoes
+- **LGPD — eliminação**: edge function `delete-user-account` + diálogo "Excluir minha conta" com confirmação dupla
+- **Sanitização XSS**: `src/lib/sanitize.ts` com DOMPurify (`sanitizeText`, `sanitizeRichText`, `safeExternalUrl`) aplicado em bio do perfil e conteúdo de resenhas
+- **E2E tests (Playwright)**: `playwright.config.ts` + specs (`e2e/auth.spec.ts`, `library.spec.ts`, `club.spec.ts`) + workflow opcional `.github/workflows/e2e.yml` + `e2e/README.md` com instruções
 
 ### Corrigido
 - **Linter Supabase**: `pg_trgm` movido de schema `public` para `extensions` (zero warnings agora)
@@ -19,10 +23,16 @@ e este projeto adota [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ### Performance
 - **ZXing lazy load**: scanner carrega `@zxing/browser` e `@zxing/library` dinamicamente. Bundle inicial -115KB gzip.
+- **Bundle visualizer**: `rollup-plugin-visualizer` gera `dist/stats.html` no build de produção
+
+### Acessibilidade
+- **Focus rings reforçados**: ring de 3px com 80% opacidade no Button (alto contraste em qualquer fundo)
+- **Disabled states**: opacidade 60% + saturação reduzida (mantém contraste WCAG AA)
 
 ### Segurança
 - **HIBP password check**: ativado no Supabase Auth (rejeita senhas vazadas conhecidas)
 - **CSP restritivo**: defesa adicional contra XSS injetado
+- **DOMPurify**: defesa em profundidade contra XSS armazenado em campos livres
 
 ---
 

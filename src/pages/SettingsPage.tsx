@@ -15,6 +15,7 @@ import { InstallAppCard } from "@/components/pwa/InstallAppCard";
 import { PushNotificationsCard } from "@/components/pwa/PushNotificationsCard";
 import { VersionTag } from "@/components/pwa/VersionTag";
 import { openTutorial } from "@/hooks/useTutorial";
+import { PrivacyDataPanel } from "@/components/settings/PrivacyDataPanel";
 
 type Visibility = "public" | "private" | "followers";
 
@@ -255,10 +256,15 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        {/* LGPD: portabilidade e eliminação */}
+        <div className="mt-5">
+          <PrivacyDataPanel />
+        </div>
+
         {/* Conta */}
         <section className="mt-8 flex flex-col items-center gap-3">
-          <Button variant="ghost" onClick={logout} className="gap-2">
-            <LogOut className="w-4 h-4" /> Sair da conta
+          <Button variant="ghost" onClick={logout} className="gap-2" aria-label="Sair da conta">
+            <LogOut className="w-4 h-4" aria-hidden="true" /> Sair da conta
           </Button>
           <VersionTag />
         </section>
