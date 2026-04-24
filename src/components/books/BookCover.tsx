@@ -11,7 +11,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 interface Props {
-  book: Pick<Book, "title" | "authors" | "cover_url" | "isbn_10" | "isbn_13"> & { id?: string };
+  book: Pick<Book, "title" | "authors" | "cover_url" | "isbn_10" | "isbn_13"> & {
+    id?: string;
+    subtitle?: string | null;
+    publisher?: string | null;
+    content_type?: string | null;
+    volume_number?: number | null;
+  };
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
   /** Disable async fallback (e.g. inside lists for perf). Defaults to true. */
@@ -24,10 +30,10 @@ interface Props {
 }
 
 const SIZES = {
-  sm: "w-16 h-24 text-[10px]",
-  md: "w-28 h-44 text-xs",
-  lg: "w-40 h-60 text-sm",
-  xl: "w-52 h-80 text-base",
+  sm: "w-16 h-24 text-[11px]",
+  md: "w-28 h-44 text-[13px]",
+  lg: "w-40 h-60 text-[15px]",
+  xl: "w-52 h-80 text-[17px]",
 };
 
 export function BookCover({
@@ -161,12 +167,21 @@ export function BookCover({
       <div className="absolute inset-0 opacity-20" style={{
         background: "repeating-linear-gradient(45deg, transparent, transparent 6px, hsl(38 75% 62% / 0.08) 6px, hsl(38 75% 62% / 0.08) 7px)",
       }} />
-      <BookOpen className="w-6 h-6 text-primary/70 mb-2 relative" />
-      <p className="font-display font-semibold text-foreground/95 line-clamp-3 leading-tight relative">
+      <BookOpen className={cn(
+        "text-primary/80 mb-2 relative shrink-0",
+        size === "sm" ? "w-4 h-4" : size === "md" ? "w-7 h-7" : size === "lg" ? "w-9 h-9" : "w-12 h-12",
+      )} />
+      <p className={cn(
+        "font-display font-bold text-foreground line-clamp-4 leading-tight relative",
+        size === "sm" ? "text-[11px]" : size === "md" ? "text-sm" : size === "lg" ? "text-lg" : "text-2xl",
+      )}>
         {book.title}
       </p>
       {book.authors?.[0] && (
-        <p className="text-muted-foreground mt-2 line-clamp-2 text-[0.85em] italic relative">
+        <p className={cn(
+          "text-muted-foreground/90 mt-1.5 line-clamp-2 italic relative",
+          size === "sm" ? "text-[9px]" : size === "md" ? "text-[11px]" : size === "lg" ? "text-xs" : "text-sm",
+        )}>
           {book.authors[0]}
         </p>
       )}

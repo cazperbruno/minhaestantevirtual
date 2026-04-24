@@ -16,6 +16,11 @@ const inflight = new Map<string, Promise<string | null>>();
 
 interface CoverInput extends Pick<Book, "cover_url" | "isbn_10" | "isbn_13" | "title" | "authors"> {
   id?: string;
+  // Campos opcionais que ajudam a desambiguar mangás, quadrinhos e séries:
+  subtitle?: string | null;
+  publisher?: string | null;
+  content_type?: string | null;
+  volume_number?: number | null;
 }
 
 export async function resolveCover(book: CoverInput, opts: { persist?: boolean } = {}): Promise<string | null> {
@@ -42,6 +47,10 @@ export async function resolveCover(book: CoverInput, opts: { persist?: boolean }
           isbn_10: book.isbn_10,
           title: book.title,
           authors: book.authors,
+          subtitle: book.subtitle ?? null,
+          publisher: book.publisher ?? null,
+          content_type: book.content_type ?? null,
+          volume_number: book.volume_number ?? null,
           persist: opts.persist ?? !!book.id,
         }),
       });
