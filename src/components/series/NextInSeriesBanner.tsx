@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BookCover } from "@/components/books/BookCover";
 import { ArrowRight, Sparkles, Plus, Check, Loader2 } from "lucide-react";
@@ -13,22 +13,11 @@ interface Props {
   ub: UserBook | null;
 }
 
-/**
- * Banner que aparece no topo da página do livro quando o usuário acabou
- * de marcar um volume como lido E existe um próximo volume na mesma série
- * que ele ainda não tem na biblioteca.
- *
- * Critérios para aparecer:
- * - O livro atual tem `series_id` + `volume_number`.
- * - O usuário marcou esse volume como `read`.
- * - Existe um livro com `volume_number + 1` na mesma série.
- * - Esse próximo volume ainda NÃO está na biblioteca do usuário.
- */
 export function NextInSeriesBanner({ book, ub }: Props) {
+  const navigate = useNavigate();
   const { data, isLoading } = useNextVolume(book);
   const addBook = useAddBook();
 
-  // Só aparece se o usuário leu o atual e o próximo existe e não foi adicionado
   const shouldShow =
     !isLoading &&
     ub?.status === "read" &&
@@ -50,6 +39,7 @@ export function NextInSeriesBanner({ book, ub }: Props) {
               ? `Vol. ${next.volume_number} adicionado em "Lendo agora"`
               : `Vol. ${next.volume_number} adicionado à wishlist`,
           );
+          if (status === "wishlist") navigate("/desejos");
         },
         onError: () => toast.error("Não consegui adicionar agora"),
       },

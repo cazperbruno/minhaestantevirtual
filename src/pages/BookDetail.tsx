@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { queryClient, qk } from "@/lib/query-client";
 import { BookHero } from "@/components/books/BookHero";
@@ -21,11 +21,10 @@ import { NextInSeriesBanner } from "@/components/series/NextInSeriesBanner";
 
 export default function BookDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { data: book, isLoading: loadingBook } = useBook(id);
 
-  // AI: registra view (deduplicada por hora no servidor) — sinal de interesse implícito
-  // + telemetria de profundidade (Fase 3): livro aberto
   useEffect(() => {
     if (book?.id && user) {
       trackBookView(book.id);
@@ -90,7 +89,10 @@ export default function BookDetail() {
           ub={ub ?? null}
           saving={commit.isPending}
           onStatusChange={(s) => commit.mutate({ status: s })}
-          onAddWishlist={() => commit.mutate({ status: "wishlist" })}
+          onAddWishlist={() => commit.mutate(
+            { status: "wishlist" },
+            { onSuccess: () => navigate("/desejos") },
+          )}
           onShare={share}
           onBookUpdated={updateBookCache}
         />

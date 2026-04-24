@@ -21,21 +21,25 @@ export function AvailabilityToggles({ userBookId, initialTrade = false, initialL
     const patch = field === "available_for_trade"
       ? { available_for_trade: value }
       : { available_for_loan: value };
+    const rollback = field === "available_for_trade" ? setTrade : setLoan;
+
     const { error } = await supabase.from("user_books").update(patch).eq("id", userBookId);
     if (error) {
+      rollback(!value);
       toast.error("Erro ao atualizar");
       return;
     }
+
     if (field === "available_for_trade" && value) {
       toast.success("Livro disponível pra troca! ✨", {
-        description: "Adicionado às suas trocas e ao feed social.",
-        action: {
-          label: "Ver trocas",
-          onClick: () => navigate("/trocas"),
-        },
-        duration: 6000,
+        description: "Se alguém quiser esse livro, o match aparece em Trocas.",
+        duration: 2500,
       });
-    } else if (field === "available_for_loan" && value) {
+      navigate("/trocas");
+      return;
+    }
+
+    if (field === "available_for_loan" && value) {
       toast.success("Livro disponível pra empréstimo");
     } else if (!value) {
       toast.success("Disponibilidade removida");
@@ -48,13 +52,19 @@ export function AvailabilityToggles({ userBookId, initialTrade = false, initialL
         icon={<ArrowRightLeft className="w-3.5 h-3.5 text-primary" />}
         label="Disponível para troca"
         checked={trade}
-        onChange={(v) => { setTrade(v); update("available_for_trade", v); }}
+        onChange={(v) => {
+          setTrade(v);
+          void update("available_for_trade", v);
+        }}
       />
       <Row
         icon={<BookOpen className="w-3.5 h-3.5 text-primary" />}
         label="Disponível para empréstimo"
         checked={loan}
-        onChange={(v) => { setLoan(v); update("available_for_loan", v); }}
+        onChange={(v) => {
+          setLoan(v);
+          void update("available_for_loan", v);
+        }}
       />
     </div>
   );
