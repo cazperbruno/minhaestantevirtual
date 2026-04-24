@@ -64,18 +64,40 @@ export default function TradesPage() {
   const load = async () => {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase
-      .from("trades")
-      .select("*, proposer_book:proposer_book_id(id,title,authors,cover_url), receiver_book:receiver_book_id(id,title,authors,cover_url)")
-      .or(`proposer_id.eq.${user.id},receiver_id.eq.${user.id}`)
-      .order("created_at", { ascending: false })
-      .limit(100);
-    const list = (data || []) as Trade[];
-    const userIds = [...new Set(list.flatMap((t) => [t.proposer_id, t.receiver_id]))];
-    const { data: profs } = userIds.length
-      ? await supabase.from("profiles").select("id,display_name,username,avatar_url").in("id", userIds)
-      : { data: [] as any[] };
+    const [{ data: tradesData }, { data: matchesData }] = await Promise.all([
+      supabase
+        .from("trades")
+        .select("*, proposer_book:proposer_book_id(id,title,authors,cover_url), receiver_book:receiver_book_id(id,title,authors,cover_url)")
+        .or(`proposer_id.eq.${user.id},receiver_id.eq.${user.id}`)
+        .order("created_at", { ascending: false })
+        .limit(100),
+      supabase
+        .from("trade_matches")
+        .select("*")
+        .or(`offerer_id.eq.${user.id},wisher_id.eq.${user.id}`)
+        .eq("status", "pending")
+        .order("detected_at", { ascending: false })
+        .limit(50),
+    ]);
+    const list = (tradesData || []) as Trade[];
+    const matchList = (matchesData || []) as any[];
+    const userIds = [
+      ...new Set([
+        ...list.flatMap((t) => [t.proposer_id, t.receiver_id]),
+        ...matchList.flatMap((m: any) => [m.offerer_id, m.wisher_id]),
+      ]),
+    ];
+    const bookIds = [...new Set(matchList.map((m: any) => m.book_id))];
+    const [{ data: profs }, { data: books }] = await Promise.all([
+      userIds.length
+        ? supabase.from("profiles").select("id,display_name,username,avatar_url").in("id", userIds)
+        : Promise.resolve({ data: [] as any[] }),
+      bookIds.length
+        ? supabase.from("books").select("id,title,authors,cover_url").in("id", bookIds)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
     const m = new Map((profs || []).map((p: any) => [p.id, p]));
+    const bm = new Map((books || []).map((b: any) => [b.id, b]));
     setTrades(
       list.map((t) => ({
         ...t,
@@ -83,8 +105,31 @@ export default function TradesPage() {
         receiver: m.get(t.receiver_id),
       })),
     );
+    setMatches(
+      matchList.map((mm: any) => {
+        const iAmWisher = mm.wisher_id === user.id;
+        return {
+          ...mm,
+          book: bm.get(mm.book_id),
+          other: m.get(iAmWisher ? mm.offerer_id : mm.wisher_id),
+          iAmWisher,
+        };
+      }),
+    );
     setLoading(false);
   };
+
+  useEffect(() => {
+    load();
+    if (!user) return;
+    const ch = supabase
+      .channel(`trades:${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "trades" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "trade_matches" }, () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   useEffect(() => {
     load();
