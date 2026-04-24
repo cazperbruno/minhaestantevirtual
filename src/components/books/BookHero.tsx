@@ -15,6 +15,7 @@ import { bookCoverTransitionName } from "@/lib/view-transitions";
 import { refreshBookData } from "@/lib/refresh-book";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { localizeCategories } from "@/lib/category-i18n";
 
 interface Props {
   book: Book;
@@ -121,19 +122,23 @@ export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onSh
               )}
             </div>
 
-            {book.categories && book.categories.length > 0 && (
-              <div className="flex flex-wrap gap-2 hero-stagger" style={{ animationDelay: "320ms" }}>
-                {book.categories.slice(0, 6).map((c) => (
-                  <Link
-                    key={c}
-                    to={`/buscar?q=${encodeURIComponent(c)}`}
-                    className="px-3 py-1 rounded-full bg-muted/40 hover:bg-primary/15 hover:border-primary/40 text-xs text-muted-foreground hover:text-primary border border-border/40"
-                  >
-                    {c}
-                  </Link>
-                ))}
-              </div>
-            )}
+            {(() => {
+              const cats = localizeCategories(book.categories);
+              if (cats.length === 0) return null;
+              return (
+                <div className="flex flex-wrap gap-2 hero-stagger" style={{ animationDelay: "320ms" }}>
+                  {cats.slice(0, 6).map((c) => (
+                    <Link
+                      key={c}
+                      to={`/buscar?q=${encodeURIComponent(c)}`}
+                      className="px-3 py-1 rounded-full bg-muted/40 hover:bg-primary/15 hover:border-primary/40 text-xs text-muted-foreground hover:text-primary border border-border/40"
+                    >
+                      {c}
+                    </Link>
+                  ))}
+                </div>
+              );
+            })()}
 
             {progress !== null && ub && (ub.status === "reading" || ub.status === "read") && (
               <div className="max-w-md hero-stagger" style={{ animationDelay: "400ms" }}>

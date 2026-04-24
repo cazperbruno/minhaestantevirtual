@@ -6,6 +6,7 @@ import { Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { UserBook } from "@/types/book";
 import type { SmartShelf } from "@/hooks/useSmartShelves";
+import { localizeCategory } from "@/lib/category-i18n";
 
 export type ShelfFilterValue =
   | { kind: "none" }
@@ -91,7 +92,7 @@ export function ShelfFilter({ items, value, onChange }: Props) {
           </SelectTrigger>
           <SelectContent>
             {genres.length === 0 && <SelectItem value="__none" disabled>Nenhum gênero</SelectItem>}
-            {genres.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+            {genres.map((g) => <SelectItem key={g} value={g}>{localizeCategory(g)}</SelectItem>)}
           </SelectContent>
         </Select>
       )}

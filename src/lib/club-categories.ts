@@ -13,6 +13,7 @@ export type ClubCategory =
   | "sci_fi"
   | "terror"
   | "infantojuvenil"
+  | "tecnicos"
   | "geral";
 
 export interface ClubCategoryMeta {
@@ -106,6 +107,14 @@ export const CLUB_CATEGORIES: ClubCategoryMeta[] = [
     gradient: "from-sky-400/30 via-blue-400/20 to-indigo-400/30",
     accent: "text-sky-100",
     description: "Para os jovens leitores",
+  },
+  {
+    slug: "tecnicos",
+    label: "Técnicos / Acadêmicos",
+    emoji: "🎓",
+    gradient: "from-slate-500/30 via-zinc-500/20 to-stone-500/30",
+    accent: "text-slate-100",
+    description: "Programação, engenharia, vestibular e estudos",
   },
   {
     slug: "geral",

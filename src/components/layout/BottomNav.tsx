@@ -1,7 +1,7 @@
 import {
   Library,
-  Infinity as InfinityIcon,
-  User as UserIcon,
+  Heart,
+  Users,
   ScanLine,
   Sparkles,
 } from "lucide-react";
@@ -11,17 +11,17 @@ import { useAuth } from "@/hooks/useAuth";
 import { prefetch } from "@/lib/prefetch";
 
 /**
- * Navegação inferior mobile — 5 atalhos essenciais. O botão "Mais" foi
- * removido; demais áreas (séries, metas, clubes, etc.) ficam acessíveis pelo
- * MobileHeader (menu hambúrguer) ou via deep links a partir das telas.
+ * Navegação inferior mobile — 5 atalhos essenciais.
+ * Labels curtas (8 chars max) pra caber em 411px sem quebrar nem truncar.
+ * Ordem: Biblioteca · Social (feed) · Escanear (centro) · Progresso · Clubes
  */
 const left = [
   { to: "/biblioteca", label: "Biblioteca", icon: Library },
-  { to: "/feed-infinito", label: "Feed", icon: InfinityIcon },
+  { to: "/feed-infinito", label: "Social", icon: Heart },
 ];
 const right = [
   { to: "/progresso", label: "Progresso", icon: Sparkles },
-  { to: "/perfil", label: "Perfil", icon: UserIcon },
+  { to: "/clubes", label: "Clubes", icon: Users },
 ];
 
 export function BottomNav() {
@@ -33,6 +33,7 @@ export function BottomNav() {
     if (to === "/biblioteca") prefetch.library(user?.id);
     else if (to === "/feed-infinito" || to === "/feed") prefetch.feed();
     else if (to === "/perfil" && user?.id) prefetch.profile(user.id);
+    // /clubes não tem prefetch dedicado — carrega rápido pela query padrão
   };
 
   const scanActive = pathname.startsWith("/scanner");
@@ -56,12 +57,12 @@ export function BottomNav() {
                 onTouchStart={() => prefetchFor(to)}
                 onFocus={() => prefetchFor(to)}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 py-3 text-[11px] transition-colors",
+                  "flex flex-col items-center justify-center gap-0.5 py-3 px-1 text-[10px] transition-colors",
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_hsl(var(--primary)/0.6)]")} />
-                <span className="font-medium">{label}</span>
+                <span className="font-medium leading-tight truncate max-w-full">{label}</span>
               </NavLink>
             </li>
           );
@@ -94,12 +95,12 @@ export function BottomNav() {
                 onTouchStart={() => prefetchFor(to)}
                 onFocus={() => prefetchFor(to)}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 py-3 text-[11px] transition-colors",
+                  "flex flex-col items-center justify-center gap-0.5 py-3 px-1 text-[10px] transition-colors",
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_hsl(var(--primary)/0.6)]")} />
-                <span className="font-medium">{label}</span>
+                <span className="font-medium leading-tight truncate max-w-full">{label}</span>
               </NavLink>
             </li>
           );
