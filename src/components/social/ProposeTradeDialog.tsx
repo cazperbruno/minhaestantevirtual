@@ -7,9 +7,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { BookCover } from "@/components/books/BookCover";
-import { ArrowRightLeft, Loader2 } from "lucide-react";
+import { ArrowRightLeft, HandCoins, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { OfferPurchaseDialog } from "./OfferPurchaseDialog";
 
 interface Props {
   receiverId: string;
