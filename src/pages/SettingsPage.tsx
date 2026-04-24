@@ -16,6 +16,7 @@ import { PushNotificationsCard } from "@/components/pwa/PushNotificationsCard";
 import { VersionTag } from "@/components/pwa/VersionTag";
 import { openTutorial } from "@/hooks/useTutorial";
 import { PrivacyDataPanel } from "@/components/settings/PrivacyDataPanel";
+import { ResetLibraryCard } from "@/components/settings/ResetLibraryCard";
 
 type Visibility = "public" | "private" | "followers";
 
@@ -259,6 +260,11 @@ export default function SettingsPage() {
         {/* LGPD: portabilidade e eliminação */}
         <div className="mt-5">
           <PrivacyDataPanel />
+        </div>
+
+        {/* Reset biblioteca (mantém conta) */}
+        <div className="mt-5">
+          <ResetLibraryCard />
         </div>
 
         {/* Conta */}

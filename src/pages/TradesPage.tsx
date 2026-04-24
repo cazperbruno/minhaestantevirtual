@@ -135,17 +135,6 @@ export default function TradesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  useEffect(() => {
-    load();
-    if (!user) return;
-    const ch = supabase
-      .channel(`trades:${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "trades" }, () => load())
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
-
   const update = async (id: string, status: Trade["status"]) => {
     const prev = trades;
     setPendingId(id);
