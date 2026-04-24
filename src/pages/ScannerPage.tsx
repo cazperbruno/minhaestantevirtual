@@ -10,8 +10,8 @@ import {
 import { BatchScanList, type BatchItem } from "@/components/books/BatchScanList";
 
 import { invalidate } from "@/lib/query-client";
-import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
-import { BarcodeFormat, DecodeHintType } from "@zxing/library";
+// ZXing é carregado lazy (~200KB). Só baixa quando o usuário abre a câmera.
+import type { IScannerControls } from "@zxing/browser";
 import {
   lookupIsbn, recognizeCover, searchBooksGet, recognizePage, saveBook,
   type PageRecognition, type PageCandidate,
@@ -199,6 +199,12 @@ export default function ScannerPage() {
       setCameraError(null);
       lockRef.current = false;
       markScanStart();
+
+      // Lazy import do ZXing — economiza ~200KB no bundle inicial
+      const [{ BrowserMultiFormatReader }, { BarcodeFormat, DecodeHintType }] = await Promise.all([
+        import("@zxing/browser"),
+        import("@zxing/library"),
+      ]);
 
       const hints = new Map();
       hints.set(DecodeHintType.POSSIBLE_FORMATS, [
