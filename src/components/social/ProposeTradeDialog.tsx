@@ -7,9 +7,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { BookCover } from "@/components/books/BookCover";
-import { ArrowRightLeft, Loader2 } from "lucide-react";
+import { ArrowRightLeft, HandCoins, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { OfferPurchaseDialog } from "./OfferPurchaseDialog";
 
 interface Props {
   receiverId: string;
@@ -153,6 +154,22 @@ export function ProposeTradeDialog({ receiverId, receiverName, receiverBookId, t
               {sending && <Loader2 className="w-4 h-4 animate-spin" />}
               Enviar proposta
             </Button>
+
+            <div className="relative pt-2">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border/50" /></div>
+              <div className="relative flex justify-center"><span className="bg-background px-3 text-[11px] uppercase tracking-widest text-muted-foreground">ou</span></div>
+            </div>
+
+            <OfferPurchaseDialog
+              receiverId={receiverId}
+              receiverName={receiverName}
+              book={theirBooks.find((b) => b.book?.id === theirsId)?.book ?? null}
+              trigger={
+                <Button variant="outline" size="lg" className="w-full gap-2">
+                  <HandCoins className="w-4 h-4" /> Oferecer pagar em vez de trocar
+                </Button>
+              }
+            />
           </div>
         )}
       </DialogContent>

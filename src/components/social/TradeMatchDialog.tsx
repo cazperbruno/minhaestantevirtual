@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Sparkles, ArrowRightLeft, Heart, Loader2, X } from "lucide-react";
 import { ProposeTradeDialog } from "./ProposeTradeDialog";
+import { OfferPurchaseDialog } from "./OfferPurchaseDialog";
+import { HandCoins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { haptic } from "@/lib/haptics";
 
@@ -146,20 +148,32 @@ export function TradeMatchDialog({ matchId, open, onClose }: Props) {
 
               <div className="flex flex-col gap-2 pt-2">
                 {iAmWisher && match.offerer_id && (
-                  <ProposeTradeDialog
-                    receiverId={match.offerer_id}
-                    receiverName={other?.display_name}
-                    receiverBookId={match.book_id}
-                    trigger={
-                      <Button variant="hero" size="lg" className="w-full gap-2 shadow-glow">
-                        <ArrowRightLeft className="w-4 h-4" /> Propor troca agora
-                      </Button>
-                    }
-                  />
+                  <>
+                    <ProposeTradeDialog
+                      receiverId={match.offerer_id}
+                      receiverName={other?.display_name}
+                      receiverBookId={match.book_id}
+                      trigger={
+                        <Button variant="hero" size="lg" className="w-full gap-2 shadow-glow">
+                          <ArrowRightLeft className="w-4 h-4" /> Propor troca agora
+                        </Button>
+                      }
+                    />
+                    <OfferPurchaseDialog
+                      receiverId={match.offerer_id}
+                      receiverName={other?.display_name}
+                      book={match.book}
+                      trigger={
+                        <Button variant="outline" size="lg" className="w-full gap-2">
+                          <HandCoins className="w-4 h-4" /> Oferecer pagar
+                        </Button>
+                      }
+                    />
+                  </>
                 )}
                 {!iAmWisher && (
                   <p className="text-xs text-center text-muted-foreground italic">
-                    Aguarde — quem quer o livro pode iniciar a proposta.
+                    Aguarde — quem quer o livro pode iniciar a proposta ou oferecer pagar.
                   </p>
                 )}
                 <Button variant="ghost" size="sm" onClick={dismiss} className="text-muted-foreground">
