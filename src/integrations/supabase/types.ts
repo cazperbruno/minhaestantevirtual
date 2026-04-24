@@ -2091,6 +2091,51 @@ export type Database = {
           },
         ]
       }
+      trade_matches: {
+        Row: {
+          book_id: string
+          detected_at: string
+          id: string
+          offerer_id: string
+          resolved_at: string | null
+          status: string
+          wisher_id: string
+        }
+        Insert: {
+          book_id: string
+          detected_at?: string
+          id?: string
+          offerer_id: string
+          resolved_at?: string | null
+          status?: string
+          wisher_id: string
+        }
+        Update: {
+          book_id?: string
+          detected_at?: string
+          id?: string
+          offerer_id?: string
+          resolved_at?: string | null
+          status?: string
+          wisher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trade_matches_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trade_matches_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "trending_books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trades: {
         Row: {
           created_at: string
