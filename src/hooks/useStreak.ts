@@ -12,6 +12,14 @@ export interface StreakData {
   last_freeze_used_date: string | null;
 }
 
+/**
+ * Carrega os dados de streak (sequência diária de leitura) do usuário.
+ *
+ * Retorna defaults sensatos (0 dias, 1 freeze disponível) se o usuário ainda
+ * não tem registro — evita componentes precisarem tratar null no primeiro acesso.
+ *
+ * @param userId ID do usuário; passa undefined em SSR/loading e o hook fica idle.
+ */
 export function useStreak(userId: string | undefined) {
   return useQuery<StreakData | null>({
     queryKey: userId ? qk.streak(userId) : ["streak", "anon"],

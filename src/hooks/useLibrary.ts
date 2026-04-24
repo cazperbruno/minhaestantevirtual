@@ -15,7 +15,15 @@ async function fetchLibrary(userId: string): Promise<UserBook[]> {
   return (data as UserBook[]) || [];
 }
 
-/** Lista completa da biblioteca do usuário, com cache pessoal de 1min. */
+/**
+ * Carrega a biblioteca pessoal completa do usuário logado.
+ *
+ * Cache: PERSONAL (1min stale, 30min gc) — invalidações via realtime hook
+ * mantém a UI fresca sem precisar refetch manual.
+ *
+ * @returns TanStack Query com `data: UserBook[]`, `isLoading`, `error`.
+ *   Cada item inclui o livro relacionado via JOIN (`item.book`).
+ */
 export function useLibrary() {
   const { user } = useAuth();
   return useQuery({
@@ -32,7 +40,16 @@ interface AddBookVars {
   rating?: number | null;
 }
 
-/** Adiciona livro com optimistic update — UI responde antes do servidor. */
+/**
+ * Adiciona um livro à biblioteca pessoal com **optimistic update**.
+ *
+ * UX: o card aparece na biblioteca antes do servidor confirmar. Se a operação
+ * falhar, o estado é revertido automaticamente e um toast de erro é mostrado.
+ *
+ * @example
+ * const { mutate } = useAddBook();
+ * mutate({ bookId: "uuid", status: "reading" });
+ */
 export function useAddBook() {
   const { user } = useAuth();
   return useMutation({
@@ -85,7 +102,13 @@ interface UpdateBookVars {
   patch: Partial<Pick<UserBook, "status" | "rating" | "current_page" | "is_public" | "available_for_loan" | "available_for_trade">>;
 }
 
-/** Atualiza um item da biblioteca (status, nota, etc) com optimistic update. */
+/**
+ * Atualiza campos de um item da biblioteca (status, rating, página atual etc.)
+ * com optimistic update — a UI reflete a mudança imediatamente.
+ *
+ * @example
+ * mutate({ id: userBookId, patch: { status: "read", rating: 5 } });
+ */
 export function useUpdateUserBook() {
   const { user } = useAuth();
   return useMutation({
@@ -119,6 +142,12 @@ export function useUpdateUserBook() {
   });
 }
 
+/**
+ * Remove um livro da biblioteca pessoal (não exclui o livro do catálogo).
+ *
+ * Optimistic update + rollback em caso de erro. RLS garante que só o dono
+ * pode remover (verificação no servidor).
+ */
 export function useRemoveUserBook() {
   const { user } = useAuth();
   return useMutation({

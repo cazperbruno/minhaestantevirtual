@@ -39,6 +39,12 @@ export function useNotifications() {
   });
 }
 
+/**
+ * Marca uma notificação como lida.
+ *
+ * Não invalida o cache automaticamente — o realtime hook propaga via UPDATE
+ * no canal `notifications`. Optimistic update via re-render natural do TanStack.
+ */
 export function useMarkNotificationRead() {
   const { user } = useAuth();
   const key = qk.notifications(user?.id || "anon");
