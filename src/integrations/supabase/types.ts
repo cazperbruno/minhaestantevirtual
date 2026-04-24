@@ -3292,6 +3292,7 @@ export type Database = {
         | "terror"
         | "infantojuvenil"
         | "geral"
+        | "tecnicos"
       content_type: "book" | "manga" | "comic" | "magazine"
       loan_status: "lent" | "returned" | "overdue"
       trade_status:
@@ -3441,6 +3442,7 @@ export const Constants = {
         "terror",
         "infantojuvenil",
         "geral",
+        "tecnicos",
       ],
       content_type: ["book", "manga", "comic", "magazine"],
       loan_status: ["lent", "returned", "overdue"],
