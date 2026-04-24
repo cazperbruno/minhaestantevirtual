@@ -44,7 +44,10 @@ export function useShelfNavigation(currentBookId?: string): ShelfNav {
   const qc = useQueryClient();
 
   // Reusa o cache da biblioteca já carregada — custo zero quando vem de /biblioteca.
-  const enabled = !!state.shelfId && !!currentBookId;
+  // **Fallback**: quando não há prateleira de origem (acesso direto via URL,
+  // notificação ou busca), usa a biblioteca completa do usuário como contexto
+  // para que swipe/setas continuem funcionando.
+  const enabled = !!currentBookId;
   const { data: items = [] } = useLibrary();
   const shelves = useSmartShelves(items);
 
@@ -57,10 +60,14 @@ export function useShelfNavigation(currentBookId?: string): ShelfNav {
     let title = state.shelfTitle;
     if (state.bookIds && state.bookIds.length > 0) {
       ids = state.bookIds;
-    } else {
+    } else if (state.shelfId) {
       const shelf = shelves.find((s) => s.id === state.shelfId);
       ids = (shelf?.items || []).map((ub) => ub.book?.id).filter(Boolean) as string[];
       title = title ?? shelf?.title;
+    } else {
+      // Fallback automático: biblioteca inteira como contexto.
+      ids = items.map((ub) => ub.book?.id).filter(Boolean) as string[];
+      title = title ?? "Sua biblioteca";
     }
     const index = currentBookId ? ids.indexOf(currentBookId) : -1;
     return {
@@ -72,7 +79,7 @@ export function useShelfNavigation(currentBookId?: string): ShelfNav {
       prevId: index > 0 ? ids[index - 1] : undefined,
       nextId: index >= 0 && index < ids.length - 1 ? ids[index + 1] : undefined,
     };
-  }, [enabled, shelves, state.shelfId, state.shelfTitle, state.bookIds, currentBookId]);
+  }, [enabled, shelves, items, state.shelfId, state.shelfTitle, state.bookIds, currentBookId]);
 
   // Preload: busca próximo (e anterior) em background — abertura instantânea no swipe.
   useEffect(() => {
