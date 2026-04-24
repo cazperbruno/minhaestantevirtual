@@ -6,6 +6,7 @@ import { Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { UserBook } from "@/types/book";
 import type { SmartShelf } from "@/hooks/useSmartShelves";
+import { localizeCategory } from "@/lib/category-i18n";
 
 export type ShelfFilterValue =
   | { kind: "none" }
