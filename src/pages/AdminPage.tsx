@@ -106,10 +106,16 @@ export default function AdminPage() {
 
   const runIsbnImport = async () => {
     const detail = parseIsbnDetail(isbnInput);
-    const all = detail.valid;
+    // Item 4: aceita até 500 por execução (5 lotes de 100)
+    const MAX_ISBNS = 500;
+    let all = detail.valid;
     if (all.length === 0) {
       toast.error("Cole pelo menos um ISBN válido (10 ou 13 dígitos).");
       return;
+    }
+    if (all.length > MAX_ISBNS) {
+      toast.warning(`${all.length} ISBNs colados — processando os primeiros ${MAX_ISBNS}`);
+      all = all.slice(0, MAX_ISBNS);
     }
     if (detail.invalid.length > 0) {
       toast.warning(`${detail.invalid.length} entrada(s) ignorada(s) por não serem ISBN válido`);
@@ -305,8 +311,8 @@ export default function AdminPage() {
                     Importar livros por lista de ISBN
                   </h3>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Cole ISBNs (10 ou 13 dígitos), um por linha ou separados por vírgula. Processa em <strong>lotes de 100</strong> com 2 lotes paralelos.
-                    Cascade: BrasilAPI → OpenLibrary → Google Books → IA fallback.
+                    Cole até <strong>500 ISBNs</strong> (10 ou 13 dígitos), um por linha ou separados por vírgula. Processa em <strong>lotes de 100</strong> com 2 lotes paralelos.
+                    Cascade: BrasilAPI → OpenLibrary → Google Books → IA fallback. <strong>Prioridade PT-BR</strong> sempre ativa.
                   </p>
                 </div>
               </div>
