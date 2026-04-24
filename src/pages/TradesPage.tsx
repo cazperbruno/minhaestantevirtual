@@ -319,7 +319,95 @@ export default function TradesPage() {
           )
         ) : null}
 
-        {tab !== "matches" && (
+        {tab === "offers" && (
+          loading ? (
+            <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+          ) : offers.length === 0 ? (
+            <div className="glass rounded-2xl p-10 text-center animate-fade-in">
+              <HandCoins className="w-10 h-10 text-primary/40 mx-auto mb-3" />
+              <h2 className="font-display text-xl mb-1">Nenhuma oferta ainda</h2>
+              <p className="text-sm text-muted-foreground mb-5">
+                Em vez de trocar, você pode oferecer pagar por um livro que outra pessoa tem disponível. As propostas aparecem aqui.
+              </p>
+              <Link to="/biblioteca">
+                <Button variant="hero">Ir para Biblioteca</Button>
+              </Link>
+            </div>
+          ) : (
+            <ul className="space-y-3 animate-stagger">
+              {offers.map((o) => {
+                const value = (o.amount_cents / 100).toLocaleString("pt-BR", { style: "currency", currency: o.currency || "BRL" });
+                return (
+                  <li key={o.id} className="glass rounded-2xl p-4 hover:border-primary/30 transition-all">
+                    <div className="flex items-start gap-3">
+                      <Link to={profilePath(o.other)}>
+                        <Avatar className="w-10 h-10">
+                          <AvatarImage src={o.other?.avatar_url} />
+                          <AvatarFallback className="bg-gradient-gold text-primary-foreground text-xs">
+                            {(o.other?.display_name || "?").charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      </Link>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <p className="text-xs text-muted-foreground">
+                            {o.iAmReceiver ? "Oferta de" : "Você ofereceu para"}{" "}
+                            <Link to={profilePath(o.other)} className="font-semibold text-foreground hover:text-primary">
+                              {o.other?.display_name || "Leitor"}
+                            </Link>
+                          </p>
+                          <OfferStatusBadge status={o.status} />
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {o.book && <BookCover book={o.book} size="sm" />}
+                          <div className="min-w-0 flex-1">
+                            <p className="font-display font-semibold line-clamp-2 text-sm">{o.book?.title || "Livro"}</p>
+                            <p className="text-lg font-bold text-primary mt-1 flex items-center gap-1">
+                              <HandCoins className="w-4 h-4" /> {value}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {formatDistanceToNow(new Date(o.created_at), { addSuffix: true, locale: ptBR })}
+                            </p>
+                          </div>
+                        </div>
+                        {o.message && (
+                          <p className="text-sm italic mt-3 px-3 py-2 bg-muted/30 rounded-lg text-foreground/80">
+                            "{o.message}"
+                          </p>
+                        )}
+                        {o.status === "pending" && (
+                          <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-border/40">
+                            {o.iAmReceiver ? (
+                              <>
+                                <Button size="sm" variant="ghost" onClick={() => updateOffer(o.id, "declined")} disabled={pendingId === o.id} className="gap-1.5">
+                                  {pendingId === o.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />} Recusar
+                                </Button>
+                                <Button size="sm" variant="hero" onClick={() => updateOffer(o.id, "accepted")} disabled={pendingId === o.id} className="gap-1.5">
+                                  {pendingId === o.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Aceitar
+                                </Button>
+                              </>
+                            ) : (
+                              <Button size="sm" variant="outline" onClick={() => updateOffer(o.id, "cancelled")} disabled={pendingId === o.id}>
+                                {pendingId === o.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Cancelar"}
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                        {o.status === "accepted" && (
+                          <p className="text-xs text-status-read mt-3 pt-3 border-t border-border/40">
+                            ✓ Combine entrega e pagamento direto com a pessoa.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )
+        )}
+
+        {tab !== "matches" && tab !== "offers" && (
           <>
         {loading ? (
           <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
