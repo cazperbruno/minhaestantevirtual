@@ -100,7 +100,7 @@ export function BottomNav() {
                 )}
               >
                 <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_hsl(var(--primary)/0.6)]")} />
-                <span className="font-medium">{label}</span>
+                <span className="font-medium leading-tight truncate max-w-full">{label}</span>
               </NavLink>
             </li>
           );
