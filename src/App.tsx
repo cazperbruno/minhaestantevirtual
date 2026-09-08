@@ -46,6 +46,8 @@ const InstallAppPage = lazy(() => import("./pages/InstallAppPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const WrappedPage = lazy(() => import("./pages/WrappedPage"));
+const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
+const TermsPage = lazy(() => import("./pages/TermsPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const RouteFallback = () => (
@@ -62,48 +64,52 @@ const App = () => (
       <BrowserRouter>
         <ScrollToTop />
         <LazyErrorBoundary>
-        <Suspense fallback={<RouteFallback />}>
-          <Routes>
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
-            <Route path="/" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
-            <Route path="/buscar" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
-            <Route path="/scanner" element={<ProtectedRoute><ScannerPage /></ProtectedRoute>} />
-            <Route path="/biblioteca" element={<ProtectedRoute><LibraryPage /></ProtectedRoute>} />
-            <Route path="/desejos" element={<ProtectedRoute><WishlistPage /></ProtectedRoute>} />
-            <Route path="/emprestimos" element={<ProtectedRoute><LoansPage /></ProtectedRoute>} />
-            <Route path="/feed" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
-            <Route path="/feed-infinito" element={<ProtectedRoute><InfiniteFeedPage /></ProtectedRoute>} />
-            <Route path="/ranking" element={<ProtectedRoute><RankingPage /></ProtectedRoute>} />
-            <Route path="/metas" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
-            <Route path="/estatisticas" element={<ProtectedRoute><StatsPage /></ProtectedRoute>} />
-            <Route path="/clubes" element={<ProtectedRoute><ClubsPage /></ProtectedRoute>} />
-            <Route path="/clubes/categoria/:slug" element={<ProtectedRoute><ClubCategoryPage /></ProtectedRoute>} />
-            <Route path="/clubes/convite/:token" element={<ClubInviteAcceptPage />} />
-            <Route path="/clubes/:id" element={<ProtectedRoute><ClubDetailPage /></ProtectedRoute>} />
-            <Route path="/clubes/:id/membros" element={<ProtectedRoute><ClubMembersPage /></ProtectedRoute>} />
-            <Route path="/u/:username" element={<ProtectedRoute><PublicProfile /></ProtectedRoute>} />
-            {/* Lista de desejos pública — sem proteção, acessível por qualquer pessoa */}
-            <Route path="/u/:username/desejos" element={<PublicWishlistPage />} />
-            <Route path="/leitores" element={<ProtectedRoute><ReadersPage /></ProtectedRoute>} />
-            <Route path="/trocas" element={<ProtectedRoute><TradesPage /></ProtectedRoute>} />
-            <Route path="/relatorios" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
-            <Route path="/progresso" element={<ProtectedRoute><ProgressPage /></ProtectedRoute>} />
-            <Route path="/progresso/historico" element={<ProtectedRoute><XpHistoryPage /></ProtectedRoute>} />
-            <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-            <Route path="/configuracoes" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-            <Route path="/livro/:id" element={<ProtectedRoute><BookDetail /></ProtectedRoute>} />
-            <Route path="/serie/:id" element={<ProtectedRoute><SeriesDetailPage /></ProtectedRoute>} />
-            <Route path="/series" element={<ProtectedRoute><MySeriesPage /></ProtectedRoute>} />
-            <Route path="/series/gerenciar" element={<ProtectedRoute><ManageSeriesPage /></ProtectedRoute>} />
-            <Route path="/buddy" element={<ProtectedRoute><BuddyReadsPage /></ProtectedRoute>} />
-            <Route path="/buddy/:id" element={<ProtectedRoute><BuddyReadDetailPage /></ProtectedRoute>} />
-            <Route path="/instalar" element={<InstallAppPage />} />
-            <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
-            <Route path="/wrapped" element={<ProtectedRoute><WrappedPage /></ProtectedRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
+              {/* Rotas públicas essenciais */}
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/privacidade" element={<PrivacyPolicyPage />} />
+              <Route path="/termos" element={<TermsPage />} />
+              <Route path="/clubes/convite/:token" element={<ClubInviteAcceptPage />} />
+              <Route path="/u/:username/desejos" element={<PublicWishlistPage />} />
+              <Route path="/instalar" element={<InstallAppPage />} />
+
+              {/* Aplicação autenticada */}
+              <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+              <Route path="/" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
+              <Route path="/buscar" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
+              <Route path="/scanner" element={<ProtectedRoute><ScannerPage /></ProtectedRoute>} />
+              <Route path="/biblioteca" element={<ProtectedRoute><LibraryPage /></ProtectedRoute>} />
+              <Route path="/desejos" element={<ProtectedRoute><WishlistPage /></ProtectedRoute>} />
+              <Route path="/emprestimos" element={<ProtectedRoute><LoansPage /></ProtectedRoute>} />
+              <Route path="/feed" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
+              <Route path="/feed-infinito" element={<ProtectedRoute><InfiniteFeedPage /></ProtectedRoute>} />
+              <Route path="/ranking" element={<ProtectedRoute><RankingPage /></ProtectedRoute>} />
+              <Route path="/metas" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
+              <Route path="/estatisticas" element={<ProtectedRoute><StatsPage /></ProtectedRoute>} />
+              <Route path="/clubes" element={<ProtectedRoute><ClubsPage /></ProtectedRoute>} />
+              <Route path="/clubes/categoria/:slug" element={<ProtectedRoute><ClubCategoryPage /></ProtectedRoute>} />
+              <Route path="/clubes/:id" element={<ProtectedRoute><ClubDetailPage /></ProtectedRoute>} />
+              <Route path="/clubes/:id/membros" element={<ProtectedRoute><ClubMembersPage /></ProtectedRoute>} />
+              <Route path="/u/:username" element={<ProtectedRoute><PublicProfile /></ProtectedRoute>} />
+              <Route path="/leitores" element={<ProtectedRoute><ReadersPage /></ProtectedRoute>} />
+              <Route path="/trocas" element={<ProtectedRoute><TradesPage /></ProtectedRoute>} />
+              <Route path="/relatorios" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
+              <Route path="/progresso" element={<ProtectedRoute><ProgressPage /></ProtectedRoute>} />
+              <Route path="/progresso/historico" element={<ProtectedRoute><XpHistoryPage /></ProtectedRoute>} />
+              <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+              <Route path="/configuracoes" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+              <Route path="/livro/:id" element={<ProtectedRoute><BookDetail /></ProtectedRoute>} />
+              <Route path="/serie/:id" element={<ProtectedRoute><SeriesDetailPage /></ProtectedRoute>} />
+              <Route path="/series" element={<ProtectedRoute><MySeriesPage /></ProtectedRoute>} />
+              <Route path="/series/gerenciar" element={<ProtectedRoute><ManageSeriesPage /></ProtectedRoute>} />
+              <Route path="/buddy" element={<ProtectedRoute><BuddyReadsPage /></ProtectedRoute>} />
+              <Route path="/buddy/:id" element={<ProtectedRoute><BuddyReadDetailPage /></ProtectedRoute>} />
+              <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
+              <Route path="/wrapped" element={<ProtectedRoute><WrappedPage /></ProtectedRoute>} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </LazyErrorBoundary>
       </BrowserRouter>
     </TooltipProvider>
