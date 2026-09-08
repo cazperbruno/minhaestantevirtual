@@ -22,18 +22,66 @@ jobs:
 
       - name: Generate privacy read report
         run: |
-          {
-            echo '# user_books references'
-            rg -n -C 3 'user_books' src --glob '*.ts' --glob '*.tsx' || true
-            echo
-            echo '# profile visibility references'
-            rg -n -C 3 'profile_visibility|library_visibility|show_progress|current_page' src --glob '*.ts' --glob '*.tsx' || true
-          } > docs/.privacy-read-audit.tmp
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          patterns = {
+              "user_books references": re.compile(r"user_books"),
+              "profile visibility references": re.compile(
+                  r"profile_visibility|library_visibility|show_progress|current_page"
+              ),
+          }
+
+          source_files = sorted(
+              p for p in Path("src").rglob("*")
+              if p.suffix in {".ts", ".tsx"} and p.is_file()
+          )
+
+          sections = []
+          total_matches = 0
+          for title, pattern in patterns.items():
+              lines_out = [f"# {title}"]
+              matches = 0
+              for path in source_files:
+                  lines = path.read_text(encoding="utf-8").splitlines()
+                  hit_lines = [i for i, line in enumerate(lines) if pattern.search(line)]
+                  if not hit_lines:
+                      continue
+                  matches += len(hit_lines)
+                  lines_out.append(f"\n## {path}")
+                  emitted = set()
+                  for idx in hit_lines:
+                      start = max(0, idx - 3)
+                      end = min(len(lines), idx + 4)
+                      for line_no in range(start, end):
+                          key = (path, line_no)
+                          if key in emitted:
+                              continue
+                          emitted.add(key)
+                          marker = ">" if line_no == idx else " "
+                          lines_out.append(f"{marker}{line_no + 1:5}: {lines[line_no]}")
+              total_matches += matches
+              lines_out.insert(1, f"matches: {matches}")
+              sections.append("\n".join(lines_out))
+
+          if total_matches == 0:
+              raise SystemExit("privacy audit produced zero matches; refusing false-green report")
+
+          Path("docs/.privacy-read-audit.tmp").write_text(
+              "\n\n".join(sections) + "\n", encoding="utf-8"
+          )
+          print(f"privacy audit matches: {total_matches}")
+          PY
 
       - name: Commit audit report
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/.privacy-read-audit.tmp
-          git commit -m "audit: map cross-user privacy reads"
+          if git diff --cached --quiet; then
+            echo "Privacy audit report unchanged"
+            exit 0
+          fi
+          git commit -m "audit: map cross-user privacy reads accurately"
           git push origin HEAD:readify/reactivation-p0-integration-02
