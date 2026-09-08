@@ -95,6 +95,11 @@ describe("profile column privacy boundary", () => {
     expect(offenders, `raw private profile reads found:\n${offenders.join("\n")}`).toEqual([]);
   });
 
+  it("Realtime profile invalidation requests only the primary key", () => {
+    const content = source("src/hooks/useRealtimeInvalidation.ts");
+    expect(content).toContain('table: "profiles", select: ["id"]');
+  });
+
   it("profile prefetch requests only public identity columns", () => {
     const content = source("src/lib/prefetch.ts");
     expect(content).toContain("id,username,display_name,avatar_url,level,xp,created_at");

@@ -170,7 +170,7 @@ export function useRealtimeInvalidation() {
       // -------- PROFILES (próprio + de quem o usuário vê) --------
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "profiles" },
+        { event: "*", schema: "public", table: "profiles", select: ["id"] },
         (payload: any) => {
           const profileId = payload.new?.id || payload.old?.id;
           // HOT: header do perfil reage na hora (chave parcial cobre id e username)
