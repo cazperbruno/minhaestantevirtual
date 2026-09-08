@@ -5,6 +5,10 @@ import { defineConfig, devices } from "@playwright/test";
  *
  * Public/safety smoke tests always run. Authenticated journeys run when the
  * dedicated E2E credentials are configured.
+ *
+ * A mesma base web/PWA é validada nos três alvos do produto:
+ * desktop, Android-class Chromium e iOS-class WebKit. Smoke tests nativos de
+ * Capacitor entram em uma etapa separada quando android/ e ios/ forem gerados.
  */
 export default defineConfig({
   testDir: "./e2e",
@@ -29,10 +33,12 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
     {
-      // Android/Google Play is a first-class target for Readify. Keep a Chrome
-      // mobile project in every E2E run so responsive regressions cannot hide.
       name: "android-chromium",
       use: { ...devices["Pixel 7"] },
+    },
+    {
+      name: "ios-webkit",
+      use: { ...devices["iPhone 15"] },
     },
   ],
 });
