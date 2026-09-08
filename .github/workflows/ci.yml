@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   test:
-    name: Lint, test e build
+    name: Quality, test e build
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -24,11 +24,10 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.4.2
 
       # Cache do diretório global de pacotes do Bun + node_modules.
       # Chave principal = hash do bun.lock → invalida quando deps mudam.
-      # restore-keys garante reuso parcial entre branches/PRs.
       - name: Cache Bun dependencies
         uses: actions/cache@v4
         with:
@@ -42,17 +41,19 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Lint
-        run: bun run lint
-        # Não falha o build no lint (warnings de estilo) — só reporta.
-        continue-on-error: true
+      # O legado ainda possui dívida de lint conhecida. Em vez de mascarar o
+      # exit code, o CI mede a dívida e bloqueia qualquer regressão. O baseline
+      # deve ser reduzido toda vez que uma onda de limpeza eliminar problemas.
+      - name: Generate ESLint report
+        run: bunx eslint . --format json --output-file lint-report.json || true
+
+      - name: Enforce lint debt budget
+        run: bun scripts/check-lint-budget.mjs lint-report.json quality/lint-baseline.json
 
       - name: Run tests
         run: bun run test
 
       # Cache do build do Vite — acelera transforms/optimizeDeps em runs subsequentes.
-      # Chave inclui configs e package.json: muda config → cache invalidado.
-      # restore-keys garante reuso parcial mesmo quando o source muda.
       - name: Cache Vite build
         uses: actions/cache@v4
         with:
@@ -67,8 +68,6 @@ jobs:
       - name: Build (smoke check)
         run: bun run build
         env:
-          # Build do Vite precisa das envs públicas do Supabase.
-          # Configure esses secrets em: GitHub repo → Settings → Secrets and variables → Actions
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
