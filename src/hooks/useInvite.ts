@@ -26,7 +26,10 @@ export function useInvite(userId: string | undefined) {
     queryFn: async () => {
       if (!userId) return null;
 
-      const { error: ensureError } = await supabase.rpc("ensure_my_invite" as any);
+      // O backend mantém a assinatura histórica e exige _user_id === auth.uid().
+      const { error: ensureError } = await supabase.rpc("ensure_invite", {
+        _user_id: userId,
+      });
       if (ensureError) throw ensureError;
 
       const { data, error } = await supabase
