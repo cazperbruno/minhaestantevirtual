@@ -4,12 +4,13 @@
  * Regras de integridade:
  * - A fila é SEMPRE particionada pelo usuário autenticado.
  * - Ação só é removida após confirmação real do Supabase.
- * - Erros retornados por supabase-js (que normalmente não lança exception)
- *   são tratados explicitamente.
+ * - Erros retornados por supabase-js são tratados explicitamente.
  * - Troca/logout de conta nunca reaplica ações de outro usuário.
+ * - Conectividade vem do adapter multiplataforma (Web/Android/iOS).
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { getNetworkStatus, subscribeNetworkStatus } from "@/platform/network";
 import { toast } from "sonner";
 
 export type OfflineAction =
@@ -46,7 +47,6 @@ function save(userId: string, items: OfflineAction[]) {
     if (items.length === 0) localStorage.removeItem(key);
     else localStorage.setItem(key, JSON.stringify(items));
   } catch {
-    // Quota/storage indisponível: não fingimos persistência.
     console.warn("[offline-queue] local storage unavailable");
   }
 }
@@ -59,10 +59,6 @@ async function resolveCurrentUserId(): Promise<string | null> {
   return activeUserId;
 }
 
-/**
- * Chave de dedup: identifica ações sobre o MESMO recurso/intent.
- * Last-write-wins; pares like/unlike e follow/unfollow se cancelam.
- */
 function dedupKey(a: OfflineAction): string {
   switch (a.kind) {
     case "book_status":
@@ -101,10 +97,6 @@ function enqueueForUser(userId: string, action: OfflineAction) {
   save(userId, items);
 }
 
-/**
- * API síncrona legada. Só enfileira quando a sessão já foi resolvida pelo
- * setupOfflineSync; caso contrário recusa em vez de criar fila sem dono.
- */
 export function queueOfflineAction(action: OfflineAction): boolean {
   if (!activeUserId) {
     console.warn("[offline-queue] refused unowned action", action.kind);
@@ -201,6 +193,9 @@ let replaying = false;
 export async function replayOfflineQueue(): Promise<{ ok: number; failed: number }> {
   if (replaying) return { ok: 0, failed: 0 };
 
+  const network = await getNetworkStatus();
+  if (!network.connected) return { ok: 0, failed: 0 };
+
   const userId = await resolveCurrentUserId();
   if (!userId) return { ok: 0, failed: 0 };
 
@@ -211,11 +206,17 @@ export async function replayOfflineQueue(): Promise<{ ok: number; failed: number
 
     const remaining: OfflineAction[] = [];
     let ok = 0;
-    for (const item of items) {
-      // Se a sessão mudou durante o replay, interrompe sem consumir a fila antiga.
+    for (let index = 0; index < items.length; index++) {
+      const item = items[index];
       const currentUserId = await resolveCurrentUserId();
       if (currentUserId !== userId) {
-        remaining.push(item, ...items.slice(ok + remaining.length + 1));
+        remaining.push(...items.slice(index));
+        break;
+      }
+
+      const currentNetwork = await getNetworkStatus();
+      if (!currentNetwork.connected) {
+        remaining.push(...items.slice(index));
         break;
       }
 
@@ -240,15 +241,12 @@ function returnedSupabaseError(result: unknown): unknown | null {
   return (result as { error?: unknown }).error ?? null;
 }
 
-/**
- * Executa online ou enfileira offline. Uma resposta Supabase `{ error }` é
- * tratada como falha mesmo que a Promise não tenha lançado exception.
- */
 export async function mutateOrQueue(
   action: OfflineAction,
   online: () => Promise<unknown>,
 ): Promise<{ queued: boolean; error?: unknown }> {
-  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+  const network = await getNetworkStatus();
+  if (!network.connected) {
     const userId = await resolveCurrentUserId();
     if (!userId) return { queued: false, error: new Error("not_authenticated") };
     enqueueForUser(userId, action);
@@ -261,8 +259,8 @@ export async function mutateOrQueue(
     if (error) return { queued: false, error };
     return { queued: false };
   } catch (e) {
-    // Falha de rede no meio do voo — só enfileira se realmente ficamos offline.
-    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    const afterFailure = await getNetworkStatus();
+    if (!afterFailure.connected) {
       const userId = await resolveCurrentUserId();
       if (!userId) return { queued: false, error: e };
       enqueueForUser(userId, action);
@@ -273,14 +271,16 @@ export async function mutateOrQueue(
 }
 
 let setupDone = false;
+let networkCleanup: (() => Promise<void>) | null = null;
+
 export function setupOfflineSync() {
-  if (setupDone || typeof window === "undefined") return;
+  if (setupDone) return;
   setupDone = true;
 
-  // Resolve e acompanha a identidade dona da fila.
-  void supabase.auth.getSession().then(({ data }) => {
+  void supabase.auth.getSession().then(async ({ data }) => {
     activeUserId = data.session?.user?.id ?? null;
-    if (activeUserId && navigator.onLine) {
+    const network = await getNetworkStatus();
+    if (activeUserId && network.connected) {
       setTimeout(() => void replayOfflineQueue(), 2000);
     }
   });
@@ -289,14 +289,24 @@ export function setupOfflineSync() {
     const previousUserId = activeUserId;
     activeUserId = session?.user?.id ?? null;
 
-    // Não apagamos automaticamente a fila do usuário anterior: ela continua
-    // isolada e poderá ser sincronizada quando aquela conta voltar a autenticar.
-    if (activeUserId && activeUserId !== previousUserId && navigator.onLine) {
-      void replayOfflineQueue();
+    if (activeUserId && activeUserId !== previousUserId) {
+      void getNetworkStatus().then((network) => {
+        if (network.connected) void replayOfflineQueue();
+      });
     }
   });
 
-  window.addEventListener("online", () => {
-    void replayOfflineQueue();
+  void subscribeNetworkStatus((network) => {
+    if (network.connected) void replayOfflineQueue();
+  }).then((cleanup) => {
+    networkCleanup = cleanup;
   });
+}
+
+/** Exposto para testes/HMR; no app real o sync vive durante toda a sessão. */
+export async function teardownOfflineSyncForTests() {
+  setupDone = false;
+  if (networkCleanup) await networkCleanup();
+  networkCleanup = null;
+  activeUserId = null;
 }
