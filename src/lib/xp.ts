@@ -1,10 +1,10 @@
 // Gamificação segura do cliente.
-// O frontend nunca escolhe user_id ou quantidade de XP para o servidor.
+// O frontend nunca concede XP. Ele apenas lê eventos já concedidos pelo servidor
+// para feedback visual e invalida os caches afetados.
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { queryClient, qk } from "@/lib/query-client";
 import { emitXpBurst } from "@/components/gamification/XpBurstHost";
-import { goldenBurst } from "@/lib/confetti";
 
 export type XpSource =
   | "add_book" | "finish_book" | "rate_book" | "scan_book"
@@ -12,19 +12,19 @@ export type XpSource =
   | "follow" | "club_message" | "club_reaction_received" | "club_mention" | "loan_book"
   | "open_app" | "challenge" | "streak_milestone" | "invite_signup" | "invite_welcome" | "misc";
 
-const CLIENT_XP: Partial<Record<XpSource, number>> = {
-  add_book: 10,
-  finish_book: 50,
-  rate_book: 15,
-  scan_book: 8,
-  write_review: 30,
-  like_review: 2,
-  comment_review: 5,
-  follow: 5,
-  club_message: 3,
-  loan_book: 20,
-  open_app: 5,
-};
+const SERVER_EVENT_SOURCES = new Set<XpSource>([
+  "add_book",
+  "finish_book",
+  "rate_book",
+  "scan_book",
+  "write_review",
+  "like_review",
+  "comment_review",
+  "follow",
+  "club_message",
+  "loan_book",
+  "open_app",
+]);
 
 interface AwardOptions {
   silent?: boolean;
@@ -33,59 +33,61 @@ interface AwardOptions {
   amount?: number;
 }
 
+// Evita reproduzir a mesma animação duas vezes quando múltiplos componentes
+// invalidam o mesmo evento em sequência.
+const seenXpEventIds = new Set<string>();
+const XP_EVENT_LOOKBACK_MS = 5_000;
+
 /**
- * Solicita uma recompensa de XP para a própria conta.
+ * Compatibilidade de UI para os chamadores históricos de `awardXp`.
  *
- * Compatibilidade: `userId` continua na assinatura porque vários chamadores usam
- * o valor para invalidar caches, mas ele NÃO é enviado ao servidor. A quantidade
- * também é definida exclusivamente pelo backend (`award_my_xp`).
- *
- * Fontes internas (challenge/streak/invite/misc) não podem ser concedidas pelo
- * cliente e são ignoradas aqui; elas são produzidas por rotinas server-side.
+ * A função NÃO concede pontos. A mutação que acabou de acontecer no banco é que
+ * dispara um trigger server-side; aqui apenas verificamos se um xp_event real foi
+ * criado e, se foi, exibimos o feedback correspondente uma única vez.
  */
 export async function awardXp(
   userId: string,
   source: XpSource,
-  opts: AwardOptions = {},
+  _opts: AwardOptions = {},
 ): Promise<{ leveledUp: boolean; newLevel: number; amount: number } | null> {
-  const expectedAmount = CLIENT_XP[source];
-  if (!expectedAmount) {
-    // Ainda recomputa progresso a partir das ações persistidas, mas não concede XP.
+  if (!SERVER_EVENT_SOURCES.has(source)) {
     const { error } = await supabase.rpc("recompute_my_challenge_progress" as any);
     if (error) console.error("recompute_my_challenge_progress", error);
     return null;
   }
 
-  const { data, error } = await supabase.rpc("award_my_xp" as any, {
-    _source: source,
-    _meta: opts.meta ?? null,
-  });
+  const since = new Date(Date.now() - XP_EVENT_LOOKBACK_MS).toISOString();
+  const [{ data: event, error: eventError }, { data: profile, error: profileError }] = await Promise.all([
+    supabase
+      .from("xp_events")
+      .select("id,amount,created_at")
+      .eq("user_id", userId)
+      .eq("source", source)
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("profiles")
+      .select("level")
+      .eq("id", userId)
+      .maybeSingle(),
+  ]);
 
-  if (error || !data || !(data as any[])[0]) {
-    console.error("award_my_xp", error);
-    return null;
+  if (eventError) console.error("xp_events feedback", eventError);
+  if (profileError) console.error("profile XP feedback", profileError);
+
+  const eventId = event?.id;
+  const amount = typeof event?.amount === "number" ? event.amount : 0;
+  if (eventId && amount > 0 && !seenXpEventIds.has(eventId)) {
+    seenXpEventIds.add(eventId);
+    emitXpBurst({ amount, label: labelFor(source), variant: "xp" });
   }
 
-  const result = (data as any[])[0] as {
-    new_xp: number;
-    new_level: number;
-    leveled_up: boolean;
-  };
-
-  emitXpBurst({ amount: expectedAmount, label: labelFor(source), variant: "xp" });
-  if (result.leveled_up) {
-    emitXpBurst({ amount: result.new_level, variant: "level", label: "Subiu de nível!" });
-    goldenBurst();
-    toast.success(`🎉 Nível ${result.new_level}!`, {
-      description: "Você evoluiu como leitor",
-      duration: 4000,
-    });
-  }
-
-  // Progresso de desafios é recalculado a partir de dados persistidos; nenhuma
-  // quantidade/progresso vem do cliente.
-  void supabase.rpc("recompute_my_challenge_progress" as any).then(({ error: recomputeError }: any) => {
-    if (recomputeError) console.error("recompute_my_challenge_progress", recomputeError);
+  // Desafios são recalculados a partir de dados persistidos. Nenhuma quantidade
+  // ou progresso é enviado pelo cliente.
+  void supabase.rpc("recompute_my_challenge_progress" as any).then(({ error }: any) => {
+    if (error) console.error("recompute_my_challenge_progress", error);
     void queryClient.invalidateQueries({ queryKey: qk.challenges(userId) });
   });
 
@@ -94,10 +96,14 @@ export async function awardXp(
     queryClient.invalidateQueries({ queryKey: qk.ranking() }),
   ]);
 
+  if (!eventId || amount <= 0) return null;
+
   return {
-    leveledUp: result.leveled_up,
-    newLevel: result.new_level,
-    amount: expectedAmount,
+    // O servidor atualiza o nível de forma atômica. O cliente não tenta inferir
+    // level-up a partir de estado possivelmente obsoleto.
+    leveledUp: false,
+    newLevel: profile?.level ?? 1,
+    amount,
   };
 }
 
