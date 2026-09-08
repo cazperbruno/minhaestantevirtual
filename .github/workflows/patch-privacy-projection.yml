@@ -1,0 +1,132 @@
+name: Patch privacy projection consumers
+
+on:
+  push:
+    branches:
+      - readify/reactivation-p0-integration-02
+    paths:
+      - .github/workflows/patch-privacy-projection.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: readify/reactivation-p0-integration-02
+          fetch-depth: 0
+
+      - name: Apply guarded privacy surgery
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def patch(path, replacements):
+              p = Path(path)
+              s = p.read_text(encoding='utf-8')
+              for label, old, new in replacements:
+                  count = s.count(old)
+                  if count != 1:
+                      raise SystemExit(f'{path} / {label}: expected 1 match, got {count}')
+                  s = s.replace(old, new, 1)
+              p.write_text(s, encoding='utf-8')
+
+          patch('src/pages/SettingsPage.tsx', [
+            ('remove local progress state',
+             '  const [showProgress, setShowProgress] = useState<boolean>(true);\n',
+             ''),
+            ('remove localstorage load',
+             '''      setProfile(data);\n      // show_progress is local UI preference (also saved to localStorage)\n      const stored = localStorage.getItem("show_progress");\n      setShowProgress(stored === null ? true : stored === "true");''',
+             '''      setProfile(data);'''),
+            ('persist progress toggle',
+             '''  const toggleProgress = (val: boolean) => {\n    setShowProgress(val);\n    localStorage.setItem("show_progress", String(val));\n    toast.success("Configuração salva");\n  };''',
+             '''  const toggleProgress = (val: boolean) =>\n    updateProfile({ show_reading_progress: val }, "show_reading_progress");'''),
+            ('progress switch',
+             '<Switch checked={showProgress} onCheckedChange={toggleProgress} />',
+             '''<Switch\n              checked={profile.show_reading_progress ?? true}\n              disabled={savingFlag === "show_reading_progress"}\n              onCheckedChange={toggleProgress}\n            />'''),
+          ])
+
+          patch('src/pages/PublicProfile.tsx', [
+            ('remove uuid regex',
+             'const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\n',
+             ''),
+            ('safe profile lookup',
+             '''      // Fallback resiliente: tenta UUID → username → username com retry\n      const lookup = async (): Promise<any | null> => {\n        // 1) UUID exato\n        if (UUID_RE.test(raw)) {\n          const { data } = await supabase.from("profiles").select("*").eq("id", raw).maybeSingle();\n          if (data) return data;\n        }\n        // 2) Username case-insensitive\n        const u1 = await supabase.from("profiles").select("*").ilike("username", raw).maybeSingle();\n        if (u1.data) return u1.data;\n        // 3) Retry após 400ms (replicação de leitura pode estar atrasada após signup)\n        await new Promise((r) => setTimeout(r, 400));\n        const u2 = await supabase.from("profiles").select("*").ilike("username", raw).maybeSingle();\n        if (u2.data) return u2.data;\n        // 4) Último fallback: display_name exato (case-insensitive)\n        const u3 = await supabase.from("profiles").select("*").ilike("display_name", raw).maybeSingle();\n        return u3.data || null;\n      };''',
+             '''      // Lookup redigido no servidor: bio/redes sociais só retornam quando\n      // a visibilidade do perfil permite para o viewer atual.\n      const lookup = async (): Promise<any | null> => {\n        const { data, error } = await supabase.rpc("profile_for_viewer" as any, { _lookup: raw });\n        if (error) throw error;\n        const row = Array.isArray(data) ? data[0] : data;\n        if (row) return row;\n\n        // Retry único para signup recém-confirmado/replicação eventual.\n        await new Promise((r) => setTimeout(r, 400));\n        const retry = await supabase.rpc("profile_for_viewer" as any, { _lookup: raw });\n        if (retry.error) throw retry.error;\n        return Array.isArray(retry.data) ? retry.data[0] ?? null : retry.data ?? null;\n      };'''),
+            ('privacy boolean first',
+             '''        const isOwn = user?.id === p.id;\n        const isPrivate = p.profile_visibility === "private" && !isOwn;''',
+             '''        const isOwn = user?.id === p.id;\n        const isPrivate = !isOwn && !p.can_view_profile;'''),
+            ('safe library rpc',
+             '''          supabase\n            .from("user_books")\n            .select("*, book:books(*)")\n            .eq("user_id", p.id)\n            .eq("is_public", true)\n            .order("updated_at", { ascending: false })\n            .limit(60),''',
+             '''          supabase.rpc("visible_user_library" as any, {\n            _owner: p.id,\n            _status: null,\n            _available_for_trade_only: false,\n            _limit: 60,\n          }),'''),
+            ('privacy boolean render',
+             '''  const isOwn = user?.id === profile.id;\n  const isPrivate = profile.profile_visibility === "private" && !isOwn;''',
+             '''  const isOwn = user?.id === profile.id;\n  const isPrivate = !isOwn && !profile.can_view_profile;\n  const libraryVisible = isOwn || profile.can_view_library;'''),
+            ('trade only if library visible',
+             '{!isPrivate && <ProposeTradeDialog receiverId={profile.id} receiverName={profile.display_name || undefined} />}',
+             '{!isPrivate && libraryVisible && <ProposeTradeDialog receiverId={profile.id} receiverName={profile.display_name || undefined} />}'),
+            ('library restricted state',
+             '''                profile.library_visibility === "followers" && !isOwn ? (\n                  <EmptyState icon={<Lock />} title="Biblioteca privada" description="Esta biblioteca só fica visível para seguidores." />\n                ) : (''',
+             '''                !libraryVisible ? (\n                  <EmptyState\n                    icon={<Lock />}\n                    title="Biblioteca restrita"\n                    description={profile.library_visibility === "followers"\n                      ? "Esta biblioteca só fica visível para seguidores."\n                      : "Este leitor escolheu manter a biblioteca privada."}\n                  />\n                ) : ('''),
+          ])
+
+          patch('src/pages/PublicWishlistPage.tsx', [
+            ('share adapter import',
+             'import type { Book } from "@/types/book";\n',
+             'import type { Book } from "@/types/book";\nimport { shareReadify } from "@/platform/share";\n'),
+            ('profile shape',
+             '''  bio: string | null;\n  profile_visibility: string;\n}''',
+             '''  bio: string | null;\n  profile_visibility: string;\n  can_view_profile: boolean;\n  can_view_library: boolean;\n}'''),
+            ('profile lookup',
+             '''      // 1) Busca perfil pelo username (case-insensitive)\n      const { data: prof } = await supabase\n        .from("profiles")\n        .select("id,username,display_name,avatar_url,bio,profile_visibility")\n        .ilike("username", username)\n        .maybeSingle();\n      if (cancelled) return;\n      if (!prof) { setNotFound(true); setLoading(false); return; }\n      setProfile(prof as Profile);\n\n      // 2) Wishlist pública desse perfil\n      const { data: ub } = await supabase\n        .from("user_books")\n        .select("id,created_at,book:books(*)")\n        .eq("user_id", prof.id)\n        .eq("status", "wishlist")\n        .eq("is_public", true)\n        .order("created_at", { ascending: false });''',
+             '''      // 1) Perfil redigido conforme viewer (anônimo nesta rota pública).\n      const profileResult = await supabase.rpc("profile_for_viewer" as any, { _lookup: username });\n      if (profileResult.error) throw profileResult.error;\n      const prof = (Array.isArray(profileResult.data) ? profileResult.data[0] : profileResult.data) as Profile | null;\n      if (cancelled) return;\n      if (!prof) { setNotFound(true); setLoading(false); return; }\n      setProfile(prof);\n\n      // 2) Wishlist através da projeção segura. Se a biblioteca não for pública\n      // para este viewer, a RPC devolve zero linhas sem expor current_page/outros dados.\n      const { data: ub, error: wishError } = await supabase.rpc("visible_user_library" as any, {\n        _owner: prof.id,\n        _status: "wishlist",\n        _available_for_trade_only: false,\n        _limit: 100,\n      });\n      if (wishError) throw wishError;'''),
+            ('share function',
+             '''  const shareLink = async () => {\n    const url = window.location.href;\n    const text = `🎁 Lista de desejos de ${profile?.display_name || username} no Readify`;\n    try {\n      if (navigator.share) await navigator.share({ title: text, url });\n      else { await navigator.clipboard.writeText(url); toast.success("Link copiado"); }\n    } catch { /* user cancel */ }\n  };''',
+             '''  const shareLink = async () => {\n    const text = `🎁 Lista de desejos de ${profile?.display_name || username} no Readify`;\n    try {\n      const result = await shareReadify({ title: text, text, path: window.location.pathname });\n      if (result === "copied") toast.success("Link copiado");\n    } catch (error) {\n      console.error("[wishlist] share failed", error);\n      toast.error("Não foi possível compartilhar agora");\n    }\n  };'''),
+          ])
+
+          patch('src/components/social/ProposeTradeDialog.tsx', [
+            ('safe receiver library',
+             '''        supabase\n          .from("user_books")\n          .select("id, book:books(*)")\n          .eq("user_id", receiverId)\n          .eq("available_for_trade", true)\n          .eq("is_public", true)\n          .limit(60),''',
+             '''        supabase.rpc("visible_user_library" as any, {\n          _owner: receiverId,\n          _status: null,\n          _available_for_trade_only: true,\n          _limit: 60,\n        }),'''),
+          ])
+
+          patch('src/components/clubs/ClubBookProgress.tsx', [
+            ('replace cross-user realtime',
+             '''    // Realtime: invalida ao detectar mudanças nos progressos dos membros\n    const ch = supabase\n      .channel(`club-progress:${clubId}`)\n      .on(\n        "postgres_changes",\n        { event: "*", schema: "public", table: "user_books" },\n        () => load(),\n      )\n      .subscribe();\n\n    return () => {\n      cancelled = true;\n      supabase.removeChannel(ch);\n    };''',
+             '''    // user_books bruto é owner-only. Para progresso coletivo usamos apenas\n    // a RPC agregada/redigida e atualização periódica/foco, sem assinar dados de terceiros.\n    const interval = window.setInterval(() => void load(), 30_000);\n    const onVisible = () => {\n      if (document.visibilityState === "visible") void load();\n    };\n    document.addEventListener("visibilitychange", onVisible);\n\n    return () => {\n      cancelled = true;\n      window.clearInterval(interval);\n      document.removeEventListener("visibilitychange", onVisible);\n    };'''),
+          ])
+          PY
+
+      - name: Verify no direct cross-user user_books reads remain in audited consumers
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          offenders = []
+          for path in [
+              'src/pages/PublicProfile.tsx',
+              'src/pages/PublicWishlistPage.tsx',
+          ]:
+              text = Path(path).read_text(encoding='utf-8')
+              if '.from("user_books")' in text:
+                  offenders.append(path)
+          text = Path('src/components/social/ProposeTradeDialog.tsx').read_text(encoding='utf-8')
+          # One own-library query is intentional; a second raw user_books query is not.
+          if text.count('.from("user_books")') != 1:
+              offenders.append('src/components/social/ProposeTradeDialog.tsx')
+          if offenders:
+              raise SystemExit('raw cross-user user_books reads remain: ' + ', '.join(offenders))
+          PY
+
+      - name: Commit privacy consumer migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/pages/SettingsPage.tsx src/pages/PublicProfile.tsx src/pages/PublicWishlistPage.tsx src/components/social/ProposeTradeDialog.tsx src/components/clubs/ClubBookProgress.tsx
+          git diff --cached --check
+          git commit -m "privacy: move cross-user library reads behind redacted RPC"
+          git push origin HEAD:readify/reactivation-p0-integration-02
