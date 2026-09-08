@@ -1,0 +1,123 @@
+name: Patch self profile access
+
+on:
+  push:
+    branches:
+      - readify/reactivation-p0-integration-02
+    paths:
+      - .github/workflows/patch-profile-self-access.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: readify/reactivation-p0-integration-02
+          fetch-depth: 0
+
+      - name: Apply guarded self-profile migration
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def patch(path, replacements):
+              p = Path(path)
+              s = p.read_text(encoding='utf-8')
+              for label, old, new in replacements:
+                  count = s.count(old)
+                  if count != 1:
+                      raise SystemExit(f'{path} / {label}: expected 1 match, got {count}')
+                  s = s.replace(old, new, 1)
+              p.write_text(s, encoding='utf-8')
+
+          patch('src/components/auth/ProtectedRoute.tsx', [
+            ('imports',
+             'import { supabase } from "@/integrations/supabase/client";\n',
+             'import { getMyProfile } from "@/lib/profile-api";\n'),
+            ('own onboarding read',
+             '''      const { data } = await supabase.from("profiles")\n        .select("onboarded_at").eq("id", user.id).maybeSingle();\n      if (!cancelled) setOnboardedKnown(!!data?.onboarded_at);''',
+             '''      try {\n        const data = await getMyProfile<{ onboarded_at?: string | null }>();\n        if (!cancelled) setOnboardedKnown(!!data?.onboarded_at);\n      } catch (error) {\n        console.error("[ProtectedRoute] profile check failed", error);\n        if (!cancelled) setOnboardedKnown(false);\n      }'''),
+          ])
+
+          patch('src/hooks/useContentPrefs.ts', [
+            ('helper import',
+             'import { queryClient } from "@/lib/query-client";\n',
+             'import { queryClient } from "@/lib/query-client";\nimport { getMyProfile } from "@/lib/profile-api";\n'),
+            ('own prefs read',
+             '''      const { data } = await supabase\n        .from("profiles")\n        .select("content_types")\n        .eq("id", user.id)\n        .maybeSingle();\n      const list = (data?.content_types as ContentType[] | null) ?? DEFAULT;''',
+             '''      const data = await getMyProfile<{ content_types?: ContentType[] | null }>();\n      const list = data?.content_types ?? DEFAULT;'''),
+          ])
+
+          patch('src/hooks/useTutorial.ts', [
+            ('helper import',
+             'import { useAuth } from "./useAuth";\n',
+             'import { useAuth } from "./useAuth";\nimport { getMyProfile } from "@/lib/profile-api";\n'),
+            ('own tutorial read',
+             '''      const { data } = await supabase\n        .from("profiles")\n        .select("tutorial_completed_at, tutorial_last_step")\n        .eq("id", user.id)\n        .maybeSingle();\n      if (cancelled) return;''',
+             '''      const data = await getMyProfile<{\n        tutorial_completed_at?: string | null;\n        tutorial_last_step?: number | null;\n      }>();\n      if (cancelled) return;'''),
+          ])
+
+          patch('src/pages/Onboarding.tsx', [
+            ('helper import',
+             'import { CONTENT_TYPE_ICON, CONTENT_TYPE_LABEL, type ContentType } from "@/types/book";\n',
+             'import { CONTENT_TYPE_ICON, CONTENT_TYPE_LABEL, type ContentType } from "@/types/book";\nimport { getMyProfile } from "@/lib/profile-api";\n'),
+            ('own onboarding read',
+             '''      const { data } = await supabase.from("profiles")\n        .select("onboarded_at").eq("id", user.id).maybeSingle();\n      if (data?.onboarded_at) navigate("/", { replace: true });''',
+             '''      try {\n        const data = await getMyProfile<{ onboarded_at?: string | null }>();\n        if (data?.onboarded_at) navigate("/", { replace: true });\n      } catch (error) {\n        console.error("[Onboarding] profile read failed", error);\n      }'''),
+          ])
+
+          patch('src/pages/ProfilePage.tsx', [
+            ('helper import',
+             'import { useIsAdmin } from "@/hooks/useIsAdmin";\n',
+             'import { useIsAdmin } from "@/hooks/useIsAdmin";\nimport { getMyProfile } from "@/lib/profile-api";\n'),
+            ('own profile read',
+             '        supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),',
+             '        getMyProfile<any>().then((data) => ({ data })),'),
+          ])
+
+          patch('src/pages/SettingsPage.tsx', [
+            ('helper import',
+             'import { getRuntimePlatform, isNativePlatform } from "@/platform/runtime";\n',
+             'import { getRuntimePlatform, isNativePlatform } from "@/platform/runtime";\nimport { getMyProfile } from "@/lib/profile-api";\n'),
+            ('own profile read',
+             '''    (async () => {\n      const { data } = await supabase\n        .from("profiles")\n        .select("*")\n        .eq("id", user.id)\n        .maybeSingle();\n      setProfile(data);\n    })();''',
+             '''    (async () => {\n      try {\n        const data = await getMyProfile<any>();\n        setProfile(data);\n      } catch (error) {\n        console.error("[Settings] profile read failed", error);\n        toast.error("Não foi possível carregar suas configurações");\n      }\n    })();'''),
+          ])
+
+          patch('src/lib/prefetch.ts', [
+            ('safe profile prefetch',
+             '''        const { data } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();\n        return data;''',
+             '''        const { data, error } = await supabase\n          .from("profiles")\n          .select("id,username,display_name,avatar_url,level,xp,created_at")\n          .eq("id", userId)\n          .maybeSingle();\n        if (error) throw error;\n        return data;'''),
+          ])
+          PY
+
+      - name: Verify profile access boundary
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          offenders = []
+          for path in Path('src').rglob('*'):
+              if path.suffix not in {'.ts', '.tsx'} or not path.is_file():
+                  continue
+              text = path.read_text(encoding='utf-8')
+              if re.search(r'\.from\(["\']profiles["\']\)\s*\.select\(["\']\*["\']\)', text, re.S):
+                  offenders.append(str(path))
+          if offenders:
+              raise SystemExit('profiles.select(*) remains in client: ' + ', '.join(offenders))
+          PY
+
+      - name: Commit migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/auth/ProtectedRoute.tsx src/hooks/useContentPrefs.ts src/hooks/useTutorial.ts src/pages/Onboarding.tsx src/pages/ProfilePage.tsx src/pages/SettingsPage.tsx src/lib/prefetch.ts
+          git diff --cached --check
+          git commit -m "privacy: route sensitive profile reads through self-only RPC"
+          git push origin HEAD:readify/reactivation-p0-integration-02
