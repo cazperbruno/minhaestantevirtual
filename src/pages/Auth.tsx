@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Loader2, Mail, ChevronRight } from "lucide-react";
+import { Loader2, Mail } from "lucide-react";
 import readifyMark from "@/assets/readify-mark-v8.webp";
 
 const PENDING_INVITE_KEY = "readify:pending-invite";
@@ -20,7 +20,7 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [busy, setBusy] = useState<null | "google" | "apple" | "email">(null);
+  const [busy, setBusy] = useState<null | "google" | "email">(null);
 
   // Preserva o código antes de qualquer redirect OAuth/confirmação de e-mail.
   useEffect(() => {
@@ -75,37 +75,57 @@ export default function Auth() {
     setBusy("email");
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email, password,
-          options: { emailRedirectTo: window.location.origin, data: { full_name: name } },
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: {
+            emailRedirectTo: window.location.origin,
+            data: { full_name: name.trim() },
+          },
         });
         if (error) throw error;
-        toast.success("Conta criada. Bem-vindo ao Readify.");
-        navigate("/");
+
+        if (data.session) {
+          toast.success("Conta criada. Bem-vindo ao Readify.");
+          navigate("/");
+        } else {
+          toast.success("Conta criada. Confirme seu e-mail para continuar.");
+          setMode("login");
+          setPassword("");
+        }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
         if (error) throw error;
         toast.success("Bem-vindo de volta.");
         navigate("/");
       }
     } catch (err: any) {
-      toast.error(err.message || "Erro de autenticação");
+      console.error("[auth] email authentication failed", err?.message || err);
+      toast.error("Não foi possível autenticar", {
+        description: "Confira os dados informados e tente novamente.",
+      });
     } finally {
       setBusy(null);
     }
   };
 
-  const oauth = async (provider: "google" | "apple") => {
-    setBusy(provider);
-    const result = await lovable.auth.signInWithOAuth(provider, { redirect_uri: window.location.origin });
+  const oauthGoogle = async () => {
+    setBusy("google");
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
+    });
     if (result.error) {
-      toast.error(`Falha ao entrar com ${provider === "google" ? "Google" : "Apple"}`);
+      console.error("[auth] Google OAuth failed", result.error);
+      toast.error("Não foi possível entrar com Google");
       setBusy(null);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 py-10 bg-background">
+    <main className="min-h-screen flex items-center justify-center px-6 py-10 bg-background">
       <div className="w-full max-w-sm flex flex-col items-center text-center animate-scale-in">
         <img
           src={readifyMark}
@@ -120,25 +140,13 @@ export default function Auth() {
         <h1 className="font-display text-[44px] leading-none tracking-tight text-foreground">Readify</h1>
         <p className="mt-3 text-[15px] text-muted-foreground/90">Descubra, organize e viva a leitura.</p>
 
-        <div className="w-full mt-10 space-y-2.5">
+        <div className="w-full mt-10 space-y-3">
           <Button
             type="button"
             size="lg"
             disabled={busy !== null}
-            onClick={() => oauth("google")}
+            onClick={oauthGoogle}
             className="w-full h-12 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-glow tap-scale gap-2"
-          >
-            {busy === "google" ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
-            Começar
-          </Button>
-
-          <Button
-            type="button"
-            variant="outline"
-            size="lg"
-            disabled={busy !== null}
-            onClick={() => oauth("google")}
-            className="w-full h-12 rounded-full border-border bg-card hover:bg-card/80 text-foreground font-medium gap-2 tap-scale"
           >
             {busy === "google" ? <Loader2 className="w-4 h-4 animate-spin" /> : <GoogleIcon />}
             Continuar com Google
@@ -147,7 +155,7 @@ export default function Auth() {
           <button
             type="button"
             onClick={() => setShowEmail((v) => !v)}
-            className="w-full pt-3 text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center justify-center gap-1.5"
+            className="w-full pt-2 text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center justify-center gap-1.5"
           >
             <Mail className="w-3.5 h-3.5" />
             {showEmail ? "Ocultar e-mail" : "Entrar com e-mail"}
@@ -156,9 +164,11 @@ export default function Auth() {
 
         {showEmail && (
           <div className="w-full mt-4 glass rounded-2xl p-5 text-left animate-fade-in">
-            <div className="flex gap-1 p-1 bg-muted/40 rounded-full mb-5">
+            <div className="flex gap-1 p-1 bg-muted/40 rounded-full mb-5" role="tablist" aria-label="Modo de autenticação">
               <button
                 type="button"
+                role="tab"
+                aria-selected={mode === "login"}
                 onClick={() => setMode("login")}
                 className={`flex-1 py-1.5 rounded-full text-xs font-medium transition-all ${
                   mode === "login" ? "bg-card text-foreground shadow-card" : "text-muted-foreground"
@@ -166,28 +176,63 @@ export default function Auth() {
               >Entrar</button>
               <button
                 type="button"
+                role="tab"
+                aria-selected={mode === "signup"}
                 onClick={() => setMode("signup")}
                 className={`flex-1 py-1.5 rounded-full text-xs font-medium transition-all ${
                   mode === "signup" ? "bg-card text-foreground shadow-card" : "text-muted-foreground"
                 }`}
               >Criar conta</button>
             </div>
+
             <form onSubmit={submit} className="space-y-3">
               {mode === "signup" && (
                 <div>
                   <Label htmlFor="name" className="text-xs">Nome</Label>
-                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required minLength={2} className="mt-1 h-11 rounded-xl" />
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    minLength={2}
+                    maxLength={100}
+                    autoComplete="name"
+                    className="mt-1 h-11 rounded-xl"
+                  />
                 </div>
               )}
               <div>
                 <Label htmlFor="email" className="text-xs">E-mail</Label>
-                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="mt-1 h-11 rounded-xl" />
+                <Input
+                  id="email"
+                  type="email"
+                  inputMode="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                  className="mt-1 h-11 rounded-xl"
+                />
               </div>
               <div>
                 <Label htmlFor="password" className="text-xs">Senha</Label>
-                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} className="mt-1 h-11 rounded-xl" />
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                  className="mt-1 h-11 rounded-xl"
+                />
               </div>
-              <Button type="submit" disabled={busy !== null} size="lg" className="w-full h-11 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium">
+              <Button
+                type="submit"
+                disabled={busy !== null}
+                size="lg"
+                className="w-full h-11 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+              >
                 {busy === "email" && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
                 {mode === "signup" ? "Criar conta" : "Entrar"}
               </Button>
@@ -195,11 +240,14 @@ export default function Auth() {
           </div>
         )}
 
-        <p className="mt-10 text-[11px] text-muted-foreground/70 leading-relaxed">
-          Ao continuar, você concorda com os Termos e a Política de Privacidade do Readify.
+        <p className="mt-9 text-[11px] text-muted-foreground/70 leading-relaxed">
+          Ao continuar, você concorda com os{" "}
+          <Link to="/termos" className="text-foreground/80 hover:text-primary underline underline-offset-2">Termos de Uso</Link>
+          {" "}e confirma que leu a{" "}
+          <Link to="/privacidade" className="text-foreground/80 hover:text-primary underline underline-offset-2">Política de Privacidade</Link>.
         </p>
       </div>
-    </div>
+    </main>
   );
 }
 
