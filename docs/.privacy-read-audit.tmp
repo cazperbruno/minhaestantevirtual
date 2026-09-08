@@ -1,3 +1,1064 @@
 # user_books references
+matches: 74
+
+## src/components/books/AddBookManualDialog.tsx
+   105:       return;
+   106:     }
+   107:     // Auto-add to user library
+>  108:     await supabase.from("user_books").insert({
+   109:       user_id: user.id,
+   110:       book_id: data.id,
+   111:       status: "not_read",
+
+## src/components/books/AvailabilityToggles.tsx
+    23:       : { available_for_loan: value };
+    24:     const rollback = field === "available_for_trade" ? setTrade : setLoan;
+    25: 
+>   26:     const { error } = await supabase.from("user_books").update(patch).eq("id", userBookId);
+    27:     if (error) {
+    28:       rollback(!value);
+    29:       toast.error("Erro ao atualizar");
+
+## src/components/books/BatchScanList.tsx
+   187:           }
+   188: 
+   189:           const { error } = await supabase
+>  190:             .from("user_books")
+   191:             .upsert(
+   192:               { user_id: user.id, book_id: item.bookId!, status: item.pickedStatus },
+   193:               { onConflict: "user_id,book_id" },
+
+## src/components/books/EditBookDialog.tsx
+   174: 
+   175:   const remove = async () => {
+   176:     setDeleting(true);
+>  177:     // Delete user_books entries first (the user's own copy), then book if no one else has it.
+   178:     if (user) {
+   179:       await supabase.from("user_books").delete().eq("user_id", user.id).eq("book_id", book.id);
+   180:     }
+   181:     setDeleting(false);
+   182:     toast.success("Removido da sua biblioteca");
+
+## src/components/books/QuickSaveButton.tsx
+    41:       if (!persisted?.id) throw new Error("import_failed");
+    42: 
+    43:       const { error } = await supabase
+>   44:         .from("user_books")
+    45:         .insert({ user_id: user.id, book_id: persisted.id, status: "wishlist" });
+    46:       if (error && !`${error.message}`.includes("duplicate")) throw error;
+    47: 
+
+## src/components/clubs/ClubBookProgress.tsx
+    44:       .channel(`club-progress:${clubId}`)
+    45:       .on(
+    46:         "postgres_changes",
+>   47:         { event: "*", schema: "public", table: "user_books" },
+    48:         () => load(),
+    49:       )
+    50:       .subscribe();
+
+## src/components/series/AddVolumeDialog.tsx
+    80:       return;
+    81:     }
+    82: 
+>   83:     const { error: ubError } = await supabase.from("user_books").insert({
+    84:       user_id: user.id,
+    85:       book_id: book.id,
+    86:       status: "not_read",
+    87:     });
+>   88:     if (ubError) console.warn("user_books insert", ubError);
+    89: 
+    90:     void awardXp(user.id, "add_book", { meta: { manual_volume: true, series_id: series.id } });
+    91: 
+
+## src/components/social/ProposeTradeDialog.tsx
+    38:       setLoading(true);
+    39:       const [{ data: mine }, { data: theirs }] = await Promise.all([
+    40:         supabase
+>   41:           .from("user_books")
+    42:           .select("id, book:books(*)")
+    43:           .eq("user_id", user.id)
+    44:           .eq("available_for_trade", true)
+    45:           .limit(60),
+    46:         supabase
+>   47:           .from("user_books")
+    48:           .select("id, book:books(*)")
+    49:           .eq("user_id", receiverId)
+    50:           .eq("available_for_trade", true)
+
+## src/components/social/ReviewActionsMenu.tsx
+    61:       const persisted = isExternal(review.book) ? await ensurePersistedBook(review.book) : review.book;
+    62:       if (!persisted?.id) throw new Error("import_failed");
+    63:       const { error } = await supabase
+>   64:         .from("user_books")
+    65:         .insert({ user_id: user.id, book_id: persisted.id, status: "wishlist" });
+    66:       if (error && !`${error.message}`.includes("duplicate")) throw error;
+    67:       invalidate.library(user.id);
+
+## src/hooks/useBecauseYouRead.ts
+    33: 
+    34:       // 1) último livro lido
+    35:       const { data: lastRead } = await supabase
+>   36:         .from("user_books")
+    37:         .select("finished_at, book:books(*)")
+    38:         .eq("user_id", user.id)
+    39:         .eq("status", "read")
+    47: 
+    48:       // 2) IDs já na biblioteca do user — para excluir das sugestões
+    49:       const { data: ownedRows } = await supabase
+>   50:         .from("user_books")
+    51:         .select("book_id")
+    52:         .eq("user_id", user.id);
+    53:       const owned = new Set((ownedRows ?? []).map((r: any) => r.book_id as string));
+
+## src/hooks/useBookDetail.ts
+    29:     queryFn: async () => {
+    30:       if (!user || !bookId) return null;
+    31:       const { data } = await supabase
+>   32:         .from("user_books").select("*")
+    33:         .eq("user_id", user.id).eq("book_id", bookId).maybeSingle();
+    34:       return (data as UserBook) || null;
+    35:     },
+    62:       };
+    63: 
+    64:       const { data, error } = await supabase
+>   65:         .from("user_books")
+    66:         .upsert(payload, { onConflict: "user_id,book_id" })
+    67:         .select().single();
+    68:       if (error) throw error;
+
+## src/hooks/useBookNotes.ts
+     1: /**
+     2:  * Notas pessoais privadas de um livro do usuário.
+     3:  *
+>    4:  * Armazenadas em `user_book_notes` (separadas de `user_books` por motivos de
+     5:  * privacidade — RLS garante que só o dono lê/escreve).
+     6:  */
+     7: import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+## src/hooks/useFeed.ts
+   151:       if (isFirstPage && user && tab === "all" && (taste as Map<string, number>).size > 0) {
+   152:         // Carrega autores amados (rating>=4) do cache se disponível
+   153:         const { data: loved } = await supabase
+>  154:           .from("user_books")
+   155:           .select("book:books(authors)")
+   156:           .eq("user_id", user.id)
+   157:           .gte("rating", 4)
+
+## src/hooks/useFollowingReads.ts
+    15: 
+    16: /**
+    17:  * Prateleira "Lidos por quem você segue".
+>   18:  * Combina follows + user_books pra mostrar livros que sua rede leu (e você ainda não tem).
+    19:  * Cada item traz até 5 avatares dos leitores recentes + contagem total.
+    20:  *
+    21:  * Refino: dedupe + qualidade (PT-BR + capa) + diversidade por autor.
+
+## src/hooks/useLibrary.ts
+     7: 
+     8: async function fetchLibrary(userId: string): Promise<UserBook[]> {
+     9:   const { data, error } = await supabase
+>   10:     .from("user_books")
+    11:     .select("*, book:books(*)")
+    12:     .eq("user_id", userId)
+    13:     .order("updated_at", { ascending: false });
+    56:     mutationFn: async ({ bookId, status = "not_read", rating = null }: AddBookVars) => {
+    57:       if (!user) throw new Error("not_authenticated");
+    58:       const { data, error } = await supabase
+>   59:         .from("user_books")
+    60:         .insert({ user_id: user.id, book_id: bookId, status, rating })
+    61:         .select("*, book:books(*)")
+    62:         .single();
+    98: 
+    99: interface UpdateBookVars {
+   100:   id: string;
+>  101:   // `notes` foi removido de user_books (vive em user_book_notes por privacidade).
+   102:   patch: Partial<Pick<UserBook, "status" | "rating" | "current_page" | "is_public" | "available_for_loan" | "available_for_trade">>;
+   103: }
+   104: 
+   114:   return useMutation({
+   115:     mutationFn: async ({ id, patch }: UpdateBookVars) => {
+   116:       const { data, error } = await supabase
+>  117:         .from("user_books")
+   118:         .update(patch)
+   119:         .eq("id", id)
+   120:         .select("*, book:books(*)")
+   152:   const { user } = useAuth();
+   153:   return useMutation({
+   154:     mutationFn: async (id: string) => {
+>  155:       const { error } = await supabase.from("user_books").delete().eq("id", id);
+   156:       if (error) throw error;
+   157:       return id;
+   158:     },
+
+## src/hooks/useManageSeries.ts
+     2:  * useManageSeries — CRUD manual de séries do usuário.
+     3:  *
+     4:  * Permite criar, editar, excluir séries e vincular/desvincular livros que o
+>    5:  * usuário possui (user_books). É a "rede de segurança" para quando o
+     6:  * detector automático falha (livros sem autor, títulos atípicos, mangás
+     7:  * categorizados como `book`, etc.).
+     8:  *
+    54:     queryFn: async () => {
+    55:       if (!user) return [];
+    56:       const { data: ubs, error } = await supabase
+>   57:         .from("user_books")
+    58:         .select(
+    59:           "book:books!inner(series_id, series:series(id, title, authors, content_type, cover_url, total_volumes, status, description, source))"
+    60:         )
+    95:     queryFn: async () => {
+    96:       if (!user) return [];
+    97:       const { data, error } = await supabase
+>   98:         .from("user_books")
+    99:         .select(
+   100:           "id, book:books!inner(id, title, authors, cover_url, content_type, series_id, volume_number, series:series(id, title))"
+   101:         )
+
+## src/hooks/useMySeries.ts
+     3:  * progresso agregado (volumes lidos / total) e ranking colecionador.
+     4:  *
+     5:  * Critério de "minha série": usuário tem pelo menos 1 volume da série
+>    6:  * em user_books (status: reading / read / wishlist / not_read).
+     7:  */
+     8: import { useQuery } from "@tanstack/react-query";
+     9: import { supabase } from "@/integrations/supabase/client";
+    43:     ...CACHE.PERSONAL,
+    44:     queryFn: async () => {
+    45:       if (!user) return [];
+>   46:       // 1) Pega todos os user_books do usuário, junto com o livro + série
+    47:       const { data, error } = await supabase
+    48:         .from("user_books")
+    49:         .select(
+    50:           "status, updated_at, book:books!inner(id, series_id, volume_number, content_type, series:series(id, title, cover_url, authors, content_type, total_volumes, status))"
+    51:         )
+
+## src/hooks/useNextAchievements.ts
+     4:  *
+     5:  * Estratégia:
+     6:  *  - Carrega achievements das categorias de formato + achievements já desbloqueados.
+>    7:  *  - Conta os user_books do usuário por content_type.
+     8:  *  - Para conquistas baseadas em "ler N volumes/edições" usa status IN (read, reading).
+     9:  *  - Filtra apenas as ainda não desbloqueadas, com progresso > 0 OU threshold pequeno.
+    10:  *  - Ordena por % de progresso desc e retorna no máximo `limit`.
+    49:       .in("category", ["manga", "comic", "magazine"]),
+    50:     supabase.from("user_achievements").select("achievement_code").eq("user_id", userId),
+    51:     supabase
+>   52:       .from("user_books")
+    53:       .select("status, book:books!inner(content_type)")
+    54:       .eq("user_id", userId),
+    55:   ]);
+
+## src/hooks/useNextVolume.ts
+    44:       let user_book: UserBook | null = null;
+    45:       if (user) {
+    46:         const { data: ub } = await supabase
+>   47:           .from("user_books")
+    48:           .select("*")
+    49:           .eq("user_id", user.id)
+    50:           .eq("book_id", next.id)
+
+## src/hooks/useRealtimeInvalidation.ts
+    27:  *   Sociais   : follows, reviews, review_likes, review_comments, activities,
+    28:  *               book_recommendations, recommendation_likes, recommendation_comments,
+    29:  *               stories
+>   30:  *   Pessoais  : user_books, books, series, loans, reading_goals, profiles
+    31:  *   Realtime  : buddy_read_*, club_messages
+    32:  *
+    33:  * Plug uma vez no AppShell.
+    99:       // -------- USER_BOOKS (status, rating, current_page) --------
+   100:       .on(
+   101:         "postgres_changes",
+>  102:         { event: "*", schema: "public", table: "user_books" },
+   103:         (payload: any) => {
+   104:           const ownerId = payload.new?.user_id || payload.old?.user_id;
+   105:           const bookId = payload.new?.book_id || payload.old?.book_id;
+
+## src/hooks/useSeries.ts
+     1: /**
+     2:  * Série (mangá / HQ) com seus volumes e progresso do usuário.
+     3:  *
+>    4:  * Junta `series` + `books` (volumes) + `user_books` (progresso).
+     5:  * Cache CATALOG no série, PERSONAL no progresso (invalidado ao atualizar).
+     6:  */
+     7: import { useQuery } from "@tanstack/react-query";
+    62: 
+    63:   if (userId && volumes.length > 0) {
+    64:     const { data: ubs } = await supabase
+>   65:       .from("user_books").select("*")
+    66:       .eq("user_id", userId)
+    67:       .in("book_id", volumes.map((v) => v.id));
+    68:     const byBook = new Map((ubs as UserBook[] || []).map((u) => [u.book_id, u]));
+
+## src/hooks/useShelfNavigation.ts
+   100:           queryKey: ["user-book", user.id, id],
+   101:           queryFn: async () => {
+   102:             const { data } = await supabase
+>  103:               .from("user_books")
+   104:               .select("*")
+   105:               .eq("user_id", user.id)
+   106:               .eq("book_id", id)
+
+## src/integrations/supabase/types.ts
+  2311:             foreignKeyName: "user_book_notes_user_book_id_fkey"
+  2312:             columns: ["user_book_id"]
+  2313:             isOneToOne: true
+> 2314:             referencedRelation: "user_books"
+  2315:             referencedColumns: ["id"]
+  2316:           },
+  2317:         ]
+  2318:       }
+> 2319:       user_books: {
+  2320:         Row: {
+  2321:           available_for_loan: boolean
+  2322:           available_for_trade: boolean
+  2364:         }
+  2365:         Relationships: [
+  2366:           {
+> 2367:             foreignKeyName: "user_books_book_id_fkey"
+  2368:             columns: ["book_id"]
+  2369:             isOneToOne: false
+  2370:             referencedRelation: "books"
+  2371:             referencedColumns: ["id"]
+  2372:           },
+  2373:           {
+> 2374:             foreignKeyName: "user_books_book_id_fkey"
+  2375:             columns: ["book_id"]
+  2376:             isOneToOne: false
+  2377:             referencedRelation: "trending_books"
+
+## src/lib/offline-queue.ts
+   119:     switch (a.kind) {
+   120:       case "book_status": {
+   121:         const { data, error } = await supabase
+>  122:           .from("user_books")
+   123:           .update({ status: a.payload.status as any })
+   124:           .eq("id", a.payload.user_book_id)
+   125:           .eq("user_id", userId)
+   129:       }
+   130:       case "book_rating": {
+   131:         const { data, error } = await supabase
+>  132:           .from("user_books")
+   133:           .update({ rating: a.payload.rating })
+   134:           .eq("id", a.payload.user_book_id)
+   135:           .eq("user_id", userId)
+   139:       }
+   140:       case "book_progress": {
+   141:         const { data, error } = await supabase
+>  142:           .from("user_books")
+   143:           .update({ current_page: a.payload.current_page })
+   144:           .eq("id", a.payload.user_book_id)
+   145:           .eq("user_id", userId)
+
+## src/lib/prefetch.ts
+    12:       queryKey: qk.library(userId),
+    13:       queryFn: async () => {
+    14:         const { data } = await supabase
+>   15:           .from("user_books")
+    16:           .select("*, book:books(*)")
+    17:           .eq("user_id", userId)
+    18:           .order("updated_at", { ascending: false });
+
+## src/pages/ClubDetailPage.tsx
+   199:     let cancelled = false;
+   200:     (async () => {
+   201:       const { data } = await supabase
+>  202:         .from("user_books")
+   203:         .select("current_page")
+   204:         .eq("user_id", user.id)
+   205:         .eq("book_id", bookId)
+
+## src/pages/Discover.tsx
+    41:       const [shelvesData, readingData] = await Promise.all([
+    42:         fetchShelves(),
+    43:         supabase
+>   44:           .from("user_books")
+    45:           .select("*, book:books(*)")
+    46:           .eq("user_id", user.id)
+    47:           .eq("status", "reading")
+
+## src/pages/GoalsPage.tsx
+    28:       const [{ data: goal }, { count }, { data: streakData }] = await Promise.all([
+    29:         supabase.from("reading_goals").select("*").eq("user_id", user.id).eq("year", year).maybeSingle(),
+    30:         supabase
+>   31:           .from("user_books")
+    32:           .select("*", { count: "exact", head: true })
+    33:           .eq("user_id", user.id)
+    34:           .eq("status", "read")
+
+## src/pages/InfiniteFeedPage.tsx
+    64:   const addToLibrary = async (book: Book) => {
+    65:     if (!user) return;
+    66:     try {
+>   67:       const { error } = await supabase.from("user_books").insert({
+    68:         user_id: user.id, book_id: book.id, status: "wishlist",
+    69:       });
+    70:       if (error) throw error;
+
+## src/pages/LoansPage.tsx
+    63:     }
+    64:     setLoans(list);
+    65:     const { data: ub } = await supabase
+>   66:       .from("user_books").select("book:books(*)").eq("user_id", user.id);
+    67:     setMyBooks((ub || []).map((r: any) => r.book).filter(Boolean));
+    68:     setLoading(false);
+    69:   };
+
+## src/pages/Onboarding.tsx
+    90:           onboarded_at: new Date().toISOString(),
+    91:         }).eq("id", user.id),
+    92:         persistedIds.length > 0
+>   93:           ? supabase.from("user_books").upsert(
+    94:               persistedIds.map((book_id) => ({
+    95:                 user_id: user.id,
+    96:                 book_id,
+
+## src/pages/ProfilePage.tsx
+    41:       const end = `${year}-12-31T23:59:59`;
+    42:       const [{ data: p }, { data: ub }, { count: followers }, { count: following }, { data: g }, { count: yearRead }] = await Promise.all([
+    43:         supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+>   44:         supabase.from("user_books").select("status,rating").eq("user_id", user.id),
+    45:         supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", user.id),
+    46:         supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", user.id),
+    47:         supabase.from("reading_goals").select("target_books").eq("user_id", user.id).eq("year", year).maybeSingle(),
+>   48:         supabase.from("user_books").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "read").gte("finished_at", start).lte("finished_at", end),
+    49:       ]);
+    50:       setProfile(p);
+    51:       const list = ub || [];
+
+## src/pages/PublicProfile.tsx
+    97: 
+    98:         const [{ data: lib }, { data: revs }, { count: followers }, { count: following }, { data: myFollow }] = await Promise.all([
+    99:           supabase
+>  100:             .from("user_books")
+   101:             .select("*, book:books(*)")
+   102:             .eq("user_id", p.id)
+   103:             .eq("is_public", true)
+
+## src/pages/PublicWishlistPage.tsx
+    28: /**
+    29:  * Página pública (sem login) da lista de desejos de um leitor: /u/:username/desejos
+    30:  *
+>   31:  * RLS já filtra: o RLS de `user_books` só retorna registros com is_public=true
+    32:  * e profile_visibility='public', então não precisamos validar visibilidade aqui.
+    33:  */
+    34: export default function PublicWishlistPage() {
+    55: 
+    56:       // 2) Wishlist pública desse perfil
+    57:       const { data: ub } = await supabase
+>   58:         .from("user_books")
+    59:         .select("id,created_at,book:books(*)")
+    60:         .eq("user_id", prof.id)
+    61:         .eq("status", "wishlist")
+
+## src/pages/ReportsPage.tsx
+    70:     (async () => {
+    71:       setLoading(true);
+    72:       const { data, error } = await supabase
+>   73:         .from("user_books")
+    74:         .select(
+    75:           "id,status,rating,started_at,finished_at,current_page,book:books(id,title,authors,categories,page_count,published_year)"
+    76:         )
+
+## src/pages/ScannerPage.tsx
+   139:     if (!user || !foundBook) return;
+   140:     try {
+   141:       const { error } = await supabase
+>  142:         .from("user_books")
+   143:         .upsert(
+   144:           { user_id: user.id, book_id: foundBook.id, status: "not_read" },
+   145:           { onConflict: "user_id,book_id" },
+   415: 
+   416:           // Modo contínuo: auto-adiciona como 'not_read' e reagenda
+   417:           if (scanMode === "continuous") {
+>  418:             const { error: addError } = await supabase.from("user_books").upsert(
+   419:               { user_id: user.id, book_id: book.id, status: "not_read" },
+   420:               { onConflict: "user_id,book_id" },
+   421:             );
+   554:         // Adicionar à biblioteca pessoal com status NEUTRO (usuário decide quando começar)
+   555:         if (user) {
+   556:           const { error: addError } = await supabase
+>  557:             .from("user_books")
+   558:             .upsert(
+   559:               { user_id: user.id, book_id: saved.id, status: "not_read" },
+   560:               { onConflict: "user_id,book_id" },
+
+## src/pages/StatsPage.tsx
+    81:     (async () => {
+    82:       const [{ data: ub }, { data: goal }, { data: s }] = await Promise.all([
+    83:         supabase
+>   84:           .from("user_books")
+    85:           .select("status, finished_at, book:books(title, authors, categories)")
+    86:           .eq("user_id", user.id),
+    87:         supabase.from("reading_goals").select("target_books").eq("user_id", user.id).eq("year", year).maybeSingle(),
+
+## src/pages/WishlistPage.tsx
+    23:     (async () => {
+    24:       const [{ data: ub }, { data: prof }] = await Promise.all([
+    25:         supabase
+>   26:           .from("user_books").select("*, book:books(*)")
+    27:           .eq("user_id", user.id).eq("status", "wishlist")
+    28:           .order("created_at", { ascending: false }),
+    29:         supabase.from("profiles").select("username").eq("id", user.id).maybeSingle(),
+
+## src/pages/WrappedPage.tsx
+   175:     (async () => {
+   176:       setLoading(true);
+   177:       const { data } = await supabase
+>  178:         .from("user_books")
+   179:         .select("status, finished_at, current_page, book:books(title, authors, categories, page_count, cover_url)")
+   180:         .eq("user_id", user.id);
+   181:       if (!cancelled) {
+   207:       const end = `${year + 1}-01-01`;
+   208:       const [{ data: ub }, { data: profs }] = await Promise.all([
+   209:         supabase
+>  210:           .from("user_books")
+   211:           .select("user_id, current_page, book:books(page_count)")
+   212:           .in("user_id", ids)
+   213:           .eq("status", "read")
+
+## src/test/activities-no-duplicates.test.ts
+    11: import { readFileSync } from "node:fs";
+    12: import { resolve } from "node:path";
+    13: 
+>   14: // Lista canônica de kinds que as triggers ativas (user_books_to_activity,
+    15: // follows_to_activity, e variações de recomendação/troca) podem inserir.
+    16: const EMITTED_KINDS = [
+    17:   "book_added",
+
+## src/test/invalidation-priority.test.tsx
+    75: });
+    76: 
+    77: describe("Prioridade de invalidação (HOT vs COLD)", () => {
+>   78:   it("user_books INSERT → HOT (library/feed/séries fetching) e COLD (ranking apenas stale)", () => {
+    79:     const { lib, feed, series, ranking, seriesRank, stats } = setup();
+    80: 
+    81:     fire("user_books", {
+    82:       eventType: "INSERT",
+    83:       schema: "public",
+    84:       table: "user_books",
+    85:       new: { user_id: TEST_USER_ID, book_id: "book-1", status: "reading" },
+    86:       old: null,
+    87:     });
+
+## src/test/realtime-cross-tab.test.tsx
+    11:  *     ou seja, refetch automático sem refresh manual.
+    12:  *
+    13:  * Cenários cobertos:
+>   14:  *   1. Adicionar livro à biblioteca (INSERT user_books)
+    15:  *   2. Atualizar progresso de série (UPDATE books — series_id)
+    16:  *   3. Criar review (INSERT reviews)
+    17:  */
+   112:   it("Aba A adiciona livro → Aba B invalida biblioteca/séries/stats sem refresh", () => {
+   113:     const qc = setupTabB();
+   114: 
+>  115:     // Aba A insere em user_books (mesma user_id da Aba B)
+   116:     fire("user_books", "INSERT", {
+   117:       new: {
+   118:         user_id: TEST_USER_ID,
+   119:         book_id: "book-123",
+   168:     expect(isInvalidated(qc, qk.feed())).toBe(true);
+   169:   });
+   170: 
+>  171:   it("Canal único cobre todas as tabelas críticas (user_books, books, series, reviews)", () => {
+   172:     setupTabB();
+   173:     const tables = new Set(handlers.map((h) => h.table));
+   174:     for (const t of ["user_books", "books", "series", "reviews", "follows", "activities"]) {
+   175:       expect(tables.has(t), `falta listener para tabela ${t}`).toBe(true);
+   176:     }
+   177:     // Conectou via WebSocket — sem fallback de polling
 
 # profile visibility references
+matches: 77
+
+## src/components/books/BookHero.tsx
+    29: 
+    30: export function BookHero({ book, ub, saving, onStatusChange, onAddWishlist, onShare, onBookUpdated }: Props) {
+    31:   const [refreshing, setRefreshing] = useState(false);
+>   32:   const progress = book.page_count && ub?.current_page
+    33:     ? Math.round((ub.current_page / book.page_count) * 100) : null;
+    34: 
+    35:   const handleRefresh = async () => {
+    36:     setRefreshing(true);
+   143:             {progress !== null && ub && (ub.status === "reading" || ub.status === "read") && (
+   144:               <div className="max-w-md hero-stagger" style={{ animationDelay: "400ms" }}>
+   145:                 <div className="flex items-center justify-between text-xs mb-1.5 text-muted-foreground">
+>  146:                   <span>{ub.current_page} / {book.page_count} páginas</span>
+   147:                   <span className="font-semibold text-primary">{progress}%</span>
+   148:                 </div>
+   149:                 <div className="h-1.5 rounded-full bg-muted/40 overflow-hidden">
+
+## src/components/books/BookSidePanel.tsx
+    38:           <div className="flex items-center justify-between text-sm mb-2">
+    39:             <span className="text-muted-foreground font-medium">Progresso</span>
+    40:             <span className="font-bold text-primary tabular-nums">
+>   41:               {Math.round(((ub.current_page ?? 0) / book.page_count!) * 100)}%
+    42:             </span>
+    43:           </div>
+    44:           <Slider
+>   45:             value={[ub.current_page ?? 0]}
+    46:             max={book.page_count!}
+    47:             step={1}
+    48:             onValueChange={(v) => onUpdate({ current_page: v[0] })}
+    49:             onValueCommit={(v) => onCommit({ current_page: v[0] })}
+    50:           />
+    51:           <p className="text-xs text-muted-foreground mt-1.5 tabular-nums">
+    52:             {ub.current_page ?? 0} de {book.page_count} páginas
+    53:           </p>
+    54:         </div>
+    55:       )}
+
+## src/components/books/ContinueReadingRow.tsx
+    12: /**
+    13:  * Prateleira "Continue lendo" estilo Netflix com:
+    14:  *  - capa grande
+>   15:  *  - barra de progresso (current_page/page_count)
+    16:  *  - badge "Retomar" no hover
+    17:  *
+    18:  * Renderiza nada se não houver itens.
+    28:       {items.map((ub) => {
+    29:         if (!ub.book) return null;
+    30:         const total = ub.book.page_count || 0;
+>   31:         const current = ub.current_page || 0;
+    32:         const pct = total > 0 ? Math.min(100, Math.round((current / total) * 100)) : 0;
+    33: 
+    34:         return (
+
+## src/components/books/LibraryShelf.tsx
+    49: 
+    50: function ShelfCard({ ub, book }: { ub: UserBook; book: Book }) {
+    51:   const progress =
+>   52:     book.page_count && ub.current_page
+    53:       ? Math.round((ub.current_page / book.page_count) * 100)
+    54:       : null;
+    55: 
+    56:   return (
+
+## src/components/books/SmartShelfRow.tsx
+    65: 
+    66:   if (!ub.book) return null;
+    67:   const total = ub.book.page_count || 0;
+>   68:   const current = ub.current_page || 0;
+    69:   const pct = total > 0 ? Math.min(100, Math.round((current / total) * 100)) : 0;
+    70:   const showProgress = ub.status === "reading" && pct > 0 && pct < 100;
+    71: 
+
+## src/components/social/StoriesViewer.tsx
+   206:                 <p className="font-display text-xl font-bold drop-shadow">
+   207:                   {story.book?.title ?? "Lendo agora"}
+   208:                 </p>
+>  209:                 {story.current_page && story.total_pages && (
+   210:                   <>
+   211:                     <p className="font-display text-5xl font-bold mt-3 drop-shadow-lg">
+   212:                       {Math.round((story.current_page / story.total_pages) * 100)}%
+   213:                     </p>
+   214:                     <p className="text-sm opacity-90 mt-1">
+   215:                       pág {story.current_page} de {story.total_pages}
+   216:                     </p>
+   217:                   </>
+   218:                 )}
+
+## src/hooks/useBookDetail.ts
+    53:         book_id: book.id,
+    54:         status: (patch.status ?? current?.status ?? "not_read") as BookStatus,
+    55:         rating: patch.rating ?? current?.rating ?? null,
+>   56:         current_page: patch.current_page ?? current?.current_page ?? 0,
+    57:         is_public: current?.is_public ?? true,
+    58:         ...(patch.status === "read" && !current?.finished_at
+    59:           ? { finished_at: new Date().toISOString() } : {}),
+    77:         book_id: book?.id ?? "",
+    78:         status: (patch.status ?? previous?.status ?? "not_read") as BookStatus,
+    79:         rating: patch.rating ?? previous?.rating ?? null,
+>   80:         current_page: patch.current_page ?? previous?.current_page ?? 0,
+    81:         is_public: previous?.is_public ?? true,
+    82:         started_at: previous?.started_at ?? null,
+    83:         finished_at: patch.status === "read" ? new Date().toISOString() : (previous?.finished_at ?? null),
+
+## src/hooks/useBuddyReads.ts
+   160: export function useUpdateBuddyProgress(buddyId: string) {
+   161:   const qc = useQueryClient();
+   162:   return useMutation({
+>  163:     mutationFn: async (input: { current_page: number; percent: number }) => {
+   164:       const { data, error } = await supabase.rpc("update_buddy_progress", {
+   165:         _buddy_id: buddyId,
+   166:         _current_page: input.current_page,
+   167:         _percent: input.percent,
+   168:       });
+   169:       if (error) throw error;
+
+## src/hooks/useLibrary.ts
+    99: interface UpdateBookVars {
+   100:   id: string;
+   101:   // `notes` foi removido de user_books (vive em user_book_notes por privacidade).
+>  102:   patch: Partial<Pick<UserBook, "status" | "rating" | "current_page" | "is_public" | "available_for_loan" | "available_for_trade">>;
+   103: }
+   104: 
+   105: /**
+
+## src/hooks/useRealtimeInvalidation.ts
+    96:           hot(qk.feed());
+    97:         },
+    98:       )
+>   99:       // -------- USER_BOOKS (status, rating, current_page) --------
+   100:       .on(
+   101:         "postgres_changes",
+   102:         { event: "*", schema: "public", table: "user_books" },
+
+## src/hooks/useSmartShelves.ts
+    46: 
+    47:     const progress = (ub: UserBook) => {
+    48:       const total = ub.book?.page_count || 0;
+>   49:       const cur = ub.current_page || 0;
+    50:       return total > 0 ? Math.min(1, cur / total) : 0;
+    51:     };
+    52: 
+
+## src/hooks/useStories.ts
+    29:   kind: StoryKind;
+    30:   content: string | null;
+    31:   bg_color: StoryBg;
+>   32:   current_page: number | null;
+    33:   total_pages: number | null;
+    34:   created_at: string;
+    35:   expires_at: string;
+    82:       content: string;
+    83:       bg_color?: StoryBg;
+    84:       book_id?: string | null;
+>   85:       current_page?: number;
+    86:       total_pages?: number;
+    87:     }) => {
+    88:       if (!user) throw new Error("not_authenticated");
+    94:           content: input.content,
+    95:           bg_color: input.bg_color ?? "gradient-gold",
+    96:           book_id: input.book_id ?? null,
+>   97:           current_page: input.current_page ?? null,
+    98:           total_pages: input.total_pages ?? null,
+    99:         })
+   100:         .select()
+
+## src/integrations/supabase/types.ts
+   614:       buddy_read_participants: {
+   615:         Row: {
+   616:           buddy_read_id: string
+>  617:           current_page: number
+   618:           finished_at: string | null
+   619:           percent: number
+   620:           updated_at: string
+   622:         }
+   623:         Insert: {
+   624:           buddy_read_id: string
+>  625:           current_page?: number
+   626:           finished_at?: string | null
+   627:           percent?: number
+   628:           updated_at?: string
+   630:         }
+   631:         Update: {
+   632:           buddy_read_id?: string
+>  633:           current_page?: number
+   634:           finished_at?: string | null
+   635:           percent?: number
+   636:           updated_at?: string
+  1520:           id: string
+  1521:           instagram: string | null
+  1522:           level: number
+> 1523:           library_visibility: string
+  1524:           onboarded_at: string | null
+  1525:           profile_visibility: string
+  1526:           tiktok: string | null
+  1527:           tutorial_completed_at: string | null
+  1528:           tutorial_last_step: number
+  1542:           id: string
+  1543:           instagram?: string | null
+  1544:           level?: number
+> 1545:           library_visibility?: string
+  1546:           onboarded_at?: string | null
+  1547:           profile_visibility?: string
+  1548:           tiktok?: string | null
+  1549:           tutorial_completed_at?: string | null
+  1550:           tutorial_last_step?: number
+  1564:           id?: string
+  1565:           instagram?: string | null
+  1566:           level?: number
+> 1567:           library_visibility?: string
+  1568:           onboarded_at?: string | null
+  1569:           profile_visibility?: string
+  1570:           tiktok?: string | null
+  1571:           tutorial_completed_at?: string | null
+  1572:           tutorial_last_step?: number
+  2074:           book_id: string | null
+  2075:           content: string | null
+  2076:           created_at: string
+> 2077:           current_page: number | null
+  2078:           expires_at: string
+  2079:           id: string
+  2080:           kind: string
+  2086:           book_id?: string | null
+  2087:           content?: string | null
+  2088:           created_at?: string
+> 2089:           current_page?: number | null
+  2090:           expires_at?: string
+  2091:           id?: string
+  2092:           kind?: string
+  2098:           book_id?: string | null
+  2099:           content?: string | null
+  2100:           created_at?: string
+> 2101:           current_page?: number | null
+  2102:           expires_at?: string
+  2103:           id?: string
+  2104:           kind?: string
+  2322:           available_for_trade: boolean
+  2323:           book_id: string
+  2324:           created_at: string
+> 2325:           current_page: number | null
+  2326:           finished_at: string | null
+  2327:           id: string
+  2328:           is_public: boolean
+  2337:           available_for_trade?: boolean
+  2338:           book_id: string
+  2339:           created_at?: string
+> 2340:           current_page?: number | null
+  2341:           finished_at?: string | null
+  2342:           id?: string
+  2343:           is_public?: boolean
+  2352:           available_for_trade?: boolean
+  2353:           book_id?: string
+  2354:           created_at?: string
+> 2355:           current_page?: number | null
+  2356:           finished_at?: string | null
+  2357:           id?: string
+  2358:           is_public?: boolean
+  3309:         }[]
+  3310:       }
+  3311:       update_buddy_progress: {
+> 3312:         Args: { _buddy_id: string; _current_page: number; _percent: number }
+  3313:         Returns: {
+  3314:           both_finished: boolean
+  3315:           message: string
+
+## src/lib/offline-queue.ts
+    16: export type OfflineAction =
+    17:   | { kind: "book_status"; payload: { user_book_id: string; status: string } }
+    18:   | { kind: "book_rating"; payload: { user_book_id: string; rating: number } }
+>   19:   | { kind: "book_progress"; payload: { user_book_id: string; current_page: number } }
+    20:   | { kind: "book_notes"; payload: { user_book_id: string; notes: string } }
+    21:   | { kind: "review_like"; payload: { review_id: string } }
+    22:   | { kind: "review_unlike"; payload: { review_id: string } }
+   140:       case "book_progress": {
+   141:         const { data, error } = await supabase
+   142:           .from("user_books")
+>  143:           .update({ current_page: a.payload.current_page })
+   144:           .eq("id", a.payload.user_book_id)
+   145:           .eq("user_id", userId)
+   146:           .select("id")
+
+## src/pages/BuddyReadDetailPage.tsx
+    43:     const page = parseInt(pageInput, 10);
+    44:     if (isNaN(page) || page < 0) return;
+    45:     const percent = totalPages > 0 ? Math.min(100, (page / totalPages) * 100) : Math.min(100, page);
+>   46:     await updateProgress.mutateAsync({ current_page: page, percent });
+    47:     setEditing(false);
+    48:     setPageInput("");
+    49:   };
+    73: 
+    74:       {/* Progresso lado a lado */}
+    75:       <div className="grid grid-cols-2 gap-3">
+>   76:         <ProgressCard label="Você" percent={Number(me?.percent ?? 0)} page={me?.current_page ?? 0} total={totalPages} finished={!!me?.finished_at} />
+    77:         <ProgressCard
+    78:           label={partner?.profiles?.display_name ?? "Parceiro"}
+    79:           avatar={partner?.profiles?.avatar_url}
+    80:           percent={Number(partner?.percent ?? 0)}
+>   81:           page={partner?.current_page ?? 0}
+    82:           total={totalPages}
+    83:           finished={!!partner?.finished_at}
+    84:         />
+
+## src/pages/ClubDetailPage.tsx
+   200:     (async () => {
+   201:       const { data } = await supabase
+   202:         .from("user_books")
+>  203:         .select("current_page")
+   204:         .eq("user_id", user.id)
+   205:         .eq("book_id", bookId)
+   206:         .maybeSingle();
+>  207:       if (!cancelled) setMyCurrentPage((data as { current_page: number | null } | null)?.current_page ?? null);
+   208:     })();
+   209:     return () => {
+   210:       cancelled = true;
+
+## src/pages/PublicProfile.tsx
+    69:         }
+    70: 
+    71:         const isOwn = user?.id === p.id;
+>   72:         const isPrivate = p.profile_visibility === "private" && !isOwn;
+    73: 
+    74:         if (isPrivate) {
+    75:           // ainda mostra o cabeçalho, mas esconde dados
+   165:   );
+   166: 
+   167:   const isOwn = user?.id === profile.id;
+>  168:   const isPrivate = profile.profile_visibility === "private" && !isOwn;
+   169: 
+   170:   const featuredCovers = library.slice(0, 6).map((ub) => ub.book?.cover_url).filter(Boolean);
+   171:   const reading = library.filter((ub) => ub.status === "reading");
+   286: 
+   287:             <TabsContent value="library" className="mt-8 space-y-12">
+   288:               {library.length === 0 ? (
+>  289:                 profile.library_visibility === "followers" && !isOwn ? (
+   290:                   <EmptyState icon={<Lock />} title="Biblioteca privada" description="Esta biblioteca só fica visível para seguidores." />
+   291:                 ) : (
+   292:                   <EmptyState icon={<BookOpen />} title="Nenhum livro público" description="Quando este leitor adicionar livros públicos, eles aparecem aqui." />
+
+## src/pages/PublicWishlistPage.tsx
+    16:   display_name: string | null;
+    17:   avatar_url: string | null;
+    18:   bio: string | null;
+>   19:   profile_visibility: string;
+    20: }
+    21: 
+    22: interface WishItem {
+    29:  * Página pública (sem login) da lista de desejos de um leitor: /u/:username/desejos
+    30:  *
+    31:  * RLS já filtra: o RLS de `user_books` só retorna registros com is_public=true
+>   32:  * e profile_visibility='public', então não precisamos validar visibilidade aqui.
+    33:  */
+    34: export default function PublicWishlistPage() {
+    35:   const { username } = useParams();
+    46:       // 1) Busca perfil pelo username (case-insensitive)
+    47:       const { data: prof } = await supabase
+    48:         .from("profiles")
+>   49:         .select("id,username,display_name,avatar_url,bio,profile_visibility")
+    50:         .ilike("username", username)
+    51:         .maybeSingle();
+    52:       if (cancelled) return;
+
+## src/pages/ReportsPage.tsx
+    25:   rating: number | null;
+    26:   started_at: string | null;
+    27:   finished_at: string | null;
+>   28:   current_page: number | null;
+    29:   book: {
+    30:     id: string;
+    31:     title: string;
+    72:       const { data, error } = await supabase
+    73:         .from("user_books")
+    74:         .select(
+>   75:           "id,status,rating,started_at,finished_at,current_page,book:books(id,title,authors,categories,page_count,published_year)"
+    76:         )
+    77:         .eq("user_id", user.id)
+    78:         .order("updated_at", { ascending: false });
+   142:     const avgRating = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
+   143:     const pages = filtered.reduce((acc, r) => {
+   144:       if (r.status === "read") return acc + (r.book?.page_count || 0);
+>  145:       return acc + (r.current_page || 0);
+   146:     }, 0);
+   147:     const genreCount = new Map<string, number>();
+   148:     filtered.forEach((r) => r.book?.categories?.forEach((c) => genreCount.set(c, (genreCount.get(c) || 0) + 1)));
+
+## src/pages/SettingsPage.tsx
+    38:         .eq("id", user.id)
+    39:         .maybeSingle();
+    40:       setProfile(data);
+>   41:       // show_progress is local UI preference (also saved to localStorage)
+    42:       const stored = localStorage.getItem("show_progress");
+    43:       setShowProgress(stored === null ? true : stored === "true");
+    44:     })();
+    45:   }, [user]);
+    58:   };
+    59: 
+    60:   const setProfileVisibility = (val: Visibility) =>
+>   61:     updateProfile({ profile_visibility: val }, "profile_visibility");
+    62: 
+    63:   const setLibraryVisibility = (val: Visibility) =>
+    64:     updateProfile({ library_visibility: val }, "library_visibility");
+    65: 
+    66:   const toggleProgress = (val: boolean) => {
+    67:     setShowProgress(val);
+>   68:     localStorage.setItem("show_progress", String(val));
+    69:     toast.success("Configuração salva");
+    70:   };
+    71: 
+    86:     );
+    87:   }
+    88: 
+>   89:   const profileIsPublic = (profile.profile_visibility || "public") === "public";
+    90:   const libraryIsPublic = (profile.library_visibility || "public") === "public";
+    91: 
+    92:   return (
+    93:     <AppShell>
+   119:             </div>
+   120:             <Switch
+   121:               checked={profileIsPublic}
+>  122:               disabled={savingFlag === "profile_visibility"}
+   123:               onCheckedChange={(v) => setProfileVisibility(v ? "public" : "private")}
+   124:             />
+   125:           </div>
+   128:           <div className="space-y-1.5">
+   129:             <Label className="text-xs text-muted-foreground">Quem pode ver meu perfil</Label>
+   130:             <Select
+>  131:               value={profile.profile_visibility || "public"}
+   132:               onValueChange={(v) => setProfileVisibility(v as Visibility)}
+   133:               disabled={savingFlag === "profile_visibility"}
+   134:             >
+   135:               <SelectTrigger><SelectValue /></SelectTrigger>
+   136:               <SelectContent>
+   155:             </div>
+   156:             <Switch
+   157:               checked={libraryIsPublic}
+>  158:               disabled={savingFlag === "library_visibility"}
+   159:               onCheckedChange={(v) => setLibraryVisibility(v ? "public" : "private")}
+   160:             />
+   161:           </div>
+   163:           <div className="space-y-1.5">
+   164:             <Label className="text-xs text-muted-foreground">Quem pode ver minha biblioteca</Label>
+   165:             <Select
+>  166:               value={profile.library_visibility || "public"}
+   167:               onValueChange={(v) => setLibraryVisibility(v as Visibility)}
+   168:               disabled={savingFlag === "library_visibility"}
+   169:             >
+   170:               <SelectTrigger><SelectValue /></SelectTrigger>
+   171:               <SelectContent>
+
+## src/pages/WrappedPage.tsx
+    16: interface RawRow {
+    17:   status: "not_read" | "reading" | "read" | "wishlist";
+    18:   finished_at: string | null;
+>   19:   current_page: number | null;
+    20:   book: {
+    21:     title: string;
+    22:     authors: string[];
+    68: 
+    69:   for (const r of finished) {
+    70:     const b = r.book!;
+>   71:     const pages = r.current_page ?? b.page_count ?? 0;
+    72:     totalPages += pages;
+    73:     if (pages > 0) {
+    74:       pagesRanking.push({ title: b.title, pages });
+   176:       setLoading(true);
+   177:       const { data } = await supabase
+   178:         .from("user_books")
+>  179:         .select("status, finished_at, current_page, book:books(title, authors, categories, page_count, cover_url)")
+   180:         .eq("user_id", user.id);
+   181:       if (!cancelled) {
+   182:         setRows((data as unknown as RawRow[]) || []);
+   208:       const [{ data: ub }, { data: profs }] = await Promise.all([
+   209:         supabase
+   210:           .from("user_books")
+>  211:           .select("user_id, current_page, book:books(page_count)")
+   212:           .in("user_id", ids)
+   213:           .eq("status", "read")
+   214:           .gte("finished_at", start)
+   229:         const k = r.user_id as string;
+   230:         const cur = agg.get(k) || { count: 0, pages: 0 };
+   231:         cur.count += 1;
+>  232:         cur.pages += (r.current_page ?? r.book?.page_count ?? 0);
+   233:         agg.set(k, cur);
+   234:       }
+   235: 
+
+## src/types/book.ts
+    43:   book_id: string;
+    44:   status: BookStatus;
+    45:   rating?: number | null;
+>   46:   current_page?: number | null;
+    47:   started_at?: string | null;
+    48:   finished_at?: string | null;
+    49:   is_public: boolean;
