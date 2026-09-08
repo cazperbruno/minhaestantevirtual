@@ -1,7 +1,11 @@
-// Edge function: envia Web Push (VAPID) para todas as inscrições de um usuário.
-// Acionada pelo trigger `notifications_push_trigger` após INSERT em `notifications`.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+// Edge function: envia Web Push (VAPID) para todas as inscrições do destinatário.
+// É acionada pelo trigger `notifications_push_trigger` após INSERT em `notifications`.
+//
+// Segurança: endpoint estritamente server-to-server. O caller informa apenas o
+// notification_id; destinatário e conteúdo são carregados do banco para impedir
+// spoofing/tampering de user_id, título, corpo ou link.
 import webpush from "npm:web-push@3.6.7";
+import { requireAdmin } from "../_shared/admin-guard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,26 +18,56 @@ const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT") || "mailto:noreply@readify.a
 
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
 
-const supabase = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-);
+function normalizeInternalLink(value: unknown): string {
+  if (typeof value !== "string") return "/";
+  const link = value.trim();
+  if (!link.startsWith("/") || link.startsWith("//")) return "/";
+  if (link.includes("\\") || /[\u0000-\u001f\u007f]/.test(link)) return "/";
+  return link.slice(0, 1024);
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const guard = await requireAdmin(req);
+  if (!guard.ok || !guard.isService) {
+    return new Response(JSON.stringify({ error: "service_only" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
-    const { user_id, title, body, link, notification_id } = await req.json();
-    if (!user_id || !title) {
-      return new Response(JSON.stringify({ error: "missing_fields" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const payload = await req.json().catch(() => ({}));
+    const notificationId = typeof payload?.notification_id === "string"
+      ? payload.notification_id.trim()
+      : "";
+
+    if (!notificationId) {
+      return new Response(JSON.stringify({ error: "notification_id_required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { data: subs, error } = await supabase
+    const { data: notification, error: notificationError } = await guard.sb
+      .from("notifications")
+      .select("id,user_id,title,body,link")
+      .eq("id", notificationId)
+      .maybeSingle();
+
+    if (notificationError) throw notificationError;
+    if (!notification) {
+      return new Response(JSON.stringify({ error: "notification_not_found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: subs, error } = await guard.sb
       .from("push_subscriptions")
       .select("id, endpoint, p256dh, auth")
-      .eq("user_id", user_id);
+      .eq("user_id", notification.user_id);
 
     if (error) throw error;
     if (!subs || subs.length === 0) {
@@ -42,11 +76,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    const payload = JSON.stringify({
-      title,
-      body: body || "",
-      link: link || "/",
-      notification_id,
+    const pushPayload = JSON.stringify({
+      title: notification.title,
+      body: notification.body || "",
+      link: normalizeInternalLink(notification.link),
+      notification_id: notification.id,
     });
 
     let sent = 0;
@@ -56,18 +90,21 @@ Deno.serve(async (req) => {
       try {
         await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-          payload,
+          pushPayload,
         );
         sent++;
       } catch (err: any) {
-        // 404/410 = subscription expirada → remover
         if (err?.statusCode === 404 || err?.statusCode === 410) toDelete.push(s.id);
         else console.error("push error", err?.statusCode, err?.body);
       }
     }));
 
     if (toDelete.length > 0) {
-      await supabase.from("push_subscriptions").delete().in("id", toDelete);
+      const { error: deleteError } = await guard.sb
+        .from("push_subscriptions")
+        .delete()
+        .in("id", toDelete);
+      if (deleteError) console.error("push subscription cleanup failed", deleteError.message);
     }
 
     return new Response(JSON.stringify({ sent, removed: toDelete.length }), {
@@ -75,8 +112,9 @@ Deno.serve(async (req) => {
     });
   } catch (err) {
     console.error("send-push fatal:", err);
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return new Response(JSON.stringify({ error: "internal_error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

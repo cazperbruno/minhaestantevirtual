@@ -25,13 +25,19 @@ export function useInvite(userId: string | undefined) {
     enabled: !!userId,
     queryFn: async () => {
       if (!userId) return null;
-      // Garantir que existe
-      await supabase.rpc("ensure_invite", { _user_id: userId });
-      const { data } = await supabase
+
+      // O backend mantém a assinatura histórica e exige _user_id === auth.uid().
+      const { error: ensureError } = await supabase.rpc("ensure_invite", {
+        _user_id: userId,
+      });
+      if (ensureError) throw ensureError;
+
+      const { data, error } = await supabase
         .from("invites")
         .select("code, signups_count, xp_earned")
         .eq("user_id", userId)
         .maybeSingle();
+      if (error) throw error;
       return (data as InviteData) ?? null;
     },
     ...CACHE.PERSONAL,
@@ -42,11 +48,12 @@ export function useAmbassadors(limit = 50) {
   return useQuery<Ambassador[]>({
     queryKey: [...qk.ambassadors(), limit],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("ambassadors_view")
         .select("*")
         .order("position")
-        .limit(limit);
+        .limit(Math.max(1, Math.min(limit, 100)));
+      if (error) throw error;
       return (data as Ambassador[]) || [];
     },
     ...CACHE.SOCIAL,

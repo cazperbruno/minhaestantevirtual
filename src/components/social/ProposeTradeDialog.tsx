@@ -63,16 +63,16 @@ export function ProposeTradeDialog({ receiverId, receiverName, receiverBookId, t
       return;
     }
     setSending(true);
-    const { error } = await supabase.from("trades").insert({
-      proposer_id: user.id,
-      receiver_id: receiverId,
-      proposer_book_id: mineId,
-      receiver_book_id: theirsId,
-      message: message.trim() || null,
+    const { error } = await supabase.rpc("create_trade_proposal" as any, {
+      _receiver_id: receiverId,
+      _proposer_book_id: mineId,
+      _receiver_book_id: theirsId,
+      _message: message.trim() || null,
     });
     setSending(false);
     if (error) {
-      toast.error("Erro ao enviar proposta");
+      console.error("create_trade_proposal", error);
+      toast.error("Não foi possível enviar a proposta");
       return;
     }
     toast.success("Proposta enviada!");

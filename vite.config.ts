@@ -8,7 +8,6 @@ import { visualizer } from "rollup-plugin-visualizer";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   define: {
-    // Versão do build — usada no indicador de versão para suporte/debug.
     __APP_BUILD__: JSON.stringify(new Date().toISOString().replace(/[-:T.Z]/g, "").slice(0, 12)),
   },
   server: {
@@ -26,14 +25,17 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
-      // prompt mode: NÃO ativa o novo SW sozinho — o app pede confirmação
-      // ao usuário (UpdatePrompt). Evita estado misto de chunks antigo+novo
-      // que causa "tela branca / Failed to fetch dynamically imported module"
-      // em dispositivos que estavam com versão anterior em cache.
+      // Prompt mode evita ativação silenciosa de chunks incompatíveis durante uso.
       registerType: "prompt",
-      // Service worker NEVER ativa em dev — evita poluição do preview do Lovable
       devOptions: { enabled: false },
-      includeAssets: ["favicon.ico", "robots.txt", "icon-192.png", "icon-512.png", "apple-touch-icon.png"],
+      includeAssets: [
+        "favicon.ico",
+        "robots.txt",
+        "icon-192.png",
+        "icon-512.png",
+        "apple-touch-icon.png",
+        "push-sw.js",
+      ],
       manifest: {
         name: "Readify — Sua biblioteca pessoal",
         short_name: "Readify",
@@ -54,19 +56,17 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        // skipWaiting=false: o SW novo só assume após updateSW(true) chamar skipWaiting
-        // via mensagem (feito automaticamente pelo virtual:pwa-register em prompt mode).
+        // O único Service Worker do app importa apenas os handlers de push.
+        // `push-sw.js` não possui lifecycle próprio e, portanto, não compete pelo scope '/'.
+        importScripts: ["/push-sw.js"],
         skipWaiting: false,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
-        // HTML é roteado pelo SPA: navegações vão para index.html via NetworkFirst
         navigateFallback: "index.html",
         navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//, /^\/assets\//],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         runtimeCaching: [
-          // 1) HTML / navegação → NetworkFirst (sempre tenta rede primeiro, fallback cache)
-          //    Garante que mudanças de deploy apareçam no próximo refresh.
           {
             urlPattern: ({ request }) => request.mode === "navigate",
             handler: "NetworkFirst",
@@ -76,7 +76,6 @@ export default defineConfig(({ mode }) => ({
               expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 },
             },
           },
-          // 2) JS/CSS com hash → StaleWhileRevalidate (carrega rápido + atualiza em bg)
           {
             urlPattern: ({ request }) => request.destination === "script" || request.destination === "style",
             handler: "StaleWhileRevalidate",
@@ -85,7 +84,6 @@ export default defineConfig(({ mode }) => ({
               expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 30 },
             },
           },
-          // 3) Fontes Google → CacheFirst (raramente mudam)
           {
             urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
             handler: "CacheFirst",
@@ -94,9 +92,6 @@ export default defineConfig(({ mode }) => ({
               expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
             },
           },
-          // 4) Capas de livros (todas as fontes) → CacheFirst com expiração longa
-          //    Cobre: openlibrary, googleusercontent (Google Books), itunes, archive.org,
-          //    wikimedia, anilist (s4.anilist.co), e qualquer URL terminando em img.
           {
             urlPattern: ({ url, request }) =>
               request.destination === "image" && (
@@ -115,21 +110,11 @@ export default defineConfig(({ mode }) => ({
               cacheableResponse: { statuses: [0, 200] },
             },
           },
-          // 5) APIs Supabase → NetworkFirst com fallback rápido (nunca cacheia "forever")
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/(rest|functions)\/.*/i,
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "supabase-api",
-              networkTimeoutSeconds: 5,
-              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 5 },
-            },
-          },
+          // IMPORTANTE: respostas autenticadas do Supabase não são cacheadas no SW.
+          // Cache por URL poderia reaproveitar dados de uma sessão anterior no mesmo device.
         ],
       },
     }),
-    // Bundle analyzer — gera dist/stats.html no build, ajuda a detectar
-    // regressões de tamanho. Não afeta dev nem o bundle final.
     mode === "production" && visualizer({
       filename: "dist/stats.html",
       template: "treemap",

@@ -3,8 +3,9 @@
 // enrich-book — Enriquece UM livro com dados faltantes (Google + OL)
 // Idempotente. Recebe { book_id }. Retorna { ok, fields_filled, ... }.
 // Não substitui campos já bons; apenas preenche lacunas.
+// Endpoint server-only: chamado pelo process-enrichment-queue com service_role.
 // =====================================================================
-import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { requireAdmin } from "../_shared/admin-guard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -81,13 +82,18 @@ function pickOpenLibrary(book: BookRow, work: any): Partial<BookRow> {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  try {
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
+  const guard = await requireAdmin(req);
+  if (!guard.ok || !guard.isService) {
+    return new Response(JSON.stringify({ error: "service_only" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
+  try {
+    const sb = guard.sb;
     const body = await req.json().catch(() => ({}));
-    const bookId = body?.book_id as string | undefined;
+    const bookId = typeof body?.book_id === "string" ? body.book_id.trim() : "";
     if (!bookId) {
       return new Response(JSON.stringify({ error: "book_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -165,7 +171,8 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: (e as Error).message }), {
+    console.error("enrich-book fatal:", e);
+    return new Response(JSON.stringify({ error: "internal_error" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

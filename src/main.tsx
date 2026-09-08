@@ -5,11 +5,7 @@ import { setupOfflineSync } from "@/lib/offline-queue";
 import { checkForceUpdate } from "@/lib/force-update";
 import readifyMarkUrl from "@/assets/readify-mark-v8.webp";
 
-// LCP optimization: inject a <link rel="preload"> for the Readify mark
-// (the LCP image on the auth/landing screen) as early as possible so the
-// browser discovers and fetches it from the initial HTML parse, instead
-// of waiting for the React tree to mount the <img>. Vite hashes the asset
-// filename so we resolve it via the ES import URL.
+// LCP optimization: preload da marca usada na tela de entrada.
 (() => {
   try {
     if (typeof document === "undefined") return;
@@ -25,21 +21,21 @@ import readifyMarkUrl from "@/assets/readify-mark-v8.webp";
   } catch { /* noop */ }
 })();
 
-// Initialize offline action sync (replays queued writes when network returns)
+// Remove o cache legado que armazenava respostas autenticadas do Supabase por URL.
+// A configuração atual do Workbox não cria nem reutiliza este cache.
+if (typeof window !== "undefined" && "caches" in window) {
+  void caches.delete("supabase-api").catch(() => false);
+}
+
+// Initialize offline action sync (replays only the authenticated user's queue).
 setupOfflineSync();
 
 // Kill switch: força atualização para todos quando minVersion remoto sobe.
-// Roda em background — não bloqueia o boot.
 void checkForceUpdate();
 
 /**
  * Service Worker / PWA registration guard.
- * O vite-plugin-pwa registra o SW automaticamente em produção (autoUpdate),
- * mas dentro do iframe do preview do Lovable e em hosts de preview o SW
- * causa cache poluído + interferência de navegação. Aqui:
- *   1) Detectamos iframe e hosts de preview.
- *   2) Se for preview/iframe, desregistramos QUALQUER SW existente.
- *   3) Em produção real (publicado), o registro do plugin PWA segue normalmente.
+ * Em preview/iframe não mantemos SW nem CacheStorage persistentes.
  */
 const isInIframe = (() => {
   try { return window.self !== window.top; } catch { return true; }
@@ -56,7 +52,7 @@ if ((isPreviewHost || isInIframe) && "serviceWorker" in navigator) {
   navigator.serviceWorker.getRegistrations().then((regs) => {
     regs.forEach((r) => r.unregister());
   }).catch(() => { /* noop */ });
-  // Limpa também caches antigos do CacheStorage no preview, evitando assets travados.
+
   if ("caches" in window) {
     caches.keys().then((keys) => keys.forEach((k) => caches.delete(k))).catch(() => { /* noop */ });
   }

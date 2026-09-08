@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
 interface Shelf {
   id: string;
@@ -20,9 +20,10 @@ Deno.serve(async (req) => {
 
   try {
     const url = new URL(req.url);
-    const mode = url.searchParams.get("mode") || "shelves"; // shelves | feed
-    const cursor = parseInt(url.searchParams.get("cursor") || "0", 10);
-    const pageSize = parseInt(url.searchParams.get("limit") || "20", 10);
+    const mode = url.searchParams.get("mode") || "shelves";
+    const cursor = Math.max(0, parseInt(url.searchParams.get("cursor") || "0", 10) || 0);
+    const requestedLimit = parseInt(url.searchParams.get("limit") || "20", 10) || 20;
+    const pageSize = Math.max(1, Math.min(requestedLimit, 50));
 
     const authHeader = req.headers.get("Authorization");
     const supabase = createClient(
@@ -31,30 +32,39 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader || "" } } },
     );
 
-    const { data: userData } = await supabase.auth.getUser();
+    const { data: userData, error: userError } = await supabase.auth.getUser();
     const user = userData?.user;
-    if (!user) {
+    if (userError || !user) {
       return new Response(JSON.stringify({ error: "Não autenticado" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // ====== FEED INFINITO ======
+    // Cliente privilegiado somente depois de validar o JWT do usuário. Ele é usado
+    // para RPCs internas que não devem ficar expostas diretamente ao frontend.
+    const internal = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
     if (mode === "feed") {
-      // Busca uma fatia maior e pagina offline; garante variedade misturando popular + afinidade
-      const { data: recs } = await supabase.rpc("recommend_for_user", {
-        _user_id: user.id, _limit: 200,
+      const { data: recs, error: recError } = await supabase.rpc("recommend_for_user", {
+        _user_id: user.id,
+        _limit: 200,
       });
+      if (recError) throw recError;
 
       const ids = (recs || []).slice(cursor, cursor + pageSize).map((r: any) => r.id);
       if (ids.length === 0) {
-        // Fallback: tendências globais quando esgotar
-        const { data: trend } = await supabase
+        const { data: trend, error: trendError } = await supabase
           .from("books")
           .select("*")
           .not("cover_url", "is", null)
           .order("created_at", { ascending: false })
           .range(cursor, cursor + pageSize - 1);
+        if (trendError) throw trendError;
+
         return new Response(JSON.stringify({
           books: trend || [],
           nextCursor: cursor + (trend?.length || 0),
@@ -62,10 +72,10 @@ Deno.serve(async (req) => {
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      const { data: books } = await supabase
+      const { data: books, error: booksError } = await supabase
         .from("books").select("*").in("id", ids);
+      if (booksError) throw booksError;
 
-      // Reordena na ordem do score
       const byId = new Map((books || []).map((b: any) => [b.id, b]));
       const reasonById = new Map((recs || []).map((r: any) => [r.id, r.reason]));
       const ordered = ids.map((id) => {
@@ -80,10 +90,8 @@ Deno.serve(async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // ====== PRATELEIRAS NETFLIX ======
     const shelves: Shelf[] = [];
 
-    // 0) Filtragem colaborativa — "Leitores parecidos com você leram"
     const { data: collab } = await supabase.rpc("get_collaborative_recommendations", {
       target_user_id: user.id,
     });
@@ -113,9 +121,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 1) Recomendado para você (engine multi-sinal)
     const { data: personalized } = await supabase.rpc("recommend_for_user", {
-      _user_id: user.id, _limit: 18,
+      _user_id: user.id,
+      _limit: 18,
     });
 
     if (personalized && personalized.length > 0) {
@@ -137,7 +145,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 2) "Porque você leu X" — pega o último livro lido com rating>=4
     const { data: lastLoved } = await supabase
       .from("user_books")
       .select("book_id, rating, book:books(title, authors)")
@@ -150,7 +157,8 @@ Deno.serve(async (req) => {
 
     if (lastLoved) {
       const { data: similar } = await supabase.rpc("similar_books", {
-        _book_id: lastLoved.book_id, _limit: 14,
+        _book_id: lastLoved.book_id,
+        _limit: 14,
       });
       if (similar && similar.length > 0) {
         const ids = similar.map((s: any) => s.id);
@@ -166,10 +174,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 2.5) Amigos lendo agora — quem eu sigo está lendo nas últimas 2 semanas
-    const { data: friendsReading } = await supabase.rpc("friends_reading_now", {
-      _user_id: user.id, _limit: 14,
-    });
+    const { data: friendsReading, error: friendsError } = await internal.rpc(
+      "friends_reading_now",
+      { _user_id: user.id, _limit: 14 },
+    );
+    if (friendsError) throw friendsError;
+
     if (friendsReading && friendsReading.length > 0) {
       const ids = friendsReading.map((f: any) => f.book_id);
       const { data: books } = await supabase
@@ -195,10 +205,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 2.6) Em alta no seu círculo — atividades recentes (rate/finish/add) entre quem sigo
-    const { data: circleTrending } = await supabase.rpc("trending_in_circle", {
-      _user_id: user.id, _limit: 14,
-    });
+    const { data: circleTrending, error: circleError } = await internal.rpc(
+      "trending_in_circle",
+      { _user_id: user.id, _limit: 14 },
+    );
+    if (circleError) throw circleError;
+
     if (circleTrending && circleTrending.length > 0) {
       const ids = circleTrending.map((t: any) => t.book_id);
       const { data: books } = await supabase
@@ -222,7 +234,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3) Tendências globais
     const { data: trending } = await supabase
       .from("trending_books")
       .select("id, score")
@@ -242,7 +253,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 4) Volte a ler — livros 'reading' há mais de 14 dias sem update
     const { data: stale } = await supabase
       .from("user_books")
       .select("*, book:books(*)")
@@ -259,7 +269,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 5) Descubra algo novo — categorias que NÃO estão no perfil
     const { data: taste } = await supabase.rpc("user_taste", { _user_id: user.id });
     const knownCats = new Set((taste || []).map((t: any) => t.category));
     if (knownCats.size > 0) {
@@ -288,8 +297,9 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     console.error("recommend-feed error", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erro" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return new Response(JSON.stringify({ error: "internal_error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

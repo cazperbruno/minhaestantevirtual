@@ -3,8 +3,9 @@
 // normalize-book-meta — Auto-correção de metadados via Lovable AI
 // Recebe { book_id }. Lê o livro, manda para o modelo limpar título,
 // autores e descrição. Aplica patch idempotente.
+// Endpoint server-only: chamado pela fila com service_role.
 // =====================================================================
-import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { requireAdmin } from "../_shared/admin-guard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -36,19 +37,25 @@ interface BookRow {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  const guard = await requireAdmin(req);
+  if (!guard.ok || !guard.isService) {
+    return new Response(JSON.stringify({ error: "service_only" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      return new Response(JSON.stringify({ error: "ai_not_configured" }), {
+        status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
+    const sb = guard.sb;
 
     const body = await req.json().catch(() => ({}));
-    const bookId = body?.book_id as string | undefined;
+    const bookId = typeof body?.book_id === "string" ? body.book_id.trim() : "";
     if (!bookId) {
       return new Response(JSON.stringify({ error: "book_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -102,9 +109,9 @@ Deno.serve(async (req) => {
       });
     }
     if (!aiResp.ok) {
-      const t = await aiResp.text();
-      return new Response(JSON.stringify({ error: `ai_error: ${aiResp.status} ${t.slice(0,200)}` }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      console.error("normalize-book-meta AI error", aiResp.status);
+      return new Response(JSON.stringify({ error: "ai_error" }), {
+        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -135,7 +142,7 @@ Deno.serve(async (req) => {
       }
     }
     if (typeof parsed.description === "string" && parsed.description.length > 30 && parsed.description !== b.description) {
-      patch.description = parsed.description.trim();
+      patch.description = parsed.description.trim().slice(0, 10000);
       changed.push("description");
     }
     if (!b.language && typeof parsed.language === "string" && parsed.language.length >= 2) {
@@ -151,16 +158,17 @@ Deno.serve(async (req) => {
 
     const { error: upErr } = await sb.from("books").update(patch).eq("id", bookId);
     if (upErr) {
-      return new Response(JSON.stringify({ error: upErr.message }), {
+      return new Response(JSON.stringify({ error: "update_failed" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ ok: true, fields_changed: changed, patch }), {
+    return new Response(JSON.stringify({ ok: true, fields_changed: changed }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: (e as Error).message }), {
+    console.error("normalize-book-meta fatal:", e);
+    return new Response(JSON.stringify({ error: "internal_error" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

@@ -26,7 +26,7 @@ interface Props {
 
 /**
  * Card / diálogo pra oferecer comprar um livro em vez de trocar.
- * Envia uma notificação direta pro dono com a proposta de valor e mensagem.
+ * A criação e a notificação são validadas/emitidas no servidor.
  */
 export function OfferPurchaseDialog({ receiverId, receiverName, book, trigger }: Props) {
   const { user } = useAuth();
@@ -48,48 +48,22 @@ export function OfferPurchaseDialog({ receiverId, receiverName, book, trigger }:
       return;
     }
     setSending(true);
-    const amount_cents = Math.round(value * 100);
-    const formatted = value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const amountCents = Math.round(value * 100);
 
-    const { data: me } = await supabase
-      .from("profiles")
-      .select("display_name,username")
-      .eq("id", user.id)
-      .maybeSingle();
-    const myName = me?.display_name || me?.username || "Alguém";
-
-    // 1) Grava a oferta
-    const { error: offerErr } = await supabase.from("purchase_offers").insert({
-      offerer_id: user.id,
-      receiver_id: receiverId,
-      book_id: book.id,
-      amount_cents,
-      currency: "BRL",
-      message: message.trim() || null,
+    const { error } = await supabase.rpc("create_purchase_offer" as any, {
+      _receiver_id: receiverId,
+      _book_id: book.id,
+      _amount_cents: amountCents,
+      _message: message.trim() || null,
     });
-    if (offerErr) {
-      setSending(false);
+
+    setSending(false);
+    if (error) {
+      console.error("create_purchase_offer", error);
       toast.error("Não foi possível enviar a oferta");
       return;
     }
 
-    // 2) Notifica o destinatário (best-effort)
-    await supabase.from("notifications").insert({
-      user_id: receiverId,
-      kind: "purchase_offer",
-      title: `${myName} quer comprar ${book.title || "seu livro"}`,
-      body: `Oferta: ${formatted}${message.trim() ? ` — "${message.trim()}"` : ""}`,
-      link: `/trocas?tab=offers`,
-      meta: {
-        from_user_id: user.id,
-        book_id: book.id,
-        amount_cents,
-        currency: "BRL",
-        message: message.trim() || null,
-      },
-    });
-
-    setSending(false);
     toast.success("Oferta enviada! 💸", {
       description: `${receiverName || "A pessoa"} vai receber sua proposta.`,
     });

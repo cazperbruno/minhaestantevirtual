@@ -21,18 +21,23 @@ export interface UserChallenge {
   };
 }
 
-/** Garante que o usuário tem desafios ativos e devolve a lista. */
+/** Garante desafios da própria conta e devolve a lista. */
 export function useChallenges(userId: string | undefined) {
   return useQuery<UserChallenge[]>({
     queryKey: userId ? qk.challenges(userId) : ["challenges", "anon"],
     enabled: !!userId,
     queryFn: async () => {
       if (!userId) return [];
-      // Garantir desafios ativos
-      await supabase.rpc("assign_daily_challenges", { _user_id: userId });
-      // Recompute progresso
-      await supabase.rpc("recompute_challenge_progress", { _user_id: userId });
-      // Buscar
+
+      // As RPCs preservam a assinatura histórica, mas o backend agora exige
+      // _user_id === auth.uid() para clientes autenticados.
+      const [{ error: assignError }, { error: recomputeError }] = await Promise.all([
+        supabase.rpc("assign_daily_challenges", { _user_id: userId }),
+        supabase.rpc("recompute_challenge_progress", { _user_id: userId }),
+      ]);
+      if (assignError) throw assignError;
+      if (recomputeError) throw recomputeError;
+
       const { data, error } = await supabase
         .from("user_challenges")
         .select("*, template:challenge_templates(title, description, icon, metric)")
@@ -67,9 +72,9 @@ export function useClaimChallenge(userId: string) {
         description: "Próximo desafio te espera",
       });
       if (result.category === "epic") goldenBurst();
-      queryClient.invalidateQueries({ queryKey: qk.challenges(userId) });
-      queryClient.invalidateQueries({ queryKey: ["profile", userId] });
-      queryClient.invalidateQueries({ queryKey: qk.ranking() });
+      void queryClient.invalidateQueries({ queryKey: qk.challenges(userId) });
+      void queryClient.invalidateQueries({ queryKey: ["profile", userId] });
+      void queryClient.invalidateQueries({ queryKey: qk.ranking() });
     },
     onError: () => toast.error("Não foi possível coletar a recompensa"),
   });
