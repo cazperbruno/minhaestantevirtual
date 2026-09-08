@@ -18,6 +18,14 @@ const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT") || "mailto:noreply@readify.a
 
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
 
+function normalizeInternalLink(value: unknown): string {
+  if (typeof value !== "string") return "/";
+  const link = value.trim();
+  if (!link.startsWith("/") || link.startsWith("//")) return "/";
+  if (link.includes("\\") || /[\u0000-\u001f\u007f]/.test(link)) return "/";
+  return link.slice(0, 1024);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -71,7 +79,7 @@ Deno.serve(async (req) => {
     const pushPayload = JSON.stringify({
       title: notification.title,
       body: notification.body || "",
-      link: notification.link || "/",
+      link: normalizeInternalLink(notification.link),
       notification_id: notification.id,
     });
 
@@ -86,7 +94,6 @@ Deno.serve(async (req) => {
         );
         sent++;
       } catch (err: any) {
-        // 404/410 = subscription expirada → remover
         if (err?.statusCode === 404 || err?.statusCode === 410) toDelete.push(s.id);
         else console.error("push error", err?.statusCode, err?.body);
       }
