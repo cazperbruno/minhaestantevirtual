@@ -1,5 +1,5 @@
 // Gamificação segura do cliente.
-// O frontend nunca escolhe user_id ou quantidade de XP para o servidor.
+// O frontend nunca escolhe user_id, quantidade nem evidência de XP.
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { queryClient, qk } from "@/lib/query-client";
@@ -12,19 +12,19 @@ export type XpSource =
   | "follow" | "club_message" | "club_reaction_received" | "club_mention" | "loan_book"
   | "open_app" | "challenge" | "streak_milestone" | "invite_signup" | "invite_welcome" | "misc";
 
-const CLIENT_XP: Partial<Record<XpSource, number>> = {
-  add_book: 10,
-  finish_book: 50,
-  rate_book: 15,
-  scan_book: 8,
-  write_review: 30,
-  like_review: 2,
-  comment_review: 5,
-  follow: 5,
-  club_message: 3,
-  loan_book: 20,
-  open_app: 5,
-};
+const CLIENT_AWARDABLE = new Set<XpSource>([
+  "add_book",
+  "finish_book",
+  "rate_book",
+  "scan_book",
+  "write_review",
+  "like_review",
+  "comment_review",
+  "follow",
+  "club_message",
+  "loan_book",
+  "open_app",
+]);
 
 interface AwardOptions {
   silent?: boolean;
@@ -34,23 +34,16 @@ interface AwardOptions {
 }
 
 /**
- * Solicita uma recompensa de XP para a própria conta.
- *
- * Compatibilidade: `userId` continua na assinatura porque vários chamadores usam
- * o valor para invalidar caches, mas ele NÃO é enviado ao servidor. A quantidade
- * também é definida exclusivamente pelo backend (`award_my_xp`).
- *
- * Fontes internas (challenge/streak/invite/misc) não podem ser concedidas pelo
- * cliente e são ignoradas aqui; elas são produzidas por rotinas server-side.
+ * Pede ao banco para premiar a ação persistida mais recente e ainda não premiada
+ * da própria conta. `userId` permanece apenas para invalidação de cache; nunca é
+ * enviado ao servidor. `opts.amount`/`opts.meta` não participam da autorização.
  */
 export async function awardXp(
   userId: string,
   source: XpSource,
-  opts: AwardOptions = {},
+  _opts: AwardOptions = {},
 ): Promise<{ leveledUp: boolean; newLevel: number; amount: number } | null> {
-  const expectedAmount = CLIENT_XP[source];
-  if (!expectedAmount) {
-    // Ainda recomputa progresso a partir das ações persistidas, mas não concede XP.
+  if (!CLIENT_AWARDABLE.has(source)) {
     const { error } = await supabase.rpc("recompute_my_challenge_progress" as any);
     if (error) console.error("recompute_my_challenge_progress", error);
     return null;
@@ -58,7 +51,6 @@ export async function awardXp(
 
   const { data, error } = await supabase.rpc("award_my_xp" as any, {
     _source: source,
-    _meta: opts.meta ?? null,
   });
 
   if (error || !data || !(data as any[])[0]) {
@@ -70,9 +62,14 @@ export async function awardXp(
     new_xp: number;
     new_level: number;
     leveled_up: boolean;
+    awarded_amount: number;
   };
 
-  emitXpBurst({ amount: expectedAmount, label: labelFor(source), variant: "xp" });
+  const amount = Math.max(0, Number(result.awarded_amount) || 0);
+  if (amount > 0) {
+    emitXpBurst({ amount, label: labelFor(source), variant: "xp" });
+  }
+
   if (result.leveled_up) {
     emitXpBurst({ amount: result.new_level, variant: "level", label: "Subiu de nível!" });
     goldenBurst();
@@ -82,8 +79,6 @@ export async function awardXp(
     });
   }
 
-  // Progresso de desafios é recalculado a partir de dados persistidos; nenhuma
-  // quantidade/progresso vem do cliente.
   void supabase.rpc("recompute_my_challenge_progress" as any).then(({ error: recomputeError }: any) => {
     if (recomputeError) console.error("recompute_my_challenge_progress", recomputeError);
     void queryClient.invalidateQueries({ queryKey: qk.challenges(userId) });
@@ -97,7 +92,7 @@ export async function awardXp(
   return {
     leveledUp: result.leveled_up,
     newLevel: result.new_level,
-    amount: expectedAmount,
+    amount,
   };
 }
 
@@ -118,7 +113,7 @@ function labelFor(source: XpSource): string {
   return map[source] ?? "+XP";
 }
 
-/** Atualiza streak diário da própria conta. Chamar 1x por sessão. */
+/** Atualiza streak diário da própria conta. */
 export async function tickStreak(_userId: string) {
   const { data, error } = await supabase.rpc("update_my_streak" as any);
   if (error || !data || !(data as any[])[0]) return null;
