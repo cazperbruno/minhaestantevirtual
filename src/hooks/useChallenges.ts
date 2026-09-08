@@ -29,9 +29,11 @@ export function useChallenges(userId: string | undefined) {
     queryFn: async () => {
       if (!userId) return [];
 
+      // As RPCs preservam a assinatura histórica, mas o backend agora exige
+      // _user_id === auth.uid() para clientes autenticados.
       const [{ error: assignError }, { error: recomputeError }] = await Promise.all([
-        supabase.rpc("assign_my_challenges" as any),
-        supabase.rpc("recompute_my_challenge_progress" as any),
+        supabase.rpc("assign_daily_challenges", { _user_id: userId }),
+        supabase.rpc("recompute_challenge_progress", { _user_id: userId }),
       ]);
       if (assignError) throw assignError;
       if (recomputeError) throw recomputeError;
@@ -56,7 +58,8 @@ export function useClaimChallenge(userId: string) {
     mutationFn: async (challenge: string | { id: string; category?: string }) => {
       const challengeId = typeof challenge === "string" ? challenge : challenge.id;
       const category = typeof challenge === "string" ? undefined : challenge.category;
-      const { data, error } = await supabase.rpc("claim_my_challenge" as any, {
+      const { data, error } = await supabase.rpc("claim_challenge", {
+        _user_id: userId,
         _challenge_id: challengeId,
       });
       if (error) throw error;
