@@ -1,10 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
+import {
+  getSocialAuthAvailability,
+  signInWithSocialProvider,
+} from "@/platform/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Loader2, Mail } from "lucide-react";
@@ -15,7 +18,8 @@ const PENDING_INVITE_KEY = "readify:pending-invite";
 export default function Auth() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [showEmail, setShowEmail] = useState(false);
+  const googleAuth = useMemo(() => getSocialAuthAvailability("google"), []);
+  const [showEmail, setShowEmail] = useState(() => !googleAuth.available);
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -55,7 +59,7 @@ export default function Auth() {
     }
 
     return () => { cancelled = true; };
-  }, [user?.id]);
+  }, [user]);
 
   if (loading) return <FullPageLoader />;
   if (user) {
@@ -102,8 +106,8 @@ export default function Auth() {
         toast.success("Bem-vindo de volta.");
         navigate("/");
       }
-    } catch (err: any) {
-      console.error("[auth] email authentication failed", err?.message || err);
+    } catch (err: unknown) {
+      console.error("[auth] email authentication failed", err);
       toast.error("Não foi possível autenticar", {
         description: "Confira os dados informados e tente novamente.",
       });
@@ -114,11 +118,11 @@ export default function Auth() {
 
   const oauthGoogle = async () => {
     setBusy("google");
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (result.error) {
-      console.error("[auth] Google OAuth failed", result.error);
+    try {
+      const result = await signInWithSocialProvider("google");
+      if (result.error) throw result.error;
+    } catch (error) {
+      console.error("[auth] Google OAuth failed", error);
       toast.error("Não foi possível entrar com Google");
       setBusy(null);
     }
@@ -141,25 +145,33 @@ export default function Auth() {
         <p className="mt-3 text-[15px] text-muted-foreground/90">Descubra, organize e viva a leitura.</p>
 
         <div className="w-full mt-10 space-y-3">
-          <Button
-            type="button"
-            size="lg"
-            disabled={busy !== null}
-            onClick={oauthGoogle}
-            className="w-full h-12 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-glow tap-scale gap-2"
-          >
-            {busy === "google" ? <Loader2 className="w-4 h-4 animate-spin" /> : <GoogleIcon />}
-            Continuar com Google
-          </Button>
+          {googleAuth.available && (
+            <Button
+              type="button"
+              size="lg"
+              disabled={busy !== null}
+              onClick={oauthGoogle}
+              className="w-full h-12 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-glow tap-scale gap-2"
+            >
+              {busy === "google" ? <Loader2 className="w-4 h-4 animate-spin" /> : <GoogleIcon />}
+              Continuar com Google
+            </Button>
+          )}
 
-          <button
-            type="button"
-            onClick={() => setShowEmail((v) => !v)}
-            className="w-full pt-2 text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center justify-center gap-1.5"
-          >
-            <Mail className="w-3.5 h-3.5" />
-            {showEmail ? "Ocultar e-mail" : "Entrar com e-mail"}
-          </button>
+          {googleAuth.available ? (
+            <button
+              type="button"
+              onClick={() => setShowEmail((v) => !v)}
+              className="w-full pt-2 text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center justify-center gap-1.5"
+            >
+              <Mail className="w-3.5 h-3.5" />
+              {showEmail ? "Ocultar e-mail" : "Entrar com e-mail"}
+            </button>
+          ) : (
+            <div className="inline-flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
+              <Mail className="w-3.5 h-3.5" /> Entrar com e-mail
+            </div>
+          )}
         </div>
 
         {showEmail && (
