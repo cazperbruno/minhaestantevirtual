@@ -56,8 +56,15 @@ jobs:
           cat /tmp/readify-vite-preview.log || true
           exit 1
 
+      # Falha rápido antes dos fluxos funcionais. Sem retry: se uma plataforma
+      # não consegue montar React, queremos pageerror/console imediatamente.
+      - name: Cross-platform boot preflight
+        run: bunx playwright test e2e/boot.spec.ts --retries=0 --workers=3
+        env:
+          E2E_BASE_URL: http://localhost:5173
+
       - name: Run Playwright multiplatform smoke suite
-        run: bunx playwright test
+        run: bunx playwright test e2e/auth.spec.ts e2e/library.spec.ts e2e/club.spec.ts
         env:
           E2E_BASE_URL: http://localhost:5173
           E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
