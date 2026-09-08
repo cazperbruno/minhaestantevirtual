@@ -56,7 +56,12 @@ export const prefetch = {
     queryClient.prefetchQuery({
       queryKey: qk.profile(userId),
       queryFn: async () => {
-        const { data } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id,username,display_name,avatar_url,level,xp,created_at")
+          .eq("id", userId)
+          .maybeSingle();
+        if (error) throw error;
         return data;
       },
       ...CACHE.SOCIAL,

@@ -11,6 +11,7 @@ import { Loader2, Sparkles, Check, ArrowRight, Target } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { CONTENT_TYPE_ICON, CONTENT_TYPE_LABEL, type ContentType } from "@/types/book";
+import { getMyProfile } from "@/lib/profile-api";
 
 const CONTENT_TYPES: ContentType[] = ["book", "manga", "comic", "magazine"];
 
@@ -37,9 +38,12 @@ export default function Onboarding() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase.from("profiles")
-        .select("onboarded_at").eq("id", user.id).maybeSingle();
-      if (data?.onboarded_at) navigate("/", { replace: true });
+      try {
+        const data = await getMyProfile<{ onboarded_at?: string | null }>();
+        if (data?.onboarded_at) navigate("/", { replace: true });
+      } catch (error) {
+        console.error("[Onboarding] profile read failed", error);
+      }
     })();
   }, [user, navigate]);
 

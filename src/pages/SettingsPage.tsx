@@ -18,6 +18,7 @@ import { openTutorial } from "@/hooks/useTutorial";
 import { PrivacyDataPanel } from "@/components/settings/PrivacyDataPanel";
 import { ResetLibraryCard } from "@/components/settings/ResetLibraryCard";
 import { getRuntimePlatform, isNativePlatform } from "@/platform/runtime";
+import { getMyProfile } from "@/lib/profile-api";
 
 type Visibility = "public" | "private" | "followers";
 
@@ -31,12 +32,13 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .maybeSingle();
-      setProfile(data);
+      try {
+        const data = await getMyProfile<any>();
+        setProfile(data);
+      } catch (error) {
+        console.error("[Settings] profile read failed", error);
+        toast.error("Não foi possível carregar suas configurações");
+      }
     })();
   }, [user]);
 

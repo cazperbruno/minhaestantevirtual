@@ -20,6 +20,7 @@ import { LatestAchievementBanner } from "@/components/profile/LatestAchievementB
 import { VersionTag } from "@/components/pwa/VersionTag";
 import { useStreak } from "@/hooks/useStreak";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { getMyProfile } from "@/lib/profile-api";
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -40,7 +41,7 @@ export default function ProfilePage() {
       const start = `${year}-01-01`;
       const end = `${year}-12-31T23:59:59`;
       const [{ data: p }, { data: ub }, { count: followers }, { count: following }, { data: g }, { count: yearRead }] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+        getMyProfile<any>().then((data) => ({ data })),
         supabase.from("user_books").select("status,rating").eq("user_id", user.id),
         supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", user.id),
         supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", user.id),

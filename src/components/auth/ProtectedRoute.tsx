@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { getMyProfile } from "@/lib/profile-api";
 import { Loader2 } from "lucide-react";
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -13,9 +13,13 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
     if (!user) { setOnboardedKnown(null); return; }
     let cancelled = false;
     const check = async () => {
-      const { data } = await supabase.from("profiles")
-        .select("onboarded_at").eq("id", user.id).maybeSingle();
-      if (!cancelled) setOnboardedKnown(!!data?.onboarded_at);
+      try {
+        const data = await getMyProfile<{ onboarded_at?: string | null }>();
+        if (!cancelled) setOnboardedKnown(!!data?.onboarded_at);
+      } catch (error) {
+        console.error("[ProtectedRoute] profile check failed", error);
+        if (!cancelled) setOnboardedKnown(false);
+      }
     };
     check();
     // Re-check when onboarding completes (custom event dispatched by Onboarding.tsx)
