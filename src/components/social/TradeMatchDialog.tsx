@@ -5,12 +5,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BookCover } from "@/components/books/BookCover";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Sparkles, ArrowRightLeft, Heart, Loader2, X } from "lucide-react";
+import { Sparkles, ArrowRightLeft, Heart, Loader2, X, HandCoins } from "lucide-react";
 import { ProposeTradeDialog } from "./ProposeTradeDialog";
 import { OfferPurchaseDialog } from "./OfferPurchaseDialog";
-import { HandCoins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { haptic } from "@/lib/haptics";
+import { toast } from "sonner";
 
 interface Match {
   id: string;
@@ -32,7 +32,7 @@ interface Props {
 
 /**
  * Dialog cinemático de "Match!" — celebração tipo Tinder pra leitores.
- * Mostra os dois lados do match com confetti e CTA pra propor troca.
+ * Mostra os dois lados do match com CTA pra propor troca/compra.
  */
 export function TradeMatchDialog({ matchId, open, onClose }: Props) {
   const { user } = useAuth();
@@ -70,7 +70,14 @@ export function TradeMatchDialog({ matchId, open, onClose }: Props) {
 
   const dismiss = async () => {
     if (!matchId) return;
-    await supabase.from("trade_matches").update({ status: "dismissed", resolved_at: new Date().toISOString() }).eq("id", matchId);
+    const { data, error } = await supabase.rpc("dismiss_trade_match" as any, {
+      _match_id: matchId,
+    });
+    if (error || data !== true) {
+      console.error("dismiss_trade_match", error);
+      toast.error("Não foi possível dispensar o match");
+      return;
+    }
     onClose();
   };
 
@@ -82,7 +89,6 @@ export function TradeMatchDialog({ matchId, open, onClose }: Props) {
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-md p-0 overflow-hidden border-primary/40">
-        {/* Glow background */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-background to-accent/20 pointer-events-none" />
         <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-primary/30 blur-3xl pointer-events-none animate-pulse" />
         <div className="absolute -bottom-20 -left-20 w-60 h-60 rounded-full bg-accent/30 blur-3xl pointer-events-none" />
@@ -119,7 +125,6 @@ export function TradeMatchDialog({ matchId, open, onClose }: Props) {
                 </DialogDescription>
               </div>
 
-              {/* Visual: capa central + dois avatares laterais com pulse */}
               <div className="relative flex items-center justify-center gap-6 py-6 animate-scale-in">
                 <Avatar className={cn("w-14 h-14 ring-2 ring-primary/40", iAmWisher && "ring-primary")}>
                   <AvatarImage src={match.wisher?.avatar_url} />
