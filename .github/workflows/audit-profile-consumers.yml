@@ -1,0 +1,66 @@
+name: Audit profile consumers
+
+on:
+  push:
+    branches:
+      - readify/reactivation-p0-integration-02
+    paths:
+      - .github/workflows/audit-profile-consumers.yml
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: readify/reactivation-p0-integration-02
+          fetch-depth: 0
+
+      - name: Map profile consumers
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          patterns = [
+              re.compile(r'\.from\(["\']profiles["\']\)'),
+              re.compile(r'profiles\s*\('),
+              re.compile(r'profile:profiles'),
+          ]
+          out = ['# Raw profile consumers']
+          matches = 0
+          for path in sorted(Path('src').rglob('*')):
+              if path.suffix not in {'.ts', '.tsx'} or not path.is_file():
+                  continue
+              lines = path.read_text(encoding='utf-8').splitlines()
+              hits = [i for i, line in enumerate(lines) if any(p.search(line) for p in patterns)]
+              if not hits:
+                  continue
+              matches += len(hits)
+              out.append(f'\n## {path}')
+              emitted = set()
+              for idx in hits:
+                  for n in range(max(0, idx - 4), min(len(lines), idx + 7)):
+                      if n in emitted:
+                          continue
+                      emitted.add(n)
+                      marker = '>' if n == idx else ' '
+                      out.append(f'{marker}{n+1:5}: {lines[n]}')
+          if matches == 0:
+              raise SystemExit('profile consumer audit produced zero matches')
+          out.insert(1, f'matches: {matches}')
+          Path('docs/.profile-consumer-audit.tmp').write_text('\n'.join(out) + '\n', encoding='utf-8')
+          print(f'profile consumer matches: {matches}')
+          PY
+
+      - name: Commit report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/.profile-consumer-audit.tmp
+          git commit -m "audit: map raw profile consumers"
+          git push origin HEAD:readify/reactivation-p0-integration-02
