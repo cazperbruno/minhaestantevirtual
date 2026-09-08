@@ -5,6 +5,11 @@ on:
   pull_request:
     branches: [main]
 
+# Para cada PR/ref, só o snapshot mais recente merece consumir browsers/runners.
+concurrency:
+  group: e2e-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   e2e:
     name: Playwright tests
