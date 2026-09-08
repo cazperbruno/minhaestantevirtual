@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { getRuntimeCapabilities } from "@/platform/runtime";
 import { toast } from "sonner";
 
 // VAPID public key — por definição pode ser distribuída ao cliente.
@@ -16,29 +17,31 @@ function urlBase64ToUint8Array(base64: string) {
   return out;
 }
 
-function isPreviewHost() {
-  const h = typeof window !== "undefined" ? window.location.hostname : "";
-  return h.includes("id-preview--") || h.includes("lovableproject.com");
-}
-
 export type PushState =
   | "unsupported"
+  | "native-pending"
   | "denied"
   | "default"
   | "granted-subscribed"
   | "granted-unsubscribed"
   | "loading";
 
+/**
+ * Web Push adapter.
+ *
+ * Native Android/iOS intentionally do not fall back to Web Push inside the
+ * Capacitor WebView. They will use the native APNs/FCM adapter, keeping the
+ * notification model deterministic across stores.
+ */
 export function usePushNotifications() {
   const { user } = useAuth();
-  const [state, setState] = useState<PushState>("loading");
+  const capabilities = useMemo(() => getRuntimeCapabilities(), []);
+  const [state, setState] = useState<PushState>(
+    capabilities.native ? "native-pending" : "loading",
+  );
   const [busy, setBusy] = useState(false);
 
-  const supported = typeof window !== "undefined"
-    && "serviceWorker" in navigator
-    && "PushManager" in window
-    && "Notification" in window
-    && !isPreviewHost();
+  const supported = capabilities.webPush;
 
   const getPwaRegistration = useCallback(async () => {
     if (!supported) return undefined;
@@ -46,7 +49,14 @@ export function usePushNotifications() {
   }, [supported]);
 
   const refresh = useCallback(async () => {
-    if (!supported) return setState("unsupported");
+    if (capabilities.native) {
+      setState("native-pending");
+      return;
+    }
+    if (!supported) {
+      setState("unsupported");
+      return;
+    }
     if (Notification.permission === "denied") return setState("denied");
     if (Notification.permission === "default") return setState("default");
 
@@ -57,7 +67,7 @@ export function usePushNotifications() {
     } catch {
       setState("granted-unsubscribed");
     }
-  }, [supported, getPwaRegistration]);
+  }, [capabilities.native, supported, getPwaRegistration]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -72,7 +82,6 @@ export function usePushNotifications() {
       }
 
       // O SW é registrado exclusivamente pelo vite-plugin-pwa/usePwaUpdate.
-      // Nunca registre um segundo worker no scope '/'.
       const reg = (await getPwaRegistration()) ?? await navigator.serviceWorker.ready;
 
       let sub = await reg.pushManager.getSubscription();
@@ -99,8 +108,6 @@ export function usePushNotifications() {
       }, { onConflict: "endpoint" });
 
       if (error) {
-        // Se criamos uma subscription que o servidor não conseguiu persistir,
-        // removê-la evita estado local enganoso de "ativado".
         if (createdNow) await sub.unsubscribe().catch(() => false);
         throw error;
       }
@@ -140,5 +147,13 @@ export function usePushNotifications() {
     }
   }, [supported, user, refresh, getPwaRegistration]);
 
-  return { state, busy, supported, subscribe, unsubscribe };
+  return {
+    state,
+    busy,
+    supported,
+    native: capabilities.native,
+    platform: capabilities.platform,
+    subscribe,
+    unsubscribe,
+  };
 }
