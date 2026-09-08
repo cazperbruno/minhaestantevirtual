@@ -1,0 +1,39 @@
+name: Audit cross-user privacy reads
+
+on:
+  push:
+    branches:
+      - readify/reactivation-p0-integration-02
+    paths:
+      - .github/workflows/audit-privacy-reads.yml
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: readify/reactivation-p0-integration-02
+          fetch-depth: 0
+
+      - name: Generate privacy read report
+        run: |
+          {
+            echo '# user_books references'
+            rg -n -C 3 'user_books' src --glob '*.ts' --glob '*.tsx' || true
+            echo
+            echo '# profile visibility references'
+            rg -n -C 3 'profile_visibility|library_visibility|show_progress|current_page' src --glob '*.ts' --glob '*.tsx' || true
+          } > docs/.privacy-read-audit.tmp
+
+      - name: Commit audit report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/.privacy-read-audit.tmp
+          git commit -m "audit: map cross-user privacy reads"
+          git push origin HEAD:readify/reactivation-p0-integration-02
