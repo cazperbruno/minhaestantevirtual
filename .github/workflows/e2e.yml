@@ -9,27 +9,23 @@ jobs:
   e2e:
     name: Playwright tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: oven-sh/setup-bun@v2
         with:
-          # Pin the runtime: "latest" can change underneath a release candidate.
           bun-version: 1.4.2
 
       - name: Install project dependencies
         run: bun install --frozen-lockfile
 
       - name: Install pinned Playwright Test for E2E only
-        # The legacy repository did not declare @playwright/test in bun.lock.
-        # --no-save is an explicit Bun mode: install for this CI workspace only,
-        # without mutating package.json or the committed lockfile.
         run: bun add --dev --no-save @playwright/test@1.63.0
 
-      - name: Install Chromium browser
-        run: bunx playwright install --with-deps chromium
+      - name: Install Chromium and WebKit browsers
+        run: bunx playwright install --with-deps chromium webkit
 
       - name: Build app
         run: bun run build
@@ -55,7 +51,7 @@ jobs:
           cat /tmp/readify-vite-preview.log || true
           exit 1
 
-      - name: Run Playwright
+      - name: Run Playwright multiplatform smoke suite
         run: bunx playwright test
         env:
           E2E_BASE_URL: http://localhost:5173
