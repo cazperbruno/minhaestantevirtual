@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { openAmazon } from "@/lib/amazon";
 import { cn } from "@/lib/utils";
 import type { Book } from "@/types/book";
+import { shareReadify } from "@/platform/share";
 
 interface Profile {
   id: string;
@@ -17,6 +18,8 @@ interface Profile {
   avatar_url: string | null;
   bio: string | null;
   profile_visibility: string;
+  can_view_profile: boolean;
+  can_view_library: boolean;
 }
 
 interface WishItem {
@@ -43,24 +46,23 @@ export default function PublicWishlistPage() {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      // 1) Busca perfil pelo username (case-insensitive)
-      const { data: prof } = await supabase
-        .from("profiles")
-        .select("id,username,display_name,avatar_url,bio,profile_visibility")
-        .ilike("username", username)
-        .maybeSingle();
+      // 1) Perfil redigido conforme viewer (anônimo nesta rota pública).
+      const profileResult = await supabase.rpc("profile_for_viewer" as any, { _lookup: username });
+      if (profileResult.error) throw profileResult.error;
+      const prof = (Array.isArray(profileResult.data) ? profileResult.data[0] : profileResult.data) as Profile | null;
       if (cancelled) return;
       if (!prof) { setNotFound(true); setLoading(false); return; }
-      setProfile(prof as Profile);
+      setProfile(prof);
 
-      // 2) Wishlist pública desse perfil
-      const { data: ub } = await supabase
-        .from("user_books")
-        .select("id,created_at,book:books(*)")
-        .eq("user_id", prof.id)
-        .eq("status", "wishlist")
-        .eq("is_public", true)
-        .order("created_at", { ascending: false });
+      // 2) Wishlist através da projeção segura. Se a biblioteca não for pública
+      // para este viewer, a RPC devolve zero linhas sem expor current_page/outros dados.
+      const { data: ub, error: wishError } = await supabase.rpc("visible_user_library" as any, {
+        _owner: prof.id,
+        _status: "wishlist",
+        _available_for_trade_only: false,
+        _limit: 100,
+      });
+      if (wishError) throw wishError;
       if (cancelled) return;
       setItems((ub as WishItem[]) || []);
       setLoading(false);
@@ -69,12 +71,14 @@ export default function PublicWishlistPage() {
   }, [username]);
 
   const shareLink = async () => {
-    const url = window.location.href;
     const text = `🎁 Lista de desejos de ${profile?.display_name || username} no Readify`;
     try {
-      if (navigator.share) await navigator.share({ title: text, url });
-      else { await navigator.clipboard.writeText(url); toast.success("Link copiado"); }
-    } catch { /* user cancel */ }
+      const result = await shareReadify({ title: text, text, path: window.location.pathname });
+      if (result === "copied") toast.success("Link copiado");
+    } catch (error) {
+      console.error("[wishlist] share failed", error);
+      toast.error("Não foi possível compartilhar agora");
+    }
   };
 
   if (notFound) return <Navigate to="/auth" replace />;

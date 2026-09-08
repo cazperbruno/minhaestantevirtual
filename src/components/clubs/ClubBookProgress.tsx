@@ -39,19 +39,18 @@ export function ClubBookProgress({ clubId, bookTitle, compact, className }: Prop
     };
     load();
 
-    // Realtime: invalida ao detectar mudanças nos progressos dos membros
-    const ch = supabase
-      .channel(`club-progress:${clubId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "user_books" },
-        () => load(),
-      )
-      .subscribe();
+    // user_books bruto é owner-only. Para progresso coletivo usamos apenas
+    // a RPC agregada/redigida e atualização periódica/foco, sem assinar dados de terceiros.
+    const interval = window.setInterval(() => void load(), 30_000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
 
     return () => {
       cancelled = true;
-      supabase.removeChannel(ch);
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [clubId]);
 

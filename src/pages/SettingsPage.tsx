@@ -24,7 +24,6 @@ type Visibility = "public" | "private" | "followers";
 export default function SettingsPage() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
-  const [showProgress, setShowProgress] = useState<boolean>(true);
   const [savingFlag, setSavingFlag] = useState<string | null>(null);
   const nativeApp = isNativePlatform();
   const runtimePlatform = getRuntimePlatform();
@@ -38,9 +37,6 @@ export default function SettingsPage() {
         .eq("id", user.id)
         .maybeSingle();
       setProfile(data);
-      // show_progress is local UI preference (also saved to localStorage)
-      const stored = localStorage.getItem("show_progress");
-      setShowProgress(stored === null ? true : stored === "true");
     })();
   }, [user]);
 
@@ -63,11 +59,8 @@ export default function SettingsPage() {
   const setLibraryVisibility = (val: Visibility) =>
     updateProfile({ library_visibility: val }, "library_visibility");
 
-  const toggleProgress = (val: boolean) => {
-    setShowProgress(val);
-    localStorage.setItem("show_progress", String(val));
-    toast.success("Configuração salva");
-  };
+  const toggleProgress = (val: boolean) =>
+    updateProfile({ show_reading_progress: val }, "show_reading_progress");
 
   const logout = async () => {
     await supabase.auth.signOut();
@@ -188,7 +181,11 @@ export default function SettingsPage() {
                 Mostrar barra de progresso e páginas lidas no seu perfil.
               </p>
             </div>
-            <Switch checked={showProgress} onCheckedChange={toggleProgress} />
+            <Switch
+              checked={profile.show_reading_progress ?? true}
+              disabled={savingFlag === "show_reading_progress"}
+              onCheckedChange={toggleProgress}
+            />
           </div>
         </section>
 

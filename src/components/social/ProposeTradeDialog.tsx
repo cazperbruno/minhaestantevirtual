@@ -43,13 +43,12 @@ export function ProposeTradeDialog({ receiverId, receiverName, receiverBookId, t
           .eq("user_id", user.id)
           .eq("available_for_trade", true)
           .limit(60),
-        supabase
-          .from("user_books")
-          .select("id, book:books(*)")
-          .eq("user_id", receiverId)
-          .eq("available_for_trade", true)
-          .eq("is_public", true)
-          .limit(60),
+        supabase.rpc("visible_user_library" as any, {
+          _owner: receiverId,
+          _status: null,
+          _available_for_trade_only: true,
+          _limit: 60,
+        }),
       ]);
       setMyBooks((mine || []) as any);
       setTheirBooks((theirs || []) as any);
