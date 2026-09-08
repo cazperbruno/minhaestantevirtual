@@ -21,18 +21,21 @@ export interface UserChallenge {
   };
 }
 
-/** Garante que o usuário tem desafios ativos e devolve a lista. */
+/** Garante desafios da própria conta e devolve a lista. */
 export function useChallenges(userId: string | undefined) {
   return useQuery<UserChallenge[]>({
     queryKey: userId ? qk.challenges(userId) : ["challenges", "anon"],
     enabled: !!userId,
     queryFn: async () => {
       if (!userId) return [];
-      // Garantir desafios ativos
-      await supabase.rpc("assign_daily_challenges", { _user_id: userId });
-      // Recompute progresso
-      await supabase.rpc("recompute_challenge_progress", { _user_id: userId });
-      // Buscar
+
+      const [{ error: assignError }, { error: recomputeError }] = await Promise.all([
+        supabase.rpc("assign_my_challenges" as any),
+        supabase.rpc("recompute_my_challenge_progress" as any),
+      ]);
+      if (assignError) throw assignError;
+      if (recomputeError) throw recomputeError;
+
       const { data, error } = await supabase
         .from("user_challenges")
         .select("*, template:challenge_templates(title, description, icon, metric)")
@@ -53,8 +56,7 @@ export function useClaimChallenge(userId: string) {
     mutationFn: async (challenge: string | { id: string; category?: string }) => {
       const challengeId = typeof challenge === "string" ? challenge : challenge.id;
       const category = typeof challenge === "string" ? undefined : challenge.category;
-      const { data, error } = await supabase.rpc("claim_challenge", {
-        _user_id: userId,
+      const { data, error } = await supabase.rpc("claim_my_challenge" as any, {
         _challenge_id: challengeId,
       });
       if (error) throw error;
@@ -67,9 +69,9 @@ export function useClaimChallenge(userId: string) {
         description: "Próximo desafio te espera",
       });
       if (result.category === "epic") goldenBurst();
-      queryClient.invalidateQueries({ queryKey: qk.challenges(userId) });
-      queryClient.invalidateQueries({ queryKey: ["profile", userId] });
-      queryClient.invalidateQueries({ queryKey: qk.ranking() });
+      void queryClient.invalidateQueries({ queryKey: qk.challenges(userId) });
+      void queryClient.invalidateQueries({ queryKey: ["profile", userId] });
+      void queryClient.invalidateQueries({ queryKey: qk.ranking() });
     },
     onError: () => toast.error("Não foi possível coletar a recompensa"),
   });
