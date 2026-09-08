@@ -70,10 +70,10 @@ export function TradeMatchDialog({ matchId, open, onClose }: Props) {
 
   const dismiss = async () => {
     if (!matchId) return;
-    const { data, error } = await supabase.rpc("dismiss_trade_match" as any, {
+    const { error } = await supabase.rpc("dismiss_trade_match" as any, {
       _match_id: matchId,
     });
-    if (error || data !== true) {
+    if (error) {
       console.error("dismiss_trade_match", error);
       toast.error("Não foi possível dispensar o match");
       return;
