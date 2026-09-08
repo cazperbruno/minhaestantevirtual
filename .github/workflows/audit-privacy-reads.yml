@@ -26,24 +26,40 @@ jobs:
           from pathlib import Path
           import re
 
-          patterns = {
-              "user_books references": re.compile(r"user_books"),
-              "profile visibility references": re.compile(
-                  r"profile_visibility|library_visibility|show_progress|current_page"
+          scans = [
+              (
+                  "client user_books references",
+                  Path("src"),
+                  {".ts", ".tsx"},
+                  re.compile(r"user_books"),
               ),
-          }
-
-          source_files = sorted(
-              p for p in Path("src").rglob("*")
-              if p.suffix in {".ts", ".tsx"} and p.is_file()
-          )
+              (
+                  "client privacy/progress references",
+                  Path("src"),
+                  {".ts", ".tsx"},
+                  re.compile(r"profile_visibility|library_visibility|show_progress|current_page"),
+              ),
+              (
+                  "SQL privacy-sensitive routines and policies",
+                  Path("supabase/migrations"),
+                  {".sql"},
+                  re.compile(
+                      r"books_read_by_following|club_book_progress|profiles_select_all|"
+                      r"ub_select_public_or_own|profile_visibility|library_visibility|current_page"
+                  ),
+              ),
+          ]
 
           sections = []
           total_matches = 0
-          for title, pattern in patterns.items():
+          for title, root, suffixes, pattern in scans:
+              files = sorted(
+                  p for p in root.rglob("*")
+                  if p.suffix in suffixes and p.is_file()
+              )
               lines_out = [f"# {title}"]
               matches = 0
-              for path in source_files:
+              for path in files:
                   lines = path.read_text(encoding="utf-8").splitlines()
                   hit_lines = [i for i, line in enumerate(lines) if pattern.search(line)]
                   if not hit_lines:
@@ -52,8 +68,8 @@ jobs:
                   lines_out.append(f"\n## {path}")
                   emitted = set()
                   for idx in hit_lines:
-                      start = max(0, idx - 3)
-                      end = min(len(lines), idx + 4)
+                      start = max(0, idx - 5)
+                      end = min(len(lines), idx + 10)
                       for line_no in range(start, end):
                           key = (path, line_no)
                           if key in emitted:
@@ -83,5 +99,5 @@ jobs:
             echo "Privacy audit report unchanged"
             exit 0
           fi
-          git commit -m "audit: map cross-user privacy reads accurately"
+          git commit -m "audit: include privacy-sensitive SQL routines"
           git push origin HEAD:readify/reactivation-p0-integration-02
