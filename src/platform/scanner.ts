@@ -2,7 +2,7 @@ import {
   CapacitorBarcodeScanner,
   CapacitorBarcodeScannerCameraDirection,
   CapacitorBarcodeScannerScanOrientation,
-  Html5QrcodeSupportedFormats,
+  CapacitorBarcodeScannerTypeHint,
 } from "@capacitor/barcode-scanner";
 import { isNativePlatform } from "@/platform/runtime";
 
@@ -26,9 +26,9 @@ export async function scanNativeIsbn(): Promise<NativeBarcodeResult | null> {
   if (!nativeBarcodeScannerEnabled()) return null;
 
   const result = await CapacitorBarcodeScanner.scanBarcode({
-    // ISBN de livros modernos é normalmente EAN-13. No iOS, UPC-A também é
-    // reportado dentro de EAN-13/Apple Vision, portanto este hint é adequado.
-    hint: Html5QrcodeSupportedFormats.EAN_13,
+    // ISBN de livros modernos é normalmente EAN-13. No iOS, Apple Vision
+    // trata UPC-A/EAN-13 conjuntamente, então este hint cobre o caso relevante.
+    hint: CapacitorBarcodeScannerTypeHint.EAN_13,
     cameraDirection: CapacitorBarcodeScannerCameraDirection.BACK,
     scanOrientation: CapacitorBarcodeScannerScanOrientation.ADAPTIVE,
     scanInstructions: "Posicione o código ISBN dentro da área de leitura",
