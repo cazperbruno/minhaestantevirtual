@@ -1,0 +1,77 @@
+name: Patch scanner native adapter
+
+on:
+  push:
+    branches:
+      - readify/reactivation-p0-integration-02
+    paths:
+      - .github/workflows/patch-scanner-native.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: readify/reactivation-p0-integration-02
+          fetch-depth: 0
+
+      - name: Apply guarded scanner surgery
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/pages/ScannerPage.tsx')
+          s = p.read_text()
+
+          def replace_once(old, new, label):
+              global s
+              count = s.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly 1 match, got {count}')
+              s = s.replace(old, new, 1)
+
+          replace_once(
+              'import { getPageTutorial } from "@/lib/page-tutorials";\n',
+              'import { getPageTutorial } from "@/lib/page-tutorials";\nimport { nativeBarcodeScannerEnabled, scanNativeIsbn } from "@/platform/scanner";\n',
+              'native scanner import',
+          )
+
+          replace_once(
+              '''      await supabase\n        .from("user_books")\n        .upsert(\n          { user_id: user.id, book_id: foundBook.id, status: "not_read" },\n          { onConflict: "user_id,book_id" },\n        );''',
+              '''      const { error } = await supabase\n        .from("user_books")\n        .upsert(\n          { user_id: user.id, book_id: foundBook.id, status: "not_read" },\n          { onConflict: "user_id,book_id" },\n        );\n      if (error) throw error;''',
+              'single add error check',
+          )
+
+          replace_once(
+              '''      markScanStart();\n\n      // Lazy import do ZXing — economiza ~200KB no bundle inicial''',
+              '''      markScanStart();\n\n      if (nativeBarcodeScannerEnabled()) {\n        const nativeResult = await scanNativeIsbn();\n        if (!nativeResult) {\n          markScanCancelled();\n          setActive(false);\n          return;\n        }\n\n        const code = nativeResult.code;\n        const now = Date.now();\n        const sinceLast = now - lastScanRef.current.ts;\n        if (lastScanRef.current.code === code && sinceLast < 2500) {\n          setActive(false);\n          return;\n        }\n        lastScanRef.current = { code, ts: now };\n        lockRef.current = true;\n        markScanSuccess(String(nativeResult.format));\n        setScanStats(getScanStats());\n        haptic("success");\n        setDetected(code);\n        setActive(false);\n        await resolveIsbn(code);\n        return;\n      }\n\n      // Lazy import do ZXing — economiza ~200KB no bundle inicial''',
+              'native scanner branch',
+          )
+
+          replace_once(
+              '''            await supabase.from("user_books").upsert(\n              { user_id: user.id, book_id: book.id, status: "not_read" },\n              { onConflict: "user_id,book_id" },\n            );''',
+              '''            const { error: addError } = await supabase.from("user_books").upsert(\n              { user_id: user.id, book_id: book.id, status: "not_read" },\n              { onConflict: "user_id,book_id" },\n            );\n            if (addError) throw addError;''',
+              'continuous add error check',
+          )
+
+          replace_once(
+              '''          await supabase\n            .from("user_books")\n            .upsert(\n              { user_id: user.id, book_id: saved.id, status: "not_read" },\n              { onConflict: "user_id,book_id" },\n            );''',
+              '''          const { error: addError } = await supabase\n            .from("user_books")\n            .upsert(\n              { user_id: user.id, book_id: saved.id, status: "not_read" },\n              { onConflict: "user_id,book_id" },\n            );\n          if (addError) throw addError;''',
+              'page candidate add error check',
+          )
+
+          p.write_text(s)
+          PY
+
+      - name: Commit scanner surgery
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/pages/ScannerPage.tsx
+          git diff --cached --check
+          git commit -m "scanner: add guarded native ISBN path and verify writes"
+          git push origin HEAD:readify/reactivation-p0-integration-02
