@@ -1,10 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
 
 function source(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
 }
+
+function sourceFiles(root = join(process.cwd(), "src")): string[] {
+  const out: string[] = [];
+  for (const name of readdirSync(root)) {
+    const path = join(root, name);
+    const stat = statSync(path);
+    if (stat.isDirectory()) out.push(...sourceFiles(path));
+    else if (path.endsWith(".ts") || path.endsWith(".tsx")) out.push(path);
+  }
+  return out;
+}
+
+const PRIVATE_PROFILE_COLUMNS = new Set([
+  "bio",
+  "profile_visibility",
+  "library_visibility",
+  "show_reading_progress",
+  "instagram",
+  "tiktok",
+  "twitter",
+  "website",
+  "favorite_genres",
+  "content_types",
+  "onboarded_at",
+  "tutorial_completed_at",
+  "tutorial_last_step",
+]);
 
 describe("profile column privacy boundary", () => {
   it("full profile rows are available only through the self-scoped RPC", () => {
@@ -42,6 +69,30 @@ describe("profile column privacy boundary", () => {
         /\.from\(["']profiles["']\)[\s\S]{0,160}\.select\(["']\*["']\)/,
       );
     }
+  });
+
+  it("no client file reads all profile columns or selects private profile fields directly", () => {
+    const offenders: string[] = [];
+    const selectPattern = /\.from\(["']profiles["']\)[\s\S]{0,180}?\.select\(["'`]([^"'`]+)["'`]\)/g;
+
+    for (const absolutePath of sourceFiles()) {
+      const content = readFileSync(absolutePath, "utf8");
+      const path = relative(process.cwd(), absolutePath);
+      for (const match of content.matchAll(selectPattern)) {
+        const selection = match[1].replace(/\s+/g, "");
+        if (selection === "*") {
+          offenders.push(`${path}: select(*)`);
+          continue;
+        }
+        const columns = selection.split(",").map((column) => column.split(":").pop()?.split("(")[0] ?? column);
+        const privateColumns = columns.filter((column) => PRIVATE_PROFILE_COLUMNS.has(column));
+        if (privateColumns.length > 0) {
+          offenders.push(`${path}: ${privateColumns.join(",")}`);
+        }
+      }
+    }
+
+    expect(offenders, `raw private profile reads found:\n${offenders.join("\n")}`).toEqual([]);
   });
 
   it("profile prefetch requests only public identity columns", () => {
