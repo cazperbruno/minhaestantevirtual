@@ -8,6 +8,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { getRuntimePlatform, isNativePlatform } from "@/platform/runtime";
 import { isSafeInternalPath } from "@/platform/urls";
 
+type RpcError = { message?: string } | null;
+type UntypedRpcResult = { data: unknown; error: RpcError };
+
+function callRpc(name: string, args?: Record<string, unknown>): Promise<UntypedRpcResult> {
+  const rpc = supabase.rpc as unknown as (
+    fn: string,
+    params?: Record<string, unknown>,
+  ) => Promise<UntypedRpcResult>;
+  return rpc(name, args);
+}
+
 export function nativePushEnabled(): boolean {
   return (
     isNativePlatform() &&
@@ -22,47 +33,30 @@ export async function getNativePushPermission(): Promise<PermissionStatus["recei
 }
 
 async function waitForRegistrationToken(): Promise<string> {
-  return new Promise<string>(async (resolve, reject) => {
-    let settled = false;
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-    const tokenHandle = await PushNotifications.addListener("registration", (token) => {
-      if (settled) return;
-      settled = true;
-      if (timeoutId) clearTimeout(timeoutId);
-      void tokenHandle.remove();
-      void errorHandle.remove();
-      resolve(token.value);
-    });
-
-    const errorHandle = await PushNotifications.addListener("registrationError", (error) => {
-      if (settled) return;
-      settled = true;
-      if (timeoutId) clearTimeout(timeoutId);
-      void tokenHandle.remove();
-      void errorHandle.remove();
-      reject(new Error(error.error || "native_push_registration_failed"));
-    });
-
-    timeoutId = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      void tokenHandle.remove();
-      void errorHandle.remove();
-      reject(new Error("native_push_registration_timeout"));
-    }, 15_000);
-
-    try {
-      await PushNotifications.register();
-    } catch (error) {
-      if (settled) return;
-      settled = true;
-      if (timeoutId) clearTimeout(timeoutId);
-      void tokenHandle.remove();
-      void errorHandle.remove();
-      reject(error);
-    }
+  let resolveToken!: (token: string) => void;
+  let rejectToken!: (error: unknown) => void;
+  const registration = new Promise<string>((resolve, reject) => {
+    resolveToken = resolve;
+    rejectToken = reject;
   });
+
+  const tokenHandle = await PushNotifications.addListener("registration", (token) => {
+    resolveToken(token.value);
+  });
+  const errorHandle = await PushNotifications.addListener("registrationError", (error) => {
+    rejectToken(new Error(error.error || "native_push_registration_failed"));
+  });
+  const timeoutId = setTimeout(() => {
+    rejectToken(new Error("native_push_registration_timeout"));
+  }, 15_000);
+
+  try {
+    await PushNotifications.register();
+    return await registration;
+  } finally {
+    clearTimeout(timeoutId);
+    await Promise.allSettled([tokenHandle.remove(), errorHandle.remove()]);
+  }
 }
 
 /**
@@ -87,12 +81,12 @@ export async function enableNativePush(): Promise<string> {
 
   const token = await waitForRegistrationToken();
   const appInfo = await App.getInfo().catch(() => null);
-  const { error } = await supabase.rpc("register_my_native_push_device" as any, {
+  const { error } = await callRpc("register_my_native_push_device", {
     _platform: platform,
     _token: token,
     _app_version: appInfo?.version || null,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || "native_push_device_registration_failed");
 
   return token;
 }
@@ -100,8 +94,8 @@ export async function enableNativePush(): Promise<string> {
 export async function disableNativePush(): Promise<void> {
   if (!isNativePlatform()) return;
 
-  const { error } = await supabase.rpc("unregister_all_my_native_push_devices" as any);
-  if (error) throw error;
+  const { error } = await callRpc("unregister_all_my_native_push_devices");
+  if (error) throw new Error(error.message || "native_push_device_removal_failed");
 
   // Remove o registro do SO quando suportado. A remoção server-side acima é a
   // fonte de verdade mesmo se a API nativa falhar.
