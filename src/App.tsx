@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { LazyErrorBoundary } from "@/components/LazyErrorBoundary";
+import { NativeLinkBridge } from "@/components/NativeLinkBridge";
 import Auth from "./pages/Auth";
 import ScrollToTop from "./components/ScrollToTop";
 
@@ -62,6 +63,7 @@ const App = () => (
       <Toaster />
       <Sonner theme="dark" />
       <BrowserRouter>
+        <NativeLinkBridge />
         <ScrollToTop />
         <LazyErrorBoundary>
           <Suspense fallback={<RouteFallback />}>
