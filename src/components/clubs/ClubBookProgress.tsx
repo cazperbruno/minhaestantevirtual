@@ -31,11 +31,16 @@ export function ClubBookProgress({ clubId, bookTitle, compact, className }: Prop
     let cancelled = false;
     const load = async () => {
       setLoading(true);
-      const { data: rows } = await supabase.rpc("club_book_progress", { _club_id: clubId });
-      if (!cancelled) {
-        setData((rows as ProgressRow[] | null)?.[0] ?? null);
+      const { data: rows, error } = await supabase.rpc("club_book_progress", { _club_id: clubId });
+      if (cancelled) return;
+      if (error) {
+        console.error("[club-progress] load failed", error);
+        setData(null);
         setLoading(false);
+        return;
       }
+      setData((rows as ProgressRow[] | null)?.[0] ?? null);
+      setLoading(false);
     };
     load();
 

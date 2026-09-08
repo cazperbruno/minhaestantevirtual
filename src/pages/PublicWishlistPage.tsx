@@ -31,8 +31,8 @@ interface WishItem {
 /**
  * Página pública (sem login) da lista de desejos de um leitor: /u/:username/desejos
  *
- * RLS já filtra: o RLS de `user_books` só retorna registros com is_public=true
- * e profile_visibility='public', então não precisamos validar visibilidade aqui.
+ * A página nunca lê `user_books` diretamente. Perfil e biblioteca passam por
+ * RPCs redigidas que aplicam visibilidade e não expõem progresso oculto.
  */
 export default function PublicWishlistPage() {
   const { username } = useParams();
@@ -46,6 +46,8 @@ export default function PublicWishlistPage() {
     let cancelled = false;
     (async () => {
       setLoading(true);
+      setNotFound(false);
+      try {
       // 1) Perfil redigido conforme viewer (anônimo nesta rota pública).
       const profileResult = await supabase.rpc("profile_for_viewer" as any, { _lookup: username });
       if (profileResult.error) throw profileResult.error;
@@ -65,7 +67,15 @@ export default function PublicWishlistPage() {
       if (wishError) throw wishError;
       if (cancelled) return;
       setItems((ub as WishItem[]) || []);
-      setLoading(false);
+      } catch (error) {
+        console.error("[wishlist] load failed", error);
+        if (!cancelled) {
+          setItems([]);
+          setNotFound(true);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
     return () => { cancelled = true; };
   }, [username]);

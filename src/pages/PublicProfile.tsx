@@ -89,7 +89,7 @@ export default function PublicProfile() {
           return;
         }
 
-        const [{ data: lib }, { data: revs }, { count: followers }, { count: following }, { data: myFollow }] = await Promise.all([
+        const [libraryResult, reviewsResult, followersResult, followingResult, myFollowResult] = await Promise.all([
           supabase.rpc("visible_user_library" as any, {
             _owner: p.id,
             _status: null,
@@ -107,11 +107,21 @@ export default function PublicProfile() {
           supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", p.id),
           user
             ? supabase.from("follows").select("*").eq("follower_id", user.id).eq("following_id", p.id).maybeSingle()
-            : Promise.resolve({ data: null }),
+            : Promise.resolve({ data: null, error: null }),
         ]);
+        if (libraryResult.error) throw libraryResult.error;
+        if (reviewsResult.error) throw reviewsResult.error;
+        if (followersResult.error) throw followersResult.error;
+        if (followingResult.error) throw followingResult.error;
+        if (myFollowResult.error) throw myFollowResult.error;
 
         if (cancelled) return;
 
+        const lib = libraryResult.data;
+        const revs = reviewsResult.data;
+        const followers = followersResult.count;
+        const following = followingResult.count;
+        const myFollow = myFollowResult.data;
         const list = lib || [];
         const ratings = list.filter((x: any) => x.rating).map((x: any) => x.rating);
         setProfile(p);
