@@ -32,8 +32,8 @@ export default function Auth() {
     }
   }, []);
 
-  // Resgata o convite somente quando a sessão autenticada já existe. O backend
-  // deriva o invitee de auth.uid(); nenhum user_id vem do navegador.
+  // Resgata somente quando a sessão autenticada já existe. A RPC exige no banco
+  // que _new_user_id seja exatamente auth.uid(), impedindo resgate em nome de terceiros.
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
@@ -42,10 +42,13 @@ export default function Auth() {
       const code = sessionStorage.getItem(PENDING_INVITE_KEY)?.trim();
       if (!code) return;
 
-      void supabase.rpc("redeem_my_invite" as any, { _code: code }).then(({ error }: any) => {
+      void supabase.rpc("redeem_invite", {
+        _code: code,
+        _new_user_id: user.id,
+      }).then(({ error }) => {
         if (cancelled) return;
         if (error) {
-          console.warn("redeem_my_invite", error.message);
+          console.warn("redeem_invite", error.message);
           return;
         }
         try { sessionStorage.removeItem(PENDING_INVITE_KEY); } catch { /* noop */ }
