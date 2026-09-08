@@ -1,6 +1,7 @@
-// Cron diário: garante 3 daily, 3 weekly e 2 epic ativos por usuário.
-// Pode ser chamado manualmente (?user_id=...) ou em massa (sem args, processa todos).
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+// Cron diário: garante desafios ativos por usuário.
+// Endpoint privilegiado: somente worker interno autenticado com service_role.
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { requireServiceRole } from "../_shared/service-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,6 +11,14 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const serviceAuth = requireServiceRole(req);
+  if (!serviceAuth.ok) {
+    return new Response(JSON.stringify({ error: serviceAuth.error }), {
+      status: serviceAuth.status ?? 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -17,30 +26,43 @@ Deno.serve(async (req) => {
 
   try {
     const url = new URL(req.url);
-    let body: any = {};
+    let body: Record<string, unknown> = {};
     if (req.method === "POST") {
-      try { body = await req.json(); } catch { /* ignore */ }
+      try { body = await req.json(); } catch { /* sem body */ }
     }
-    const targetUserId = body.user_id || url.searchParams.get("user_id");
+
+    const bodyUserId = typeof body.user_id === "string" ? body.user_id : null;
+    const targetUserId = bodyUserId || url.searchParams.get("user_id");
 
     let userIds: string[] = [];
     if (targetUserId) {
       userIds = [targetUserId];
     } else {
-      // Todos os usuários ativos nos últimos 30 dias (otimização de custo)
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
         .select("id, updated_at")
         .gte("updated_at", new Date(Date.now() - 30 * 86400_000).toISOString())
         .limit(5000);
+      if (error) throw error;
       userIds = (data || []).map((p) => p.id);
     }
 
     let assigned = 0;
     let recomputed = 0;
+
     for (const uid of userIds) {
-      const { data: aData } = await supabase.rpc("assign_daily_challenges", { _user_id: uid });
-      const { data: rData } = await supabase.rpc("recompute_challenge_progress", { _user_id: uid });
+      const { data: aData, error: assignError } = await supabase.rpc(
+        "assign_daily_challenges",
+        { _user_id: uid },
+      );
+      if (assignError) throw assignError;
+
+      const { data: rData, error: recomputeError } = await supabase.rpc(
+        "recompute_challenge_progress",
+        { _user_id: uid },
+      );
+      if (recomputeError) throw recomputeError;
+
       assigned += Number(aData ?? 0);
       recomputed += Number(rData ?? 0);
     }
@@ -49,9 +71,9 @@ Deno.serve(async (req) => {
       JSON.stringify({ ok: true, users: userIds.length, assigned, recomputed }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-  } catch (err: any) {
+  } catch (err) {
     console.error("generate-challenges error", err);
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: "internal_error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
