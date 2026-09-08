@@ -35,16 +35,20 @@ export function useClubJoinRequests(clubId: string | undefined, isOwner: boolean
     queryKey: qkClubReq(clubId || ""),
     enabled: !!clubId && isOwner,
     queryFn: async () => {
-      const { data: reqs } = await supabase
+      const { data: reqs, error: reqError } = await supabase
         .from("club_join_requests")
         .select("*")
         .eq("club_id", clubId!)
         .eq("status", "pending")
         .order("created_at", { ascending: true });
+      if (reqError) throw reqError;
+
       const ids = [...new Set((reqs || []).map((r: any) => r.user_id))];
-      const { data: profs } = ids.length
+      const { data: profs, error: profileError } = ids.length
         ? await supabase.from("profiles").select("id,display_name,username,avatar_url").in("id", ids)
-        : { data: [] as any[] };
+        : { data: [] as any[], error: null };
+      if (profileError) throw profileError;
+
       const map = new Map((profs || []).map((p: any) => [p.id, p]));
       return (reqs || []).map((r: any) => ({ ...r, profile: map.get(r.user_id) || null }));
     },
@@ -57,11 +61,12 @@ export function useClubInvitations(clubId: string | undefined, isOwner: boolean)
     queryKey: qkClubInv(clubId || ""),
     enabled: !!clubId && isOwner,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("club_invitations")
         .select("*")
         .eq("club_id", clubId!)
         .order("created_at", { ascending: false });
+      if (error) throw error;
       return (data || []) as ClubInvitation[];
     },
   });
@@ -73,12 +78,13 @@ export function useMyJoinRequest(userId: string | undefined, clubId: string | un
     queryKey: qkMyClubReq(userId, clubId),
     enabled: !!userId && !!clubId,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("club_join_requests")
         .select("*")
         .eq("club_id", clubId!)
         .eq("user_id", userId!)
         .maybeSingle();
+      if (error) throw error;
       return (data as ClubRequest) || null;
     },
   });
@@ -90,12 +96,13 @@ export function useMyInvitations(userId: string | undefined) {
     queryKey: qkMyClubInv(userId),
     enabled: !!userId,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("club_invitations")
         .select("*, club:book_clubs(id,name,cover_url)")
         .eq("invitee_id", userId!)
         .eq("status", "pending")
         .order("created_at", { ascending: false });
+      if (error) throw error;
       return (data || []) as ClubInvitation[];
     },
   });
@@ -158,14 +165,7 @@ export function useInviteToClub(clubId: string, invitedBy?: string) {
         .from("club_invitations")
         .insert({ club_id: clubId, invitee_id: inviteeId, invited_by: invitedBy });
       if (error) throw error;
-      // Notificação ao convidado
-      await supabase.from("notifications").insert({
-        user_id: inviteeId,
-        kind: "club_invitation",
-        title: "Você foi convidado para um clube",
-        body: "Aceite o convite para participar das discussões.",
-        link: `/clubes/${clubId}`,
-      });
+      // A notificação é emitida por trigger SECURITY DEFINER no servidor.
     },
     onSuccess: () => {
       toast.success("Convite enviado!");
