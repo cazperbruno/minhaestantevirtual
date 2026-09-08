@@ -29,13 +29,16 @@ export function useChallenges(userId: string | undefined) {
     queryFn: async () => {
       if (!userId) return [];
 
-      // As RPCs preservam a assinatura histórica, mas o backend agora exige
-      // _user_id === auth.uid() para clientes autenticados.
-      const [{ error: assignError }, { error: recomputeError }] = await Promise.all([
-        supabase.rpc("assign_daily_challenges", { _user_id: userId }),
-        supabase.rpc("recompute_challenge_progress", { _user_id: userId }),
-      ]);
+      // Ordem intencional: primeiro cria os desafios faltantes, depois calcula
+      // progresso sobre o conjunto já definitivo. Rodar em paralelo causa race.
+      const { error: assignError } = await supabase.rpc("assign_daily_challenges", {
+        _user_id: userId,
+      });
       if (assignError) throw assignError;
+
+      const { error: recomputeError } = await supabase.rpc("recompute_challenge_progress", {
+        _user_id: userId,
+      });
       if (recomputeError) throw recomputeError;
 
       const { data, error } = await supabase
