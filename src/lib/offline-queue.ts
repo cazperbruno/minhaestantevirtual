@@ -1,17 +1,12 @@
 /**
  * Lightweight offline action queue.
- * Stores write operations in localStorage when offline and replays them
- * when the connection returns.
  *
- * Usage direta:
- *   queueOfflineAction({ kind: "book_status", payload: { id, status } });
- *
- * Usage automática (preferida):
- *   await mutateOrQueue(action, () => supabase.from(...).update(...));
- *   // Se offline → enfileira; se online → executa direto.
- *
- * Replays via `replayOfflineQueue()` (called automatically on `online` event
- * by setupOfflineSync()).
+ * Regras de integridade:
+ * - A fila é SEMPRE particionada pelo usuário autenticado.
+ * - Ação só é removida após confirmação real do Supabase.
+ * - Erros retornados por supabase-js (que normalmente não lança exception)
+ *   são tratados explicitamente.
+ * - Troca/logout de conta nunca reaplica ações de outro usuário.
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -27,25 +22,46 @@ export type OfflineAction =
   | { kind: "follow"; payload: { target_user_id: string } }
   | { kind: "unfollow"; payload: { target_user_id: string } };
 
-const STORAGE_KEY = "readify:offline-queue";
+const STORAGE_PREFIX = "readify:offline-queue:";
+let activeUserId: string | null = null;
 
-function load(): OfflineAction[] {
+function storageKey(userId: string): string {
+  return `${STORAGE_PREFIX}${userId}`;
+}
+
+function load(userId: string): OfflineAction[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const raw = localStorage.getItem(storageKey(userId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
 }
 
-function save(items: OfflineAction[]) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); } catch { /* quota */ }
+function save(userId: string, items: OfflineAction[]) {
+  try {
+    const key = storageKey(userId);
+    if (items.length === 0) localStorage.removeItem(key);
+    else localStorage.setItem(key, JSON.stringify(items));
+  } catch {
+    // Quota/storage indisponível: não fingimos persistência.
+    console.warn("[offline-queue] local storage unavailable");
+  }
+}
+
+async function resolveCurrentUserId(): Promise<string | null> {
+  if (activeUserId) return activeUserId;
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) return null;
+  activeUserId = data.user.id;
+  return activeUserId;
 }
 
 /**
  * Chave de dedup: identifica ações sobre o MESMO recurso/intent.
- * Quando uma nova ação chega, removemos qualquer ação anterior com a mesma chave —
- * a última escrita vence (last-write-wins). Pares like/unlike se cancelam.
+ * Last-write-wins; pares like/unlike e follow/unfollow se cancelam.
  */
 function dedupKey(a: OfflineAction): string {
   switch (a.kind) {
@@ -63,7 +79,6 @@ function dedupKey(a: OfflineAction): string {
   }
 }
 
-/** True se duas ações se cancelam mutuamente (like/unlike, follow/unfollow). */
 function cancels(a: OfflineAction, b: OfflineAction): boolean {
   return (
     (a.kind === "review_like" && b.kind === "review_unlike") ||
@@ -73,74 +88,111 @@ function cancels(a: OfflineAction, b: OfflineAction): boolean {
   );
 }
 
-export function queueOfflineAction(action: OfflineAction) {
-  const items = load();
+function enqueueForUser(userId: string, action: OfflineAction) {
+  const items = load(userId);
   const key = dedupKey(action);
-  // Cancela par oposto se existir; senão substitui a última do mesmo recurso
   const idx = items.findIndex((x) => dedupKey(x) === key);
   if (idx >= 0 && cancels(items[idx], action)) {
-    items.splice(idx, 1); // ambos se cancelam
+    items.splice(idx, 1);
   } else {
     if (idx >= 0) items.splice(idx, 1);
     items.push(action);
   }
-  save(items);
+  save(userId, items);
+}
+
+/**
+ * API síncrona legada. Só enfileira quando a sessão já foi resolvida pelo
+ * setupOfflineSync; caso contrário recusa em vez de criar fila sem dono.
+ */
+export function queueOfflineAction(action: OfflineAction): boolean {
+  if (!activeUserId) {
+    console.warn("[offline-queue] refused unowned action", action.kind);
+    return false;
+  }
+  enqueueForUser(activeUserId, action);
+  return true;
 }
 
 export function getOfflineQueueSize(): number {
-  return load().length;
+  return activeUserId ? load(activeUserId).length : 0;
 }
 
-async function executeAction(a: OfflineAction): Promise<boolean> {
+function isDuplicateError(error: any): boolean {
+  return error?.code === "23505";
+}
+
+async function executeAction(a: OfflineAction, userId: string): Promise<boolean> {
   try {
     switch (a.kind) {
-      case "book_status":
-        await supabase.from("user_books").update({ status: a.payload.status as any }).eq("id", a.payload.user_book_id);
-        return true;
-      case "book_rating":
-        await supabase.from("user_books").update({ rating: a.payload.rating }).eq("id", a.payload.user_book_id);
-        return true;
-      case "book_progress":
-        await supabase.from("user_books").update({ current_page: a.payload.current_page }).eq("id", a.payload.user_book_id);
-        return true;
+      case "book_status": {
+        const { data, error } = await supabase
+          .from("user_books")
+          .update({ status: a.payload.status as any })
+          .eq("id", a.payload.user_book_id)
+          .eq("user_id", userId)
+          .select("id")
+          .maybeSingle();
+        return !error && !!data;
+      }
+      case "book_rating": {
+        const { data, error } = await supabase
+          .from("user_books")
+          .update({ rating: a.payload.rating })
+          .eq("id", a.payload.user_book_id)
+          .eq("user_id", userId)
+          .select("id")
+          .maybeSingle();
+        return !error && !!data;
+      }
+      case "book_progress": {
+        const { data, error } = await supabase
+          .from("user_books")
+          .update({ current_page: a.payload.current_page })
+          .eq("id", a.payload.user_book_id)
+          .eq("user_id", userId)
+          .select("id")
+          .maybeSingle();
+        return !error && !!data;
+      }
       case "book_notes": {
-        // Notas privadas vivem em `user_book_notes` (RLS owner-only),
-        // não em `user_books` (que é parcialmente pública).
-        const { data } = await supabase.auth.getUser();
-        if (!data.user) return false;
-        await supabase.from("user_book_notes").upsert(
-          { user_book_id: a.payload.user_book_id, user_id: data.user.id, notes: a.payload.notes },
+        const { error } = await supabase.from("user_book_notes").upsert(
+          { user_book_id: a.payload.user_book_id, user_id: userId, notes: a.payload.notes },
           { onConflict: "user_book_id" },
         );
-        return true;
+        return !error;
       }
       case "review_like": {
-        const { data } = await supabase.auth.getUser();
-        if (!data.user) return false;
-        await supabase.from("review_likes").insert({ review_id: a.payload.review_id, user_id: data.user.id });
-        return true;
+        const { error } = await supabase
+          .from("review_likes")
+          .insert({ review_id: a.payload.review_id, user_id: userId });
+        return !error || isDuplicateError(error);
       }
       case "review_unlike": {
-        const { data } = await supabase.auth.getUser();
-        if (!data.user) return false;
-        await supabase.from("review_likes").delete().eq("review_id", a.payload.review_id).eq("user_id", data.user.id);
-        return true;
+        const { error } = await supabase
+          .from("review_likes")
+          .delete()
+          .eq("review_id", a.payload.review_id)
+          .eq("user_id", userId);
+        return !error;
       }
       case "follow": {
-        const { data } = await supabase.auth.getUser();
-        if (!data.user) return false;
-        await supabase.from("follows").insert({ follower_id: data.user.id, following_id: a.payload.target_user_id });
-        return true;
+        const { error } = await supabase
+          .from("follows")
+          .insert({ follower_id: userId, following_id: a.payload.target_user_id });
+        return !error || isDuplicateError(error);
       }
       case "unfollow": {
-        const { data } = await supabase.auth.getUser();
-        if (!data.user) return false;
-        await supabase.from("follows").delete().eq("follower_id", data.user.id).eq("following_id", a.payload.target_user_id);
-        return true;
+        const { error } = await supabase
+          .from("follows")
+          .delete()
+          .eq("follower_id", userId)
+          .eq("following_id", a.payload.target_user_id);
+        return !error;
       }
     }
   } catch (e) {
-    console.warn("[offline-queue] failed", a, e);
+    console.warn("[offline-queue] failed", a.kind, e);
     return false;
   }
 }
@@ -148,48 +200,72 @@ async function executeAction(a: OfflineAction): Promise<boolean> {
 let replaying = false;
 export async function replayOfflineQueue(): Promise<{ ok: number; failed: number }> {
   if (replaying) return { ok: 0, failed: 0 };
+
+  const userId = await resolveCurrentUserId();
+  if (!userId) return { ok: 0, failed: 0 };
+
   replaying = true;
-  const items = load();
-  if (items.length === 0) { replaying = false; return { ok: 0, failed: 0 }; }
+  try {
+    const items = load(userId);
+    if (items.length === 0) return { ok: 0, failed: 0 };
 
-  const remaining: OfflineAction[] = [];
-  let ok = 0;
-  for (const item of items) {
-    const success = await executeAction(item);
-    if (success) ok++;
-    else remaining.push(item);
-  }
-  save(remaining);
-  replaying = false;
+    const remaining: OfflineAction[] = [];
+    let ok = 0;
+    for (const item of items) {
+      // Se a sessão mudou durante o replay, interrompe sem consumir a fila antiga.
+      const currentUserId = await resolveCurrentUserId();
+      if (currentUserId !== userId) {
+        remaining.push(item, ...items.slice(ok + remaining.length + 1));
+        break;
+      }
 
-  if (ok > 0) {
-    toast.success(`${ok} ${ok === 1 ? "ação sincronizada" : "ações sincronizadas"}`);
+      const success = await executeAction(item, userId);
+      if (success) ok++;
+      else remaining.push(item);
+    }
+    save(userId, remaining);
+
+    if (ok > 0) {
+      toast.success(`${ok} ${ok === 1 ? "ação sincronizada" : "ações sincronizadas"}`);
+    }
+    return { ok, failed: remaining.length };
+  } finally {
+    replaying = false;
   }
-  return { ok, failed: remaining.length };
+}
+
+function returnedSupabaseError(result: unknown): unknown | null {
+  if (!result || typeof result !== "object") return null;
+  if (!("error" in result)) return null;
+  return (result as { error?: unknown }).error ?? null;
 }
 
 /**
- * Wrapper: se online, executa `online` (a mutação real). Se offline,
- * enfileira a ação e devolve uma "promise vazia" — o caller pode atualizar
- * a UI otimisticamente sem esperar.
- *
- * Retorna `{ queued: true }` quando enfileirou, `{ queued: false }` quando rodou.
+ * Executa online ou enfileira offline. Uma resposta Supabase `{ error }` é
+ * tratada como falha mesmo que a Promise não tenha lançado exception.
  */
 export async function mutateOrQueue(
   action: OfflineAction,
   online: () => Promise<unknown>,
 ): Promise<{ queued: boolean; error?: unknown }> {
   if (typeof navigator !== "undefined" && navigator.onLine === false) {
-    queueOfflineAction(action);
+    const userId = await resolveCurrentUserId();
+    if (!userId) return { queued: false, error: new Error("not_authenticated") };
+    enqueueForUser(userId, action);
     return { queued: true };
   }
+
   try {
-    await online();
+    const result = await online();
+    const error = returnedSupabaseError(result);
+    if (error) return { queued: false, error };
     return { queued: false };
   } catch (e) {
-    // Falha de rede no meio do voo — enfileira e tenta de novo depois
+    // Falha de rede no meio do voo — só enfileira se realmente ficamos offline.
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
-      queueOfflineAction(action);
+      const userId = await resolveCurrentUserId();
+      if (!userId) return { queued: false, error: e };
+      enqueueForUser(userId, action);
       return { queued: true };
     }
     return { queued: false, error: e };
@@ -200,11 +276,27 @@ let setupDone = false;
 export function setupOfflineSync() {
   if (setupDone || typeof window === "undefined") return;
   setupDone = true;
+
+  // Resolve e acompanha a identidade dona da fila.
+  void supabase.auth.getSession().then(({ data }) => {
+    activeUserId = data.session?.user?.id ?? null;
+    if (activeUserId && navigator.onLine) {
+      setTimeout(() => void replayOfflineQueue(), 2000);
+    }
+  });
+
+  supabase.auth.onAuthStateChange((_event, session) => {
+    const previousUserId = activeUserId;
+    activeUserId = session?.user?.id ?? null;
+
+    // Não apagamos automaticamente a fila do usuário anterior: ela continua
+    // isolada e poderá ser sincronizada quando aquela conta voltar a autenticar.
+    if (activeUserId && activeUserId !== previousUserId && navigator.onLine) {
+      void replayOfflineQueue();
+    }
+  });
+
   window.addEventListener("online", () => {
     void replayOfflineQueue();
   });
-  // Try once on load (in case we came back online while app was closed)
-  if (navigator.onLine) {
-    setTimeout(() => void replayOfflineQueue(), 2000);
-  }
 }
