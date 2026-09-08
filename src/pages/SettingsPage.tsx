@@ -17,6 +17,7 @@ import { VersionTag } from "@/components/pwa/VersionTag";
 import { openTutorial } from "@/hooks/useTutorial";
 import { PrivacyDataPanel } from "@/components/settings/PrivacyDataPanel";
 import { ResetLibraryCard } from "@/components/settings/ResetLibraryCard";
+import { getRuntimePlatform, isNativePlatform } from "@/platform/runtime";
 
 type Visibility = "public" | "private" | "followers";
 
@@ -25,6 +26,8 @@ export default function SettingsPage() {
   const [profile, setProfile] = useState<any>(null);
   const [showProgress, setShowProgress] = useState<boolean>(true);
   const [savingFlag, setSavingFlag] = useState<string | null>(null);
+  const nativeApp = isNativePlatform();
+  const runtimePlatform = getRuntimePlatform();
 
   useEffect(() => {
     if (!user) return;
@@ -198,17 +201,30 @@ export default function SettingsPage() {
           <PushNotificationsCard />
         </section>
 
-        {/* Instalação do App */}
-        <section className="mt-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <Download className="w-4 h-4 text-primary" />
-            <h2 className="font-display text-lg font-semibold">Instalar aplicativo</h2>
-          </div>
-          <InstallAppCard />
-          <Button asChild variant="outline" size="sm" className="w-full">
-            <Link to="/instalar">Ver instruções completas</Link>
-          </Button>
-        </section>
+        {/* Instalação / runtime */}
+        {nativeApp ? (
+          <section className="mt-5 glass rounded-2xl p-5 space-y-2">
+            <div className="flex items-center gap-2">
+              <Download className="w-4 h-4 text-primary" />
+              <h2 className="font-display text-lg font-semibold">Aplicativo instalado</h2>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Você está usando o Readify para {runtimePlatform === "ios" ? "iPhone/iPad" : "Android"}.
+              Atualizações serão distribuídas pela {runtimePlatform === "ios" ? "App Store" : "Google Play"}.
+            </p>
+          </section>
+        ) : (
+          <section className="mt-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <Download className="w-4 h-4 text-primary" />
+              <h2 className="font-display text-lg font-semibold">Instalar aplicativo</h2>
+            </div>
+            <InstallAppCard />
+            <Button asChild variant="outline" size="sm" className="w-full">
+              <Link to="/instalar">Ver instruções completas</Link>
+            </Button>
+          </section>
+        )}
 
         {/* Tutorial */}
         <section className="mt-5 glass rounded-2xl p-5">
