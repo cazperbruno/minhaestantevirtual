@@ -1,0 +1,57 @@
+name: P1 lint diagnostic
+
+on:
+  push:
+    branches:
+      - readify/p1-auth-runtime-01
+    paths:
+      - .github/workflows/p1-lint-diagnostic.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: readify/p1-auth-runtime-01
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - name: Summarize ESLint errors
+        run: |
+          bunx eslint . --format json --output-file lint-report.json || true
+          python3 - <<'PY'
+          import json
+          from collections import Counter, defaultdict
+          from pathlib import Path
+          data = json.loads(Path('lint-report.json').read_text())
+          rules = Counter()
+          files = Counter()
+          samples = defaultdict(list)
+          errors = warnings = 0
+          for item in data:
+              path = item.get('filePath','')
+              for msg in item.get('messages',[]):
+                  sev = msg.get('severity')
+                  if sev == 2:
+                      errors += 1
+                      rule = msg.get('ruleId') or '<parser>'
+                      rules[rule] += 1
+                      files[path] += 1
+                      if len(samples[rule]) < 5:
+                          samples[rule].append(f"{path}:{msg.get('line')}:{msg.get('column')} {msg.get('message')}")
+                  elif sev == 1:
+                      warnings += 1
+          print(f'TOTAL errors={errors} warnings={warnings}')
+          print('TOP RULES')
+          for rule,count in rules.most_common(20):
+              print(f'{count:4} {rule}')
+              for sample in samples[rule]: print('   ', sample)
+          print('TOP FILES')
+          for path,count in files.most_common(30): print(f'{count:4} {path}')
+          PY
