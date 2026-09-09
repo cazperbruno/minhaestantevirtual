@@ -1,4 +1,4 @@
-# Trigger v7: validate shell/Realtime consolidation and remove duplicate auth listener from offline sync.
+# Trigger v8: preserve JSX grouping by replacing page-owned AppShell wrappers with fragments.
 name: P1 consolidate page shells
 
 on:
@@ -21,7 +21,7 @@ jobs:
           ref: readify/p1-auth-runtime-01
           fetch-depth: 0
 
-      - name: Remove page-owned AppShell wrappers with guards
+      - name: Replace page-owned AppShell wrappers with fragments
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -47,9 +47,9 @@ jobs:
                   r'^import\s+\{\s*AppShell\s*\}\s+from\s+["\']@/components/layout/AppShell["\'];\s*\n',
                   '', text, count=1, flags=re.M,
               )
-              text = text.replace('<AppShell>', '').replace('</AppShell>', '')
+              text = text.replace('<AppShell>', '<>').replace('</AppShell>', '</>')
               if 'AppShell' in text:
-                  raise SystemExit(f'{path}: AppShell token remained after removal')
+                  raise SystemExit(f'{path}: AppShell token remained after fragment conversion')
               path.write_text(text, encoding='utf-8')
               changed.append(str(path))
 
@@ -58,7 +58,7 @@ jobs:
           leftovers = [str(p) for p in sorted(pages.glob('*.tsx')) if 'AppShell' in p.read_text(encoding='utf-8')]
           if leftovers:
               raise SystemExit('AppShell leftovers:\n' + '\n'.join(leftovers))
-          print(f'Consolidated {len(changed)} pages')
+          print(f'Converted {len(changed)} pages to persistent-shell fragments')
           PY
 
       - name: Keep Realtime channel stable across token refreshes
