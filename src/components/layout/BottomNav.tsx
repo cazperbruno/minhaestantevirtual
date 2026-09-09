@@ -1,29 +1,13 @@
-import {
-  Library,
-  Heart,
-  Users,
-  ScanLine,
-  Sparkles,
-} from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { prefetch } from "@/lib/prefetch";
+import { bottomNavigation, type NavigationItem } from "@/config/navigation";
 
 /**
- * Navegação inferior mobile — 5 atalhos essenciais.
- * Labels curtas (8 chars max) pra caber em 411px sem quebrar nem truncar.
- * Ordem: Biblioteca · Social (feed) · Escanear (centro) · Progresso · Clubes
+ * Navegação inferior mobile — cinco destinos estáveis.
+ * Início · Biblioteca · Escanear · Buscar · Perfil
  */
-const left = [
-  { to: "/biblioteca", label: "Biblioteca", icon: Library },
-  { to: "/feed", label: "Social", icon: Heart },
-];
-const right = [
-  { to: "/progresso", label: "Progresso", icon: Sparkles },
-  { to: "/clubes", label: "Clubes", icon: Users },
-];
-
 export function BottomNav() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -31,80 +15,69 @@ export function BottomNav() {
 
   const prefetchFor = (to: string) => {
     if (to === "/biblioteca") prefetch.library(user?.id);
-    else if (to === "/feed" || to === "/feed-infinito") prefetch.feed();
     else if (to === "/perfil" && user?.id) prefetch.profile(user.id);
-    // /clubes não tem prefetch dedicado — carrega rápido pela query padrão
   };
 
-  const scanActive = pathname.startsWith("/scanner");
-  const isActive = (to: string) =>
-    pathname === to || (to !== "/" && pathname.startsWith(to));
+  const scanActive = pathname.startsWith(bottomNavigation.center.to);
+  const isActive = (item: NavigationItem) =>
+    item.end ? pathname === item.to : pathname === item.to || pathname.startsWith(`${item.to}/`);
+
+  const renderItem = (item: NavigationItem) => {
+    const active = isActive(item);
+    const Icon = item.icon;
+
+    return (
+      <li key={item.to}>
+        <NavLink
+          to={item.to}
+          end={item.end}
+          onMouseEnter={() => prefetchFor(item.to)}
+          onTouchStart={() => prefetchFor(item.to)}
+          onFocus={() => prefetchFor(item.to)}
+          className={cn(
+            "flex min-h-14 flex-col items-center justify-center gap-0.5 px-1 py-2.5 text-[10px] transition-colors",
+            active ? "text-primary" : "text-muted-foreground hover:text-foreground",
+          )}
+          aria-label={item.label}
+        >
+          <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_hsl(var(--primary)/0.6)]")} />
+          <span className="max-w-full truncate font-medium leading-tight">{item.label}</span>
+        </NavLink>
+      </li>
+    );
+  };
+
+  const ScanIcon = bottomNavigation.center.icon;
 
   return (
     <nav
       aria-label="Navegação principal"
-      className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-border md:hidden"
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-border glass md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <ul className="grid grid-cols-5 items-end relative">
-        {left.map(({ to, label, icon: Icon }) => {
-          const active = isActive(to);
-          return (
-            <li key={to}>
-              <NavLink
-                to={to}
-                onMouseEnter={() => prefetchFor(to)}
-                onTouchStart={() => prefetchFor(to)}
-                onFocus={() => prefetchFor(to)}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 py-3 px-1 text-[10px] transition-colors",
-                  active ? "text-primary" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_hsl(var(--primary)/0.6)]")} />
-                <span className="font-medium leading-tight truncate max-w-full">{label}</span>
-              </NavLink>
-            </li>
-          );
-        })}
+      <ul className="relative grid grid-cols-5 items-end">
+        {bottomNavigation.left.map(renderItem)}
 
-        {/* Center: Escanear — destaque vermelho (the hero action) */}
         <li className="flex justify-center">
           <button
-            onClick={() => navigate("/scanner")}
+            type="button"
+            onClick={() => navigate(bottomNavigation.center.to)}
             aria-label="Escanear livro"
             className={cn(
-              "relative -mt-7 h-16 w-16 rounded-full flex flex-col items-center justify-center",
-              "bg-primary text-primary-foreground border-4 border-background shadow-glow",
-              "transition-transform active:scale-95 tap-scale",
+              "relative -mt-7 flex h-16 w-16 flex-col items-center justify-center rounded-full",
+              "border-4 border-background bg-primary text-primary-foreground shadow-glow",
+              "tap-scale transition-transform active:scale-95",
               scanActive && "ring-2 ring-primary/40 ring-offset-2 ring-offset-background",
             )}
           >
-            <ScanLine className="h-6 w-6" />
-            <span className="text-[9px] font-bold uppercase tracking-wider mt-0.5">Escanear</span>
+            <ScanIcon className="h-6 w-6" />
+            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">
+              {bottomNavigation.center.label}
+            </span>
           </button>
         </li>
 
-        {right.map(({ to, label, icon: Icon }) => {
-          const active = isActive(to);
-          return (
-            <li key={to}>
-              <NavLink
-                to={to}
-                onMouseEnter={() => prefetchFor(to)}
-                onTouchStart={() => prefetchFor(to)}
-                onFocus={() => prefetchFor(to)}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 py-3 px-1 text-[10px] transition-colors",
-                  active ? "text-primary" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Icon className={cn("h-5 w-5", active && "drop-shadow-[0_0_8px_hsl(var(--primary)/0.6)]")} />
-                <span className="font-medium leading-tight truncate max-w-full">{label}</span>
-              </NavLink>
-            </li>
-          );
-        })}
+        {bottomNavigation.right.map(renderItem)}
       </ul>
     </nav>
   );
