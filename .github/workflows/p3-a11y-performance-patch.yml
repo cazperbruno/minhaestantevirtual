@@ -1,0 +1,116 @@
+name: P3 accessibility performance patch
+
+on:
+  push:
+    branches:
+      - readify/p3-accessibility-performance-01
+    paths:
+      - .github/workflows/p3-a11y-performance-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: readify/p3-accessibility-performance-01
+          fetch-depth: 0
+
+      - name: Apply guarded accessibility and performance patch
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: Path, old: str, new: str):
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one match, got {count}: {old[:60]!r}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          css = Path('src/index.css')
+          replace_once(css, '--primary-foreground: 0 0% 100%;', '--primary-foreground: 0 0% 0%;')
+          replace_once(css, '--accent-foreground: 0 0% 100%;', '--accent-foreground: 0 0% 0%;')
+          replace_once(css, '--destructive: 4 100% 59%;\n    --destructive-foreground: 0 0% 100%;', '--destructive: 4 80% 45%;\n    --destructive-foreground: 0 0% 100%;')
+          replace_once(css, '--sidebar-primary-foreground: 0 0% 100%;', '--sidebar-primary-foreground: 0 0% 0%;')
+          replace_once(css, 'background-attachment: fixed;', 'background-attachment: scroll;')
+
+          old_glass = '''  .glass {\n    background: hsl(0 0% 4% / 0.7);\n    backdrop-filter: blur(20px) saturate(180%);\n    -webkit-backdrop-filter: blur(20px) saturate(180%);\n    border: 1px solid hsl(0 0% 14% / 0.6);\n  }'''
+          new_glass = '''  .glass {\n    background: hsl(0 0% 4% / 0.96);\n    backdrop-filter: none;\n    -webkit-backdrop-filter: none;\n    border: 1px solid hsl(0 0% 14% / 0.72);\n  }'''
+          replace_once(css, old_glass, new_glass)
+
+          replace_once(
+              css,
+              '  .book-cover:hover { transform: translateY(-4px) scale(1.02); }',
+              '''  @media (hover: hover) and (pointer: fine) {\n    .book-cover:hover { transform: translateY(-4px) scale(1.02); }\n  }''',
+          )
+
+          marker = '''@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }'''
+          performance_css = '''@media (min-width: 768px) and (pointer: fine) {\n  body { background-attachment: fixed; }\n  .glass {\n    background: hsl(0 0% 4% / 0.72);\n    backdrop-filter: blur(16px) saturate(150%);\n    -webkit-backdrop-filter: blur(16px) saturate(150%);\n  }\n}\n\n@media (prefers-reduced-motion: reduce) {\n  html { scroll-behavior: auto !important; }\n  *, *::before, *::after {\n    animation-duration: 0.01ms !important;\n    animation-iteration-count: 1 !important;\n    transition-duration: 0.01ms !important;\n    scroll-behavior: auto !important;\n  }\n}\n\n'''
+          replace_once(css, marker, performance_css + marker)
+
+          sidebar = Path('src/components/layout/Sidebar.tsx')
+          text = sidebar.read_text(encoding='utf-8')
+          old = '"flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"'
+          count = text.count(old)
+          if count != 3:
+              raise SystemExit(f'Sidebar: expected 3 primary item class matches, got {count}')
+          text = text.replace(old, '"flex min-h-12 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"')
+          text = text.replace('"flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",', '"flex min-h-12 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",')
+          sidebar.write_text(text, encoding='utf-8')
+
+          mobile = Path('src/components/layout/MobileHeader.tsx')
+          text = mobile.read_text(encoding='utf-8')
+          old_menu = 'className="-ml-2 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-accent/30 tap-scale"'
+          if text.count(old_menu) != 1:
+              raise SystemExit('MobileHeader: menu button pattern mismatch')
+          text = text.replace(old_menu, 'className="-ml-3 inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-lg hover:bg-accent/30 tap-scale"', 1)
+          old_item = '"flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"'
+          count = text.count(old_item)
+          if count != 2:
+              raise SystemExit(f'MobileHeader: expected 2 item class matches, got {count}')
+          text = text.replace(old_item, '"flex min-h-12 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"')
+          text = text.replace('className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground hover:bg-accent/30 hover:text-foreground"', 'className="flex min-h-12 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground hover:bg-accent/30 hover:text-foreground"')
+          mobile.write_text(text, encoding='utf-8')
+
+          bell = Path('src/components/social/NotificationsBell.tsx')
+          text = bell.read_text(encoding='utf-8')
+          old_bell = 'compact ? "h-9 w-9" : "h-10 w-10",'
+          if text.count(old_bell) != 1:
+              raise SystemExit('NotificationsBell: trigger size pattern mismatch')
+          text = text.replace(old_bell, 'compact ? "h-12 w-12" : "h-12 w-12",', 1)
+          bell.write_text(text, encoding='utf-8')
+          PY
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Enforce lint debt budget
+        run: |
+          bunx eslint . --format json --output-file lint-report.json || true
+          bun scripts/check-lint-budget.mjs lint-report.json quality/lint-baseline.json
+
+      - name: Run tests
+        run: bun run test
+
+      - name: Build
+        run: |
+          test -s .env
+          bun run build
+
+      - name: Commit validated P3 patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/index.css src/components/layout/Sidebar.tsx src/components/layout/MobileHeader.tsx src/components/social/NotificationsBell.tsx
+          git diff --cached --check
+          git commit -m "a11y: harden contrast touch targets and mobile effects"
+          git push origin HEAD:readify/p3-accessibility-performance-01
