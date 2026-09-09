@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { AppShell } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -74,7 +73,7 @@ export default function ReadersPage() {
   const loadingInit = loadingSuggestions || loadingTop;
 
   return (
-    <AppShell>
+    <>
       <div className="px-5 md:px-10 pt-8 pb-20 max-w-4xl mx-auto">
         <header className="mb-6 animate-fade-in">
           <p className="text-sm text-primary font-medium mb-2 flex items-center gap-2">
@@ -133,7 +132,7 @@ export default function ReadersPage() {
           </div>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }
 

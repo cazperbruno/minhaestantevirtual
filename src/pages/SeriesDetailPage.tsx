@@ -5,7 +5,6 @@
  * - Timeline vertical estilo "feed do Telegram" com volumes possuídos + faltantes
  */
 import { useParams, Link } from "react-router-dom";
-import { AppShell } from "@/components/layout/AppShell";
 import { useSeriesDetail } from "@/hooks/useSeries";
 import { BookCover } from "@/components/books/BookCover";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,7 +30,7 @@ export default function SeriesDetailPage() {
 
   if (isLoading) {
     return (
-      <AppShell>
+      <>
         <div className="px-5 md:px-10 pt-10 pb-20 max-w-5xl mx-auto">
           <Skeleton className="h-72 w-full rounded-2xl mb-6" />
           <Skeleton className="h-8 w-1/2 mb-3" />
@@ -42,18 +41,18 @@ export default function SeriesDetailPage() {
             ))}
           </div>
         </div>
-      </AppShell>
+      </>
     );
   }
 
   if (!data) {
     return (
-      <AppShell>
+      <>
         <div className="px-6 py-32 text-center">
           <p className="text-lg mb-3">Série não encontrada</p>
           <Link to="/" className="text-primary underline">Voltar ao início</Link>
         </div>
-      </AppShell>
+      </>
     );
   }
 
@@ -61,7 +60,7 @@ export default function SeriesDetailPage() {
   const banner = (series as any).raw?.banner_url as string | undefined;
 
   return (
-    <AppShell>
+    <>
       <div className="relative">
         {banner && (
           <div
@@ -134,6 +133,6 @@ export default function SeriesDetailPage() {
           </section>
         </div>
       </div>
-    </AppShell>
+    </>
   );
 }

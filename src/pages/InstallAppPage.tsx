@@ -5,7 +5,6 @@
  * - Instruções passo-a-passo por plataforma
  * - FAQ rápido
  */
-import { AppShell } from "@/components/layout/AppShell";
 import { InstallAppCard } from "@/components/pwa/InstallAppCard";
 import { usePwaInstall } from "@/hooks/usePwaInstall";
 import { Smartphone, Zap, WifiOff, Bell, Share, Plus, Check, Chrome, Apple, RefreshCw } from "lucide-react";
@@ -38,7 +37,7 @@ export default function InstallAppPage() {
   const { platform, installed } = usePwaInstall();
 
   return (
-    <AppShell>
+    <>
       <div className="px-5 md:px-10 pt-10 pb-20 max-w-3xl mx-auto">
         {/* Hero */}
         <div className="text-center mb-10 animate-fade-in">
@@ -151,7 +150,7 @@ export default function InstallAppPage() {
           <Faq q="O app não atualiza, o que faço?" a="Use o botão 'Forçar atualização agora' acima. Ele limpa todo o cache e recarrega a versão mais recente." />
         </section>
       </div>
-    </AppShell>
+    </>
   );
 }
 

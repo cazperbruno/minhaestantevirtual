@@ -9,7 +9,6 @@
  */
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { AppShell } from "@/components/layout/AppShell";
 import { useMySeries, type MySeriesRow } from "@/hooks/useMySeries";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -46,7 +45,7 @@ export default function MySeriesPage() {
   const seriesTypes = available.filter((t) => t === "manga" || t === "comic");
 
   return (
-    <AppShell>
+    <>
       <div className="px-5 md:px-10 pt-8 md:pt-12 pb-20 max-w-5xl mx-auto">
         <header className="mb-6 animate-fade-in flex items-start justify-between gap-3">
           <div>
@@ -111,7 +110,7 @@ export default function MySeriesPage() {
           </div>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }
 

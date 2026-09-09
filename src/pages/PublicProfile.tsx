@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { AppShell } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LibraryShelf } from "@/components/books/LibraryShelf";
@@ -147,10 +146,10 @@ export default function PublicProfile() {
     return () => { cancelled = true; };
   }, [username, user]);
 
-  if (loading) return <AppShell><div className="flex justify-center py-32"><Loader2 className="w-7 h-7 animate-spin text-primary" /></div></AppShell>;
+  if (loading) return <><div className="flex justify-center py-32"><Loader2 className="w-7 h-7 animate-spin text-primary" /></div></>;
 
   if (notFound) return (
-    <AppShell>
+    <>
       <div className="px-6 py-32 text-center max-w-md mx-auto animate-fade-in">
         <div className="w-20 h-20 rounded-full bg-muted/40 mx-auto mb-5 flex items-center justify-center">
           <Users className="w-9 h-9 text-muted-foreground" />
@@ -164,7 +163,7 @@ export default function PublicProfile() {
           <Button asChild variant="hero"><Link to="/">Início</Link></Button>
         </div>
       </div>
-    </AppShell>
+    </>
   );
 
   const isOwn = user?.id === profile.id;
@@ -183,7 +182,7 @@ export default function PublicProfile() {
   if (profile.website) socials.push({ icon: Globe, label: "Site", href: profile.website.startsWith("http") ? profile.website : `https://${profile.website}` });
 
   return (
-    <AppShell>
+    <>
       <div className="relative">
         <div className="absolute inset-0 -z-10 h-[280px] overflow-hidden">
           {featuredCovers.length > 0 && (
@@ -337,7 +336,7 @@ export default function PublicProfile() {
           </Tabs>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }
 

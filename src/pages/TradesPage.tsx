@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { AppShell } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -231,7 +230,7 @@ export default function TradesPage() {
     : [];
 
   return (
-    <AppShell>
+    <>
       <div className="px-5 md:px-10 pt-8 pb-20 max-w-4xl mx-auto">
         <header className="mb-6 animate-fade-in">
           <p className="text-sm text-primary font-medium mb-2 flex items-center gap-2">
@@ -512,7 +511,7 @@ export default function TradesPage() {
         onClose={() => { setActiveMatchId(null); searchParams.delete("match"); setSearchParams(searchParams); }}
       />
       <SpotlightTutorial open={tutorial.open} steps={getPageTutorial("trades") || []} onClose={tutorial.close} />
-    </AppShell>
+    </>
   );
 }
 

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AppShell } from "@/components/layout/AppShell";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -795,18 +794,18 @@ export default function WrappedPage() {
 
   if (loading) {
     return (
-      <AppShell>
+      <>
         <div className="px-5 md:px-10 pt-12 pb-32 max-w-3xl mx-auto space-y-6">
           <Skeleton className="h-12 w-48" />
           <Skeleton className="h-96 rounded-3xl" />
         </div>
-      </AppShell>
+      </>
     );
   }
 
   if (data.totalBooks === 0) {
     return (
-      <AppShell>
+      <>
         <div className="px-5 md:px-10 pt-16 pb-32 max-w-2xl mx-auto text-center animate-fade-in">
           <Sparkles className="w-12 h-12 text-primary mx-auto mb-4" />
           <h1 className="font-display text-4xl md:text-5xl font-bold leading-tight mb-3">
@@ -825,14 +824,14 @@ export default function WrappedPage() {
             </Button>
           </div>
         </div>
-      </AppShell>
+      </>
     );
   }
 
   const current = slides[slide];
 
   return (
-    <AppShell>
+    <>
       <div className="px-5 md:px-10 pt-6 pb-32 max-w-3xl mx-auto">
         {/* Header com seletor de ano */}
         <div className="flex items-center justify-between gap-4 mb-4">
@@ -958,7 +957,7 @@ export default function WrappedPage() {
           Deslize para navegar
         </p>
       </div>
-    </AppShell>
+    </>
   );
 }
 

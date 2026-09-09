@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { AppShell } from "@/components/layout/AppShell";
 import { useAuth } from "@/hooks/useAuth";
 import { useXpHistory, groupByDay, type XpEvent } from "@/hooks/useXpHistory";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -74,7 +73,7 @@ export default function XpHistoryPage() {
   const groups = groupByDay(events);
 
   return (
-    <AppShell>
+    <>
       <div className="px-5 md:px-10 pt-8 pb-16 max-w-3xl mx-auto space-y-6 animate-fade-in">
         <header>
           <Link
@@ -131,7 +130,7 @@ export default function XpHistoryPage() {
           )}
         </div>
       </div>
-    </AppShell>
+    </>
   );
 }
 

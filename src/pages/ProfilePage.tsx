@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { AppShell } from "@/components/layout/AppShell";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -115,7 +114,7 @@ export default function ProfilePage() {
   }, [goal]);
 
   if (!profile) return (
-    <AppShell>
+    <>
       <div className="px-5 md:px-10 pt-8 pb-16 max-w-3xl mx-auto space-y-6 animate-fade-in">
         <div className="flex items-center gap-5">
           <Skeleton className="w-20 h-20 rounded-full" />
@@ -130,13 +129,13 @@ export default function ProfilePage() {
         </div>
         <Skeleton className="h-64 rounded-2xl" />
       </div>
-    </AppShell>
+    </>
   );
 
   const publicHref = profile.username ? `/u/${profile.username}` : `/u/${user!.id}`;
 
   return (
-    <AppShell>
+    <>
       <div className="px-4 sm:px-6 md:px-10 pt-6 sm:pt-8 pb-16 max-w-3xl mx-auto min-w-0">
         <ProfileHeader
           profile={profile}
@@ -312,7 +311,7 @@ export default function ProfilePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AppShell>
+    </>
   );
 }
 

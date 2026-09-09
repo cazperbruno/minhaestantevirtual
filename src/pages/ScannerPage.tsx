@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -578,7 +577,7 @@ export default function ScannerPage() {
   };
 
   return (
-    <AppShell>
+    <>
       <div className="px-5 md:px-10 pt-8 pb-32 md:pb-16 max-w-4xl mx-auto">
         <header className="mb-6 animate-fade-in">
           <p className="text-sm text-primary font-medium mb-2 flex items-center gap-2">
@@ -1020,7 +1019,7 @@ export default function ScannerPage() {
         )}
       </div>
       <ScannerTutorialMount />
-    </AppShell>
+    </>
   );
 }
 
