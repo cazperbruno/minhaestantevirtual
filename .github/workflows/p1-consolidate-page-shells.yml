@@ -1,3 +1,4 @@
+# Trigger v2: AdminPage possui dois estados encapsulados por AppShell.
 name: P1 consolidate page shells
 
 on:
