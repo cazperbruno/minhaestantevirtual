@@ -1,4 +1,4 @@
-# Trigger v2: AdminPage possui dois estados encapsulados por AppShell.
+# Trigger v3: remove any balanced number of canonical page-owned AppShell wrappers.
 name: P1 consolidate page shells
 
 on:
@@ -35,24 +35,26 @@ jobs:
                   continue
 
               import_matches = re.findall(r'^import\s+\{\s*AppShell\s*\}\s+from\s+["\']@/components/layout/AppShell["\'];\s*$', text, flags=re.M)
-              if not import_matches:
-                  raise SystemExit(f'{path}: contains AppShell but no canonical import; aborting')
+              if len(import_matches) != 1:
+                  raise SystemExit(f'{path}: expected exactly one canonical AppShell import, got {len(import_matches)}; aborting')
 
               opens = len(re.findall(r'<AppShell>', text))
               closes = len(re.findall(r'</AppShell>', text))
-              expected_pairs = 2 if path.name == 'AdminPage.tsx' else 1
-              if len(import_matches) != 1 or opens != expected_pairs or closes != expected_pairs:
+              if opens < 1 or opens != closes or opens > 6:
                   raise SystemExit(
-                      f'{path}: expected 1 import/{expected_pairs} open/{expected_pairs} close, got '
-                      f'{len(import_matches)}/{opens}/{closes}; aborting'
+                      f'{path}: unbalanced or suspicious AppShell wrappers: {opens} open/{closes} close; aborting'
                   )
 
               text = re.sub(
                   r'^import\s+\{\s*AppShell\s*\}\s+from\s+["\']@/components/layout/AppShell["\'];\s*\n',
                   '', text, count=1, flags=re.M,
               )
-              text = re.sub(r'^\s*<AppShell>\s*\n', '', text, count=expected_pairs, flags=re.M)
-              text = re.sub(r'^\s*</AppShell>\s*\n?', '', text, count=expected_pairs, flags=re.M)
+              text = re.sub(r'^\s*<AppShell>\s*\n', '', text, count=opens, flags=re.M)
+              text = re.sub(r'^\s*</AppShell>\s*\n?', '', text, count=closes, flags=re.M)
+
+              if 'AppShell' in text:
+                  raise SystemExit(f'{path}: AppShell token remained after canonical removal; aborting')
+
               path.write_text(text, encoding='utf-8')
               changed.append(str(path))
 
@@ -61,8 +63,7 @@ jobs:
 
           leftovers = []
           for path in sorted(pages.glob('*.tsx')):
-              text = path.read_text(encoding='utf-8')
-              if 'AppShell' in text:
+              if 'AppShell' in path.read_text(encoding='utf-8'):
                   leftovers.append(str(path))
           if leftovers:
               raise SystemExit('AppShell leftovers:\n' + '\n'.join(leftovers))
