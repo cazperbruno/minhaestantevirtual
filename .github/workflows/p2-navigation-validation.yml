@@ -1,3 +1,4 @@
+# Recheck after lint-only test fix and supported Tailwind active-state opacity.
 name: P2 navigation validation
 
 on:
