@@ -35,14 +35,14 @@ jobs:
 
               import_matches = re.findall(r'^import\s+\{\s*AppShell\s*\}\s+from\s+["\']@/components/layout/AppShell["\'];\s*$', text, flags=re.M)
               if not import_matches:
-                  # AppShell in comments/other meaning is not safe for mechanical surgery.
                   raise SystemExit(f'{path}: contains AppShell but no canonical import; aborting')
 
               opens = len(re.findall(r'<AppShell>', text))
               closes = len(re.findall(r'</AppShell>', text))
-              if len(import_matches) != 1 or opens != 1 or closes != 1:
+              expected_pairs = 2 if path.name == 'AdminPage.tsx' else 1
+              if len(import_matches) != 1 or opens != expected_pairs or closes != expected_pairs:
                   raise SystemExit(
-                      f'{path}: expected 1 import/1 open/1 close, got '
+                      f'{path}: expected 1 import/{expected_pairs} open/{expected_pairs} close, got '
                       f'{len(import_matches)}/{opens}/{closes}; aborting'
                   )
 
@@ -50,8 +50,8 @@ jobs:
                   r'^import\s+\{\s*AppShell\s*\}\s+from\s+["\']@/components/layout/AppShell["\'];\s*\n',
                   '', text, count=1, flags=re.M,
               )
-              text = re.sub(r'^\s*<AppShell>\s*\n', '', text, count=1, flags=re.M)
-              text = re.sub(r'^\s*</AppShell>\s*\n?', '', text, count=1, flags=re.M)
+              text = re.sub(r'^\s*<AppShell>\s*\n', '', text, count=expected_pairs, flags=re.M)
+              text = re.sub(r'^\s*</AppShell>\s*\n?', '', text, count=expected_pairs, flags=re.M)
               path.write_text(text, encoding='utf-8')
               changed.append(str(path))
 
