@@ -53,6 +53,32 @@ jobs:
       - name: Run tests
         run: bun run test
 
+      # Garante que o build usa a configuração pública versionada do Supabase.
+      # Não imprime URL, project id ou publishable key nos logs.
+      - name: Validate public Supabase build config
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          required = {
+              "VITE_SUPABASE_URL",
+              "VITE_SUPABASE_PUBLISHABLE_KEY",
+              "VITE_SUPABASE_PROJECT_ID",
+          }
+          values = {}
+          for raw in Path(".env").read_text(encoding="utf-8").splitlines():
+              line = raw.strip()
+              if not line or line.startswith("#") or "=" not in line:
+                  continue
+              key, value = line.split("=", 1)
+              values[key.strip()] = value.strip().strip('"').strip("'")
+
+          missing = sorted(key for key in required if not values.get(key))
+          if missing:
+              raise SystemExit("Missing public build config: " + ", ".join(missing))
+          print("Public Supabase build config present.")
+          PY
+
       # Cache do build do Vite — acelera transforms/optimizeDeps em runs subsequentes.
       - name: Cache Vite build
         uses: actions/cache@v4
@@ -66,8 +92,6 @@ jobs:
             ${{ runner.os }}-vite-
 
       - name: Build (smoke check)
+        # Vite carrega VITE_* diretamente do .env versionado. Não sobrescrever
+        # com GitHub Secrets vazios: isso fazia o bundle compilar e falhar no boot.
         run: bun run build
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
