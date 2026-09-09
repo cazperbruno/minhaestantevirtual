@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { AppShell } from "@/components/layout/AppShell";
 import { queryClient, qk } from "@/lib/query-client";
 import { BookHero } from "@/components/books/BookHero";
 import { BookSynopsis } from "@/components/books/BookSynopsis";
@@ -59,24 +58,24 @@ export default function BookDetail() {
 
   if (loadingBook) {
     return (
-      <AppShell>
+      <>
         <BookDetailSkeleton />
-      </AppShell>
+      </>
     );
   }
   if (!book) {
     return (
-      <AppShell>
+      <>
         <div className="px-6 py-32 text-center">
           <p className="text-lg mb-3">Livro não encontrado</p>
           <Link to="/" className="text-primary underline">Voltar ao início</Link>
         </div>
-      </AppShell>
+      </>
     );
   }
 
   return (
-    <AppShell>
+    <>
       <ShelfNavigator
         shelfTitle={shelfNav.shelfTitle}
         index={shelfNav.index}
@@ -126,6 +125,6 @@ export default function BookDetail() {
         </div>
       </ShelfNavigator>
       <ScrollToTopButton />
-    </AppShell>
+    </>
   );
 }

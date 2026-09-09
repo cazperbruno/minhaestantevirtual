@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { AppShell } from "@/components/layout/AppShell";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -167,7 +166,7 @@ export default function StatsPage() {
   }, [rows, year, target]);
 
   return (
-    <AppShell>
+    <>
       <div className="px-5 md:px-10 pt-8 pb-16 max-w-6xl mx-auto">
         <header className="mb-8 animate-fade-in">
           <h1 className="font-display text-4xl font-bold text-gradient-gold flex items-center gap-3">
@@ -350,6 +349,6 @@ export default function StatsPage() {
           </div>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }

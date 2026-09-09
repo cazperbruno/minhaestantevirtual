@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { AppShell } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Book, UserBook } from "@/types/book";
@@ -105,7 +104,7 @@ export default function Discover() {
 
 
   return (
-    <AppShell>
+    <>
       <div className="px-5 md:px-10 pt-8 md:pt-12 pb-20 max-w-7xl mx-auto">
         {/* Hero */}
         <header className="mb-10 animate-fade-in">
@@ -339,7 +338,7 @@ export default function Discover() {
           </div>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }
 

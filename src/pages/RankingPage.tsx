@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef } from "react";
-import { AppShell } from "@/components/layout/AppShell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy, Medal, BookOpen, Star, Flame, Sparkles, Users2 } from "lucide-react";
@@ -40,7 +39,7 @@ export default function RankingPage() {
   }, []);
 
   return (
-    <AppShell>
+    <>
       <PullToRefresh onRefresh={onRefresh}>
       <div className="px-5 md:px-10 pt-8 pb-16 max-w-3xl mx-auto">
         <header className="mb-6 animate-fade-in">
@@ -77,7 +76,7 @@ export default function RankingPage() {
         </Tabs>
       </div>
       </PullToRefresh>
-    </AppShell>
+    </>
   );
 }
 

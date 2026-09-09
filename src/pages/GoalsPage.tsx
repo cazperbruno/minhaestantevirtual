@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { AppShell } from "@/components/layout/AppShell";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -68,7 +67,7 @@ export default function GoalsPage() {
   const pace = remaining > 0 ? (remaining / Math.max(1, monthsLeft)).toFixed(1) : "0";
 
   return (
-    <AppShell>
+    <>
       <div className="px-5 md:px-10 pt-8 pb-16 max-w-3xl mx-auto">
         <header className="mb-8 animate-fade-in">
           <h1 className="font-display text-4xl font-bold text-gradient-gold flex items-center gap-3">
@@ -139,6 +138,6 @@ export default function GoalsPage() {
           </div>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }

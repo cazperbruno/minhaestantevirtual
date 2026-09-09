@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,11 +73,11 @@ export default function AdminPage() {
 
   if (adminLoading) {
     return (
-      <AppShell>
+      <>
         <div className="min-h-[50vh] flex items-center justify-center">
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
         </div>
-      </AppShell>
+      </>
     );
   }
   if (!isAdmin) return <Navigate to="/" replace />;
@@ -216,7 +215,7 @@ export default function AdminPage() {
   };
 
   return (
-    <AppShell>
+    <>
       <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-10 space-y-6">
         <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
           <div>
@@ -520,7 +519,7 @@ export default function AdminPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </AppShell>
+    </>
   );
 }
 

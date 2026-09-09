@@ -1,16 +1,28 @@
-import { ReactNode, useEffect, useState } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 import { getMyProfile } from "@/lib/profile-api";
 import { Loader2 } from "lucide-react";
 
-export function ProtectedRoute({ children }: { children: ReactNode }) {
+/**
+ * Single protected-route boundary for the authenticated application.
+ * It owns the onboarding gate and the one Realtime runtime for the session.
+ */
+export function ProtectedRoute() {
   const { user, loading } = useAuth();
+  const userId = user?.id ?? null;
   const location = useLocation();
   const [onboardedKnown, setOnboardedKnown] = useState<boolean | null>(null);
 
+  useRealtimeInvalidation();
+
   useEffect(() => {
-    if (!user) { setOnboardedKnown(null); return; }
+    if (!userId) {
+      setOnboardedKnown(null);
+      return;
+    }
+
     let cancelled = false;
     const check = async () => {
       try {
@@ -21,15 +33,16 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
         if (!cancelled) setOnboardedKnown(false);
       }
     };
-    check();
-    // Re-check when onboarding completes (custom event dispatched by Onboarding.tsx)
-    const handler = () => check();
+
+    void check();
+    const handler = () => { void check(); };
     window.addEventListener("onboarding:completed", handler);
+
     return () => {
       cancelled = true;
       window.removeEventListener("onboarding:completed", handler);
     };
-  }, [user]);
+  }, [userId]);
 
   if (loading || (user && onboardedKnown === null)) {
     return (
@@ -38,12 +51,12 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
       </div>
     );
   }
-  if (!user) return <Navigate to="/auth" replace />;
 
-  // Force onboarding if not completed (except on /onboarding itself)
+  if (!user) return <Navigate to="/auth" replace state={{ from: location.pathname }} />;
+
   if (onboardedKnown === false && location.pathname !== "/onboarding") {
     return <Navigate to="/onboarding" replace />;
   }
 
-  return <>{children}</>;
+  return <Outlet />;
 }

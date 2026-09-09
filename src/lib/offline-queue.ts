@@ -52,10 +52,6 @@ function save(userId: string, items: OfflineAction[]) {
 }
 
 async function resolveCurrentUserId(): Promise<string | null> {
-  if (activeUserId) return activeUserId;
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) return null;
-  activeUserId = data.user.id;
   return activeUserId;
 }
 
@@ -273,28 +269,20 @@ export async function mutateOrQueue(
 let setupDone = false;
 let networkCleanup: (() => Promise<void>) | null = null;
 
+export function setOfflineSyncUser(userId: string | null) {
+  const previousUserId = activeUserId;
+  activeUserId = userId;
+
+  if (activeUserId && activeUserId !== previousUserId) {
+    void getNetworkStatus().then((network) => {
+      if (network.connected) void replayOfflineQueue();
+    });
+  }
+}
+
 export function setupOfflineSync() {
   if (setupDone) return;
   setupDone = true;
-
-  void supabase.auth.getSession().then(async ({ data }) => {
-    activeUserId = data.session?.user?.id ?? null;
-    const network = await getNetworkStatus();
-    if (activeUserId && network.connected) {
-      setTimeout(() => void replayOfflineQueue(), 2000);
-    }
-  });
-
-  supabase.auth.onAuthStateChange((_event, session) => {
-    const previousUserId = activeUserId;
-    activeUserId = session?.user?.id ?? null;
-
-    if (activeUserId && activeUserId !== previousUserId) {
-      void getNetworkStatus().then((network) => {
-        if (network.connected) void replayOfflineQueue();
-      });
-    }
-  });
 
   void subscribeNetworkStatus((network) => {
     if (network.connected) void replayOfflineQueue();

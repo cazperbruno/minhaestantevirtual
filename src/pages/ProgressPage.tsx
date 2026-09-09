@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { AppShell } from "@/components/layout/AppShell";
 import { useAuth } from "@/hooks/useAuth";
 import { useChallenges, useClaimChallenge, type UserChallenge } from "@/hooks/useChallenges";
 import { useStreak } from "@/hooks/useStreak";
@@ -62,7 +61,7 @@ export default function ProgressPage() {
   };
 
   return (
-    <AppShell>
+    <>
       <div className="px-5 md:px-10 pt-8 pb-16 max-w-4xl mx-auto space-y-6 animate-fade-in">
         <header className="flex items-end justify-between gap-4">
           <div>
@@ -206,7 +205,7 @@ export default function ProgressPage() {
         </div>
       </div>
       <SpotlightTutorial open={tutorial.open} steps={getPageTutorial("progress") || []} onClose={tutorial.close} />
-    </AppShell>
+    </>
   );
 }
 

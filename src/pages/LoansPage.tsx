@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { AppShell } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -120,7 +119,7 @@ export default function LoansPage() {
   };
 
   return (
-    <AppShell>
+    <>
       <div className="px-5 md:px-10 pt-8 pb-16 max-w-5xl mx-auto">
         <header className="mb-8 flex flex-wrap items-end justify-between gap-4 animate-fade-in">
           <div>
@@ -230,7 +229,7 @@ export default function LoansPage() {
           </ul>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }
 

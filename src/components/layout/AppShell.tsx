@@ -3,7 +3,6 @@ import { useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
 import { MobileHeader } from "./MobileHeader";
-import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 import { useAuth } from "@/hooks/useAuth";
 import { tickStreak } from "@/lib/xp";
 import { XpBurstHost } from "@/components/gamification/XpBurstHost";
@@ -17,15 +16,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const tickedRef = useRef(false);
   const { open: tutorialOpen, startAt, closeTutorial, finishTutorial, skipTutorial, saveStep } = useTutorial();
-  // Stale-while-revalidate: assina canais Realtime e invalida queries.
-  useRealtimeInvalidation();
-  // Tick de streak diário (1x por sessão)
+
+  // Tick de streak diário (1x enquanto este shell autenticado permanece montado).
   useEffect(() => {
     if (user?.id && !tickedRef.current) {
       tickedRef.current = true;
       void tickStreak(user.id);
     }
   }, [user?.id]);
+
   return (
     <div className="min-h-screen flex w-full max-w-full overflow-x-clip">
       <a href="#main-content" className="skip-link">Pular para o conteúdo</a>

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { AppShell } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -177,7 +176,7 @@ export default function ClubsPage() {
   }, []);
 
   return (
-    <AppShell>
+    <>
       <PullToRefresh onRefresh={onRefresh}>
       <div className="px-5 md:px-10 pt-8 pb-16 max-w-5xl mx-auto">
         {/* Hero */}
@@ -400,7 +399,7 @@ export default function ClubsPage() {
       </div>
       </PullToRefresh>
       <SpotlightTutorial open={tutorial.open} steps={getPageTutorial("clubs") || []} onClose={tutorial.close} />
-    </AppShell>
+    </>
   );
 }
 

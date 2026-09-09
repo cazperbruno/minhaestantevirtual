@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { AppShell } from "@/components/layout/AppShell";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -71,13 +70,13 @@ export default function SettingsPage() {
 
   if (!profile) {
     return (
-      <AppShell>
+      <>
         <div className="px-5 md:px-10 pt-8 pb-16 max-w-2xl mx-auto space-y-6">
           <Skeleton className="h-10 w-48" />
           <Skeleton className="h-64 rounded-2xl" />
           <Skeleton className="h-64 rounded-2xl" />
         </div>
-      </AppShell>
+      </>
     );
   }
 
@@ -85,7 +84,7 @@ export default function SettingsPage() {
   const libraryIsPublic = (profile.library_visibility || "public") === "public";
 
   return (
-    <AppShell>
+    <>
       <div className="px-4 sm:px-6 md:px-10 pt-6 sm:pt-8 pb-16 max-w-2xl mx-auto min-w-0 animate-fade-in">
         <header className="mb-6 flex items-center gap-3">
           <div className="w-11 h-11 rounded-xl bg-primary/15 text-primary flex items-center justify-center">
@@ -290,6 +289,6 @@ export default function SettingsPage() {
           <VersionTag />
         </section>
       </div>
-    </AppShell>
+    </>
   );
 }

@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { AppShell } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { UserBook } from "@/types/book";
@@ -55,7 +54,7 @@ export default function WishlistPage() {
   };
 
   return (
-    <AppShell>
+    <>
       <div className="px-5 md:px-10 pt-8 pb-16 max-w-6xl mx-auto">
         <header className="flex items-end justify-between mb-8 flex-wrap gap-4">
           <div>
@@ -115,6 +114,6 @@ export default function WishlistPage() {
           </div>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }
