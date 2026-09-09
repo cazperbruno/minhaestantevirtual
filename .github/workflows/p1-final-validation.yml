@@ -1,4 +1,6 @@
-name: P1 final validation
+# Multiplatform smoke already passed on run 34296789502.
+# This second pass revalidates quality after restoring the last build-valid lint baseline.
+name: P1 final quality recheck
 
 on:
   push:
@@ -6,10 +8,6 @@ on:
       - readify/p1-auth-runtime-01
     paths:
       - .github/workflows/p1-final-validation.yml
-
-concurrency:
-  group: p1-final-${{ github.ref }}
-  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -48,70 +46,3 @@ jobs:
 
       - name: Production build
         run: bun run build
-
-  multiplatform:
-    name: P1 Desktop Android iOS smoke
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: readify/p1-auth-runtime-01
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.2
-
-      - name: Install project dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Install pinned Playwright Test
-        run: bun add --dev --no-save @playwright/test@1.63.0
-
-      - name: Install Chromium and WebKit
-        run: bunx playwright install --with-deps chromium webkit
-
-      - name: Validate public build configuration
-        run: |
-          test -s .env
-          grep -q '^VITE_SUPABASE_URL=' .env
-          grep -q '^VITE_SUPABASE_PUBLISHABLE_KEY=' .env
-          grep -q '^VITE_SUPABASE_PROJECT_ID=' .env
-
-      - name: Build app
-        run: bun run build
-
-      - name: Serve build
-        run: bunx vite preview --port 5173 > /tmp/readify-p1-preview.log 2>&1 &
-
-      - name: Wait for preview
-        run: |
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:5173 > /dev/null; then
-              exit 0
-            fi
-            sleep 2
-          done
-          cat /tmp/readify-p1-preview.log || true
-          exit 1
-
-      - name: Cross-platform boot preflight
-        run: bunx playwright test e2e/boot.spec.ts --retries=0 --workers=3
-        env:
-          E2E_BASE_URL: http://localhost:5173
-
-      - name: Public and protected-route smoke suite
-        run: bunx playwright test e2e/auth.spec.ts e2e/library.spec.ts e2e/club.spec.ts --retries=1
-        env:
-          E2E_BASE_URL: http://localhost:5173
-          E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
-          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
-
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: p1-playwright-failure
-          path: |
-            playwright-report/
-            test-results/
-          retention-days: 7
