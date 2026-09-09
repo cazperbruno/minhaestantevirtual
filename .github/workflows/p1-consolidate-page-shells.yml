@@ -1,4 +1,4 @@
-# Trigger v4: remove balanced canonical AppShell tags regardless of line formatting.
+# Trigger v5: diagnose any lint warning before committing page-shell consolidation.
 name: P1 consolidate page shells
 
 on:
@@ -78,10 +78,25 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Enforce lint debt budget
+      - name: Generate lint report and show warnings
         run: |
           bunx eslint . --format json --output-file lint-report.json || true
-          bun scripts/check-lint-budget.mjs lint-report.json quality/lint-baseline.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path('lint-report.json').read_text())
+          warnings = []
+          for item in data:
+              for msg in item.get('messages', []):
+                  if msg.get('severity') == 1:
+                      warnings.append((item.get('filePath'), msg.get('line'), msg.get('column'), msg.get('ruleId'), msg.get('message')))
+          print(f'Warnings: {len(warnings)}')
+          for row in warnings:
+              print(f'{row[0]}:{row[1]}:{row[2]} [{row[3]}] {row[4]}')
+          PY
+
+      - name: Enforce lint debt budget
+        run: bun scripts/check-lint-budget.mjs lint-report.json quality/lint-baseline.json
 
       - name: Run tests
         run: bun run test
