@@ -1,4 +1,4 @@
-# Trigger v5: diagnose any lint warning before committing page-shell consolidation.
+# Trigger v6: validate page-shell consolidation plus stable user-id Realtime ownership.
 name: P1 consolidate page shells
 
 on:
@@ -71,6 +71,29 @@ jobs:
           print('\n'.join(changed))
           PY
 
+      - name: Keep Realtime channel stable across token refreshes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/hooks/useRealtimeInvalidation.ts')
+          text = path.read_text(encoding='utf-8')
+
+          old_head = '''export function useRealtimeInvalidation() {\n  const { user } = useAuth();\n\n  useEffect(() => {\n    if (!user) return;\n    const userId = user.id;\n'''
+          new_head = '''export function useRealtimeInvalidation() {\n  const { user } = useAuth();\n  const userId = user?.id ?? null;\n\n  useEffect(() => {\n    if (!userId) return;\n'''
+          if text.count(old_head) != 1:
+              raise SystemExit(f'Realtime owner block expected once, got {text.count(old_head)}')
+          text = text.replace(old_head, new_head, 1)
+
+          old_tail = '''  }, [user]);\n}\n'''
+          new_tail = '''  }, [userId]);\n}\n'''
+          if text.count(old_tail) != 1:
+              raise SystemExit(f'Realtime dependency tail expected once, got {text.count(old_tail)}')
+          text = text.replace(old_tail, new_tail, 1)
+          text = text.replace(' * Plug uma vez no AppShell.', ' * Plug uma vez no boundary autenticado persistente.')
+          path.write_text(text, encoding='utf-8')
+          PY
+
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
@@ -108,11 +131,11 @@ jobs:
           grep -q '^VITE_SUPABASE_PUBLISHABLE_KEY=' .env
           bun run build
 
-      - name: Commit consolidated pages
+      - name: Commit validated architecture changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/pages
+          git add src/pages src/hooks/useRealtimeInvalidation.ts
           git diff --cached --check
-          git commit -m "architecture: remove page-owned AppShell wrappers"
+          git commit -m "architecture: consolidate persistent shell and Realtime runtime"
           git push origin HEAD:readify/p1-auth-runtime-01
