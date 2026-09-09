@@ -11,13 +11,14 @@ import { Loader2 } from "lucide-react";
  */
 export function ProtectedRoute() {
   const { user, loading } = useAuth();
+  const userId = user?.id ?? null;
   const location = useLocation();
   const [onboardedKnown, setOnboardedKnown] = useState<boolean | null>(null);
 
   useRealtimeInvalidation();
 
   useEffect(() => {
-    if (!user) {
+    if (!userId) {
       setOnboardedKnown(null);
       return;
     }
@@ -41,7 +42,7 @@ export function ProtectedRoute() {
       cancelled = true;
       window.removeEventListener("onboarding:completed", handler);
     };
-  }, [user?.id]);
+  }, [userId]);
 
   if (loading || (user && onboardedKnown === null)) {
     return (
