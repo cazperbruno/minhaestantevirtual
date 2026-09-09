@@ -44,7 +44,13 @@ jobs:
           bunx cap sync android
           test -f android/gradlew
           test -f android/app/src/main/AndroidManifest.xml
-          grep -q 'app.lovable.ae3477b4c3694d1aad54833e023cd464' android/app/build.gradle || true
+          test -f android/variables.gradle
+
+      - name: Align Android minimum SDK with barcode scanner
+        run: |
+          grep -q 'minSdkVersion = 24' android/variables.gradle
+          sed -i 's/minSdkVersion = 24/minSdkVersion = 26/' android/variables.gradle
+          grep -q 'minSdkVersion = 26' android/variables.gradle
 
       - name: Build unsigned/debug Android app
         working-directory: android
