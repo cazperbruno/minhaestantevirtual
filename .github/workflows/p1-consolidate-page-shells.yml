@@ -1,4 +1,4 @@
-# Trigger v3: remove any balanced number of canonical page-owned AppShell wrappers.
+# Trigger v4: remove balanced canonical AppShell tags regardless of line formatting.
 name: P1 consolidate page shells
 
 on:
@@ -38,8 +38,8 @@ jobs:
               if len(import_matches) != 1:
                   raise SystemExit(f'{path}: expected exactly one canonical AppShell import, got {len(import_matches)}; aborting')
 
-              opens = len(re.findall(r'<AppShell>', text))
-              closes = len(re.findall(r'</AppShell>', text))
+              opens = text.count('<AppShell>')
+              closes = text.count('</AppShell>')
               if opens < 1 or opens != closes or opens > 6:
                   raise SystemExit(
                       f'{path}: unbalanced or suspicious AppShell wrappers: {opens} open/{closes} close; aborting'
@@ -49,8 +49,7 @@ jobs:
                   r'^import\s+\{\s*AppShell\s*\}\s+from\s+["\']@/components/layout/AppShell["\'];\s*\n',
                   '', text, count=1, flags=re.M,
               )
-              text = re.sub(r'^\s*<AppShell>\s*\n', '', text, count=opens, flags=re.M)
-              text = re.sub(r'^\s*</AppShell>\s*\n?', '', text, count=closes, flags=re.M)
+              text = text.replace('<AppShell>', '').replace('</AppShell>', '')
 
               if 'AppShell' in text:
                   raise SystemExit(f'{path}: AppShell token remained after canonical removal; aborting')
