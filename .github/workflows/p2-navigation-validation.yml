@@ -1,0 +1,45 @@
+name: P2 navigation validation
+
+on:
+  push:
+    branches:
+      - readify/p2-navigation-ux-01
+    paths:
+      - .github/workflows/p2-navigation-validation.yml
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: readify/p2-navigation-ux-01
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Enforce lint debt budget
+        run: |
+          bunx eslint . --format json --output-file lint-report.json || true
+          bun scripts/check-lint-budget.mjs lint-report.json quality/lint-baseline.json
+
+      - name: Run tests
+        run: bun run test
+
+      - name: Validate public build configuration
+        run: |
+          test -s .env
+          grep -q '^VITE_SUPABASE_URL=' .env
+          grep -q '^VITE_SUPABASE_PUBLISHABLE_KEY=' .env
+          grep -q '^VITE_SUPABASE_PROJECT_ID=' .env
+
+      - name: Production build
+        run: bun run build
