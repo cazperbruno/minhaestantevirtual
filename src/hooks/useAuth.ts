@@ -1,4 +1,4 @@
-import { useAuthContext } from "@/providers/AuthProvider";
+import { useAuthContext } from "@/providers/auth-context";
 
 /**
  * Public auth hook kept stable for existing callers.
