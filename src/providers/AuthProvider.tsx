@@ -1,14 +1,7 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import type { Session, User } from "@supabase/supabase-js";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-
-export interface AuthContextValue {
-  user: User | null;
-  session: Session | null;
-  loading: boolean;
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null);
+import { AuthContext, type AuthContextValue } from "@/providers/auth-context";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -16,22 +9,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
+    let authEventVersion = 0;
 
     // Exactly one auth subscription for the whole application runtime.
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!active) return;
+      authEventVersion += 1;
       setSession(nextSession);
       setLoading(false);
     });
 
-    // Resolve the persisted session once on boot. The active guard prevents a
-    // late getSession() result from overwriting a newer auth event.
+    // Resolve the persisted session once on boot. If an auth event arrives
+    // first, its newer state wins instead of being overwritten by getSession().
     void supabase.auth.getSession().then(({ data, error }) => {
       if (!active) return;
       if (error) {
         console.error("[AuthProvider] failed to restore session", error);
-        setSession(null);
-      } else {
+        if (authEventVersion === 0) setSession(null);
+      } else if (authEventVersion === 0) {
         setSession(data.session);
       }
       setLoading(false);
@@ -53,12 +48,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuthContext(): AuthContextValue {
-  const value = useContext(AuthContext);
-  if (!value) {
-    throw new Error("useAuth must be used inside AuthProvider");
-  }
-  return value;
 }
