@@ -1,0 +1,35 @@
+name: P2 lint diagnostic
+
+on:
+  push:
+    branches:
+      - readify/p2-navigation-ux-01
+    paths:
+      - .github/workflows/p2-lint-diagnostic.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: readify/p2-navigation-ux-01
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - name: Show P2 lint messages
+        run: |
+          bunx eslint \
+            src/config/navigation.ts \
+            src/components/layout/BottomNav.tsx \
+            src/components/layout/Sidebar.tsx \
+            src/components/layout/MobileHeader.tsx \
+            src/pages/Discover.tsx \
+            src/test/navigation-architecture.test.ts \
+            src/test/bottom-navigation.test.tsx \
+            --format stylish || true
