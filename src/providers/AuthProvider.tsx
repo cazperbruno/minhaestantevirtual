@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { setOfflineSyncUser } from "@/lib/offline-queue";
 import { AuthContext, type AuthContextValue } from "@/providers/auth-context";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -15,6 +16,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!active) return;
       authEventVersion += 1;
+      setOfflineSyncUser(nextSession?.user?.id ?? null);
       setSession(nextSession);
       setLoading(false);
     });
@@ -25,8 +27,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!active) return;
       if (error) {
         console.error("[AuthProvider] failed to restore session", error);
-        if (authEventVersion === 0) setSession(null);
+        if (authEventVersion === 0) {
+          setOfflineSyncUser(null);
+          setSession(null);
+        }
       } else if (authEventVersion === 0) {
+        setOfflineSyncUser(data.session?.user?.id ?? null);
         setSession(data.session);
       }
       setLoading(false);
@@ -34,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       active = false;
+      setOfflineSyncUser(null);
       listener.subscription.unsubscribe();
     };
   }, []);
