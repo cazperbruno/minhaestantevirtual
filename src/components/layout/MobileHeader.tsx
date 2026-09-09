@@ -37,7 +37,7 @@ export function MobileHeader() {
             <button
               type="button"
               aria-label="Abrir menu"
-              className="-ml-2 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-accent/30 tap-scale"
+              className="-ml-3 inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-lg hover:bg-accent/30 tap-scale"
             >
               <Menu className="h-5 w-5" />
             </button>
@@ -75,7 +75,7 @@ export function MobileHeader() {
                           onClick={() => setOpen(false)}
                           className={({ isActive }) =>
                             cn(
-                              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                              "flex min-h-12 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                               isActive
                                 ? "bg-primary/10 text-primary"
                                 : "text-foreground/85 hover:bg-accent/30 hover:text-foreground",
@@ -103,7 +103,7 @@ export function MobileHeader() {
                         onClick={() => setOpen(false)}
                         className={({ isActive }) =>
                           cn(
-                            "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                            "flex min-h-12 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                             isActive
                               ? "bg-primary/10 text-primary"
                               : "text-foreground/85 hover:bg-accent/30 hover:text-foreground",
@@ -123,7 +123,7 @@ export function MobileHeader() {
               <NavLink
                 to="/configuracoes"
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground hover:bg-accent/30 hover:text-foreground"
+                className="flex min-h-12 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground hover:bg-accent/30 hover:text-foreground"
               >
                 <Settings className="h-4 w-4" /> Configurações
               </NavLink>
@@ -132,7 +132,7 @@ export function MobileHeader() {
                 <NavLink
                   to="/admin"
                   onClick={() => setOpen(false)}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground hover:bg-accent/30 hover:text-foreground"
+                  className="flex min-h-12 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground hover:bg-accent/30 hover:text-foreground"
                 >
                   <Shield className="h-4 w-4" /> Admin
                 </NavLink>

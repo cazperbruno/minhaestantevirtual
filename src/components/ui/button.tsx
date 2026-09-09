@@ -5,9 +5,9 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  // A11y: focus-visible com ring espessa (3px) + offset 2 para alto contraste em qualquer fundo.
-  // Disabled: aria-disabled-friendly (opacity 60 mantém contraste WCAG AA).
-  "inline-flex min-w-0 items-center justify-center gap-2 whitespace-normal text-center leading-tight rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/80 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-60 disabled:saturate-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  // Touch-first: 48px minimum hit height satisfies Android's recommended 48dp
+  // and exceeds Apple's standard 44pt control size. Focus ring remains visible.
+  "inline-flex min-h-12 min-w-12 items-center justify-center gap-2 whitespace-normal text-center leading-tight rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/80 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-60 disabled:saturate-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -20,10 +20,10 @@ const buttonVariants = cva(
         hero: "bg-gradient-gold text-primary-foreground shadow-glow hover:shadow-elevated hover:scale-[1.02] transition-all font-semibold",
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
-        icon: "h-10 w-10",
+        default: "px-4 py-2",
+        sm: "rounded-md px-3 py-2",
+        lg: "rounded-md px-8 py-2.5",
+        icon: "h-12 w-12 p-0",
       },
     },
     defaultVariants: {
