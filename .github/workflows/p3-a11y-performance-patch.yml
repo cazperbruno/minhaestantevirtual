@@ -1,3 +1,4 @@
+# Retry v2: Sidebar has four canonical navigation item class groups.
 name: P3 accessibility performance patch
 
 on:
@@ -49,7 +50,7 @@ jobs:
               '''  @media (hover: hover) and (pointer: fine) {\n    .book-cover:hover { transform: translateY(-4px) scale(1.02); }\n  }''',
           )
 
-          marker = '''@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }'''
+          marker = '@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }'
           performance_css = '''@media (min-width: 768px) and (pointer: fine) {\n  body { background-attachment: fixed; }\n  .glass {\n    background: hsl(0 0% 4% / 0.72);\n    backdrop-filter: blur(16px) saturate(150%);\n    -webkit-backdrop-filter: blur(16px) saturate(150%);\n  }\n}\n\n@media (prefers-reduced-motion: reduce) {\n  html { scroll-behavior: auto !important; }\n  *, *::before, *::after {\n    animation-duration: 0.01ms !important;\n    animation-iteration-count: 1 !important;\n    transition-duration: 0.01ms !important;\n    scroll-behavior: auto !important;\n  }\n}\n\n'''
           replace_once(css, marker, performance_css + marker)
 
@@ -57,10 +58,9 @@ jobs:
           text = sidebar.read_text(encoding='utf-8')
           old = '"flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"'
           count = text.count(old)
-          if count != 3:
-              raise SystemExit(f'Sidebar: expected 3 primary item class matches, got {count}')
+          if count != 4:
+              raise SystemExit(f'Sidebar: expected 4 item class matches, got {count}')
           text = text.replace(old, '"flex min-h-12 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"')
-          text = text.replace('"flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",', '"flex min-h-12 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",')
           sidebar.write_text(text, encoding='utf-8')
 
           mobile = Path('src/components/layout/MobileHeader.tsx')
@@ -74,7 +74,11 @@ jobs:
           if count != 2:
               raise SystemExit(f'MobileHeader: expected 2 item class matches, got {count}')
           text = text.replace(old_item, '"flex min-h-12 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"')
-          text = text.replace('className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground hover:bg-accent/30 hover:text-foreground"', 'className="flex min-h-12 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground hover:bg-accent/30 hover:text-foreground"')
+          footer_item = 'className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground hover:bg-accent/30 hover:text-foreground"'
+          count = text.count(footer_item)
+          if count not in (1, 2):
+              raise SystemExit(f'MobileHeader: expected 1-2 footer item matches, got {count}')
+          text = text.replace(footer_item, 'className="flex min-h-12 items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground hover:bg-accent/30 hover:text-foreground"')
           mobile.write_text(text, encoding='utf-8')
 
           bell = Path('src/components/social/NotificationsBell.tsx')
@@ -82,7 +86,7 @@ jobs:
           old_bell = 'compact ? "h-9 w-9" : "h-10 w-10",'
           if text.count(old_bell) != 1:
               raise SystemExit('NotificationsBell: trigger size pattern mismatch')
-          text = text.replace(old_bell, 'compact ? "h-12 w-12" : "h-12 w-12",', 1)
+          text = text.replace(old_bell, '"h-12 w-12",', 1)
           bell.write_text(text, encoding='utf-8')
           PY
 
