@@ -51,7 +51,7 @@ describe("Readify navigation architecture", () => {
   it("keeps secondary routes alive but out of first-level navigation", () => {
     const app = source("src/App.tsx");
     for (const route of nestedOnlyRoutes) {
-      expect(app).toContain(`path=\"${route}\"`);
+      expect(app).toContain(`path="${route}"`);
     }
   });
 
