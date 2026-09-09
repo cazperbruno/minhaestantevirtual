@@ -32,12 +32,36 @@ jobs:
       - name: Install Chromium and WebKit browsers
         run: bunx playwright install --with-deps chromium webkit
 
+      # A configuração VITE_* do Supabase é pública e versionada no .env.
+      # Validamos presença sem imprimir nenhum valor nos logs.
+      - name: Validate public Supabase build config
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          required = {
+              "VITE_SUPABASE_URL",
+              "VITE_SUPABASE_PUBLISHABLE_KEY",
+              "VITE_SUPABASE_PROJECT_ID",
+          }
+          values = {}
+          for raw in Path(".env").read_text(encoding="utf-8").splitlines():
+              line = raw.strip()
+              if not line or line.startswith("#") or "=" not in line:
+                  continue
+              key, value = line.split("=", 1)
+              values[key.strip()] = value.strip().strip('"').strip("'")
+
+          missing = sorted(key for key in required if not values.get(key))
+          if missing:
+              raise SystemExit("Missing public build config: " + ", ".join(missing))
+          print("Public Supabase build config present.")
+          PY
+
       - name: Build app
+        # Vite carrega VITE_* do .env versionado. Não sobrescrever com Secrets
+        # vazios, pois isso produz bundle válido que falha no boot do navegador.
         run: bun run build
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
 
       - name: Serve build
         run: bunx vite preview --port 5173 > /tmp/readify-vite-preview.log 2>&1 &
