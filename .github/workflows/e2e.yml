@@ -5,45 +5,90 @@ on:
   pull_request:
     branches: [main]
 
+# Para cada PR/ref, só o snapshot mais recente merece consumir browsers/runners.
+concurrency:
+  group: e2e-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   e2e:
     name: Playwright tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.4.2
 
-      - name: Install deps
+      - name: Install project dependencies
         run: bun install --frozen-lockfile
 
-      - name: Install Playwright browsers
-        run: bunx playwright install --with-deps chromium
+      - name: Install pinned Playwright Test for E2E only
+        run: bun add --dev --no-save @playwright/test@1.63.0
+
+      - name: Install Chromium and WebKit browsers
+        run: bunx playwright install --with-deps chromium webkit
+
+      # A configuração VITE_* do Supabase é pública e versionada no .env.
+      # Validamos presença sem imprimir nenhum valor nos logs.
+      - name: Validate public Supabase build config
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          required = {
+              "VITE_SUPABASE_URL",
+              "VITE_SUPABASE_PUBLISHABLE_KEY",
+              "VITE_SUPABASE_PROJECT_ID",
+          }
+          values = {}
+          for raw in Path(".env").read_text(encoding="utf-8").splitlines():
+              line = raw.strip()
+              if not line or line.startswith("#") or "=" not in line:
+                  continue
+              key, value = line.split("=", 1)
+              values[key.strip()] = value.strip().strip('"').strip("'")
+
+          missing = sorted(key for key in required if not values.get(key))
+          if missing:
+              raise SystemExit("Missing public build config: " + ", ".join(missing))
+          print("Public Supabase build config present.")
+          PY
 
       - name: Build app
+        # Vite carrega VITE_* do .env versionado. Não sobrescrever com Secrets
+        # vazios, pois isso produz bundle válido que falha no boot do navegador.
         run: bun run build
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
 
       - name: Serve build
-        run: bunx vite preview --port 5173 &
+        run: bunx vite preview --port 5173 > /tmp/readify-vite-preview.log 2>&1 &
         env:
           PORT: 5173
 
       - name: Wait for server
         run: |
           for i in $(seq 1 30); do
-            curl -sf http://localhost:5173 > /dev/null && break || sleep 2
+            if curl -sf http://localhost:5173 > /dev/null; then
+              exit 0
+            fi
+            sleep 2
           done
+          echo "Readify preview did not become healthy"
+          cat /tmp/readify-vite-preview.log || true
+          exit 1
 
-      - name: Run Playwright
-        run: bunx playwright test
+      # Falha rápido antes dos fluxos funcionais. Sem retry: se uma plataforma
+      # não consegue montar React, queremos pageerror/console imediatamente.
+      - name: Cross-platform boot preflight
+        run: bunx playwright test e2e/boot.spec.ts --retries=0 --workers=3
+        env:
+          E2E_BASE_URL: http://localhost:5173
+
+      - name: Run Playwright multiplatform smoke suite
+        run: bunx playwright test e2e/auth.spec.ts e2e/library.spec.ts e2e/club.spec.ts
         env:
           E2E_BASE_URL: http://localhost:5173
           E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
@@ -53,5 +98,7 @@ jobs:
         if: always()
         with:
           name: playwright-report
-          path: playwright-report/
+          path: |
+            playwright-report/
+            test-results/
           retention-days: 7

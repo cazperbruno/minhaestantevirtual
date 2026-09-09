@@ -11,7 +11,6 @@
  */
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { AppShell } from "@/components/layout/AppShell";
 import { SeriesValidationPanel } from "@/components/series/SeriesValidationPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,7 +81,7 @@ export default function ManageSeriesPage() {
   const [creating, setCreating] = useState(false);
 
   return (
-    <AppShell>
+    <>
       <div className="px-5 md:px-10 pt-8 md:pt-12 pb-20 max-w-5xl mx-auto">
         <header className="mb-6 flex items-start justify-between gap-3 animate-fade-in">
           <div>
@@ -164,7 +163,7 @@ export default function ManageSeriesPage() {
           series={linkingTo}
         />
       </div>
-    </AppShell>
+    </>
   );
 }
 

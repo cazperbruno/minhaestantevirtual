@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -123,7 +122,7 @@ export default function FeedPage() {
   }, []);
 
   return (
-    <AppShell>
+    <>
       <PullToRefresh onRefresh={onRefresh}>
       <div className="px-5 md:px-10 pt-8 md:pt-12 pb-20 max-w-2xl mx-auto">
         <header className="mb-6 animate-fade-in">
@@ -215,7 +214,7 @@ export default function FeedPage() {
       </div>
       </PullToRefresh>
       <SpotlightTutorial open={tutorial.open} steps={getPageTutorial("feed") || []} onClose={tutorial.close} />
-    </AppShell>
+    </>
   );
 }
 

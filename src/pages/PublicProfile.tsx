@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { AppShell } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LibraryShelf } from "@/components/books/LibraryShelf";
@@ -15,8 +14,6 @@ import { Rating } from "@/components/books/Rating";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default function PublicProfile() {
   const { username } = useParams();
@@ -36,23 +33,19 @@ export default function PublicProfile() {
       setNotFound(false);
       const raw = decodeURIComponent(username).replace(/^@+/, "").trim();
 
-      // Fallback resiliente: tenta UUID → username → username com retry
+      // Lookup redigido no servidor: bio/redes sociais só retornam quando
+      // a visibilidade do perfil permite para o viewer atual.
       const lookup = async (): Promise<any | null> => {
-        // 1) UUID exato
-        if (UUID_RE.test(raw)) {
-          const { data } = await supabase.from("profiles").select("*").eq("id", raw).maybeSingle();
-          if (data) return data;
-        }
-        // 2) Username case-insensitive
-        const u1 = await supabase.from("profiles").select("*").ilike("username", raw).maybeSingle();
-        if (u1.data) return u1.data;
-        // 3) Retry após 400ms (replicação de leitura pode estar atrasada após signup)
+        const { data, error } = await supabase.rpc("profile_for_viewer" as any, { _lookup: raw });
+        if (error) throw error;
+        const row = Array.isArray(data) ? data[0] : data;
+        if (row) return row;
+
+        // Retry único para signup recém-confirmado/replicação eventual.
         await new Promise((r) => setTimeout(r, 400));
-        const u2 = await supabase.from("profiles").select("*").ilike("username", raw).maybeSingle();
-        if (u2.data) return u2.data;
-        // 4) Último fallback: display_name exato (case-insensitive)
-        const u3 = await supabase.from("profiles").select("*").ilike("display_name", raw).maybeSingle();
-        return u3.data || null;
+        const retry = await supabase.rpc("profile_for_viewer" as any, { _lookup: raw });
+        if (retry.error) throw retry.error;
+        return Array.isArray(retry.data) ? retry.data[0] ?? null : retry.data ?? null;
       };
 
       try {
@@ -69,7 +62,7 @@ export default function PublicProfile() {
         }
 
         const isOwn = user?.id === p.id;
-        const isPrivate = p.profile_visibility === "private" && !isOwn;
+        const isPrivate = !isOwn && !p.can_view_profile;
 
         if (isPrivate) {
           // ainda mostra o cabeçalho, mas esconde dados
@@ -95,14 +88,13 @@ export default function PublicProfile() {
           return;
         }
 
-        const [{ data: lib }, { data: revs }, { count: followers }, { count: following }, { data: myFollow }] = await Promise.all([
-          supabase
-            .from("user_books")
-            .select("*, book:books(*)")
-            .eq("user_id", p.id)
-            .eq("is_public", true)
-            .order("updated_at", { ascending: false })
-            .limit(60),
+        const [libraryResult, reviewsResult, followersResult, followingResult, myFollowResult] = await Promise.all([
+          supabase.rpc("visible_user_library" as any, {
+            _owner: p.id,
+            _status: null,
+            _available_for_trade_only: false,
+            _limit: 60,
+          }),
           supabase
             .from("reviews")
             .select("*, book:books(id,title,authors,cover_url)")
@@ -114,11 +106,21 @@ export default function PublicProfile() {
           supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", p.id),
           user
             ? supabase.from("follows").select("*").eq("follower_id", user.id).eq("following_id", p.id).maybeSingle()
-            : Promise.resolve({ data: null }),
+            : Promise.resolve({ data: null, error: null }),
         ]);
+        if (libraryResult.error) throw libraryResult.error;
+        if (reviewsResult.error) throw reviewsResult.error;
+        if (followersResult.error) throw followersResult.error;
+        if (followingResult.error) throw followingResult.error;
+        if (myFollowResult.error) throw myFollowResult.error;
 
         if (cancelled) return;
 
+        const lib = libraryResult.data;
+        const revs = reviewsResult.data;
+        const followers = followersResult.count;
+        const following = followingResult.count;
+        const myFollow = myFollowResult.data;
         const list = lib || [];
         const ratings = list.filter((x: any) => x.rating).map((x: any) => x.rating);
         setProfile(p);
@@ -144,10 +146,10 @@ export default function PublicProfile() {
     return () => { cancelled = true; };
   }, [username, user]);
 
-  if (loading) return <AppShell><div className="flex justify-center py-32"><Loader2 className="w-7 h-7 animate-spin text-primary" /></div></AppShell>;
+  if (loading) return <><div className="flex justify-center py-32"><Loader2 className="w-7 h-7 animate-spin text-primary" /></div></>;
 
   if (notFound) return (
-    <AppShell>
+    <>
       <div className="px-6 py-32 text-center max-w-md mx-auto animate-fade-in">
         <div className="w-20 h-20 rounded-full bg-muted/40 mx-auto mb-5 flex items-center justify-center">
           <Users className="w-9 h-9 text-muted-foreground" />
@@ -161,11 +163,12 @@ export default function PublicProfile() {
           <Button asChild variant="hero"><Link to="/">Início</Link></Button>
         </div>
       </div>
-    </AppShell>
+    </>
   );
 
   const isOwn = user?.id === profile.id;
-  const isPrivate = profile.profile_visibility === "private" && !isOwn;
+  const isPrivate = !isOwn && !profile.can_view_profile;
+  const libraryVisible = isOwn || profile.can_view_library;
 
   const featuredCovers = library.slice(0, 6).map((ub) => ub.book?.cover_url).filter(Boolean);
   const reading = library.filter((ub) => ub.status === "reading");
@@ -179,7 +182,7 @@ export default function PublicProfile() {
   if (profile.website) socials.push({ icon: Globe, label: "Site", href: profile.website.startsWith("http") ? profile.website : `https://${profile.website}` });
 
   return (
-    <AppShell>
+    <>
       <div className="relative">
         <div className="absolute inset-0 -z-10 h-[280px] overflow-hidden">
           {featuredCovers.length > 0 && (
@@ -237,7 +240,7 @@ export default function PublicProfile() {
             {!isOwn && (
               <div className="flex flex-col gap-2 items-stretch">
                 <FollowButton targetUserId={profile.id} size="default" />
-                {!isPrivate && <ProposeTradeDialog receiverId={profile.id} receiverName={profile.display_name || undefined} />}
+                {!isPrivate && libraryVisible && <ProposeTradeDialog receiverId={profile.id} receiverName={profile.display_name || undefined} />}
               </div>
             )}
           </div>
@@ -286,8 +289,14 @@ export default function PublicProfile() {
 
             <TabsContent value="library" className="mt-8 space-y-12">
               {library.length === 0 ? (
-                profile.library_visibility === "followers" && !isOwn ? (
-                  <EmptyState icon={<Lock />} title="Biblioteca privada" description="Esta biblioteca só fica visível para seguidores." />
+                !libraryVisible ? (
+                  <EmptyState
+                    icon={<Lock />}
+                    title="Biblioteca restrita"
+                    description={profile.library_visibility === "followers"
+                      ? "Esta biblioteca só fica visível para seguidores."
+                      : "Este leitor escolheu manter a biblioteca privada."}
+                  />
                 ) : (
                   <EmptyState icon={<BookOpen />} title="Nenhum livro público" description="Quando este leitor adicionar livros públicos, eles aparecem aqui." />
                 )
@@ -327,7 +336,7 @@ export default function PublicProfile() {
           </Tabs>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }
 

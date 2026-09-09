@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -299,7 +298,7 @@ export default function ReportsPage() {
   };
 
   return (
-    <AppShell>
+    <>
       <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-10 space-y-6">
         <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
           <div>
@@ -508,7 +507,7 @@ export default function ReportsPage() {
           </>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }
 

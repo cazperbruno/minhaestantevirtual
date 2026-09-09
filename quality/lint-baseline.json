@@ -1,0 +1,6 @@
+{
+  "errors": 532,
+  "warnings": 23,
+  "recorded_at": "2026-09-09",
+  "policy": "Counts may decrease but must never increase. Ratchet this baseline down only after a build-valid cleanup wave."
+}

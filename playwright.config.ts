@@ -1,22 +1,14 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Configuração base do Playwright para testes E2E.
+ * Readify E2E baseline.
  *
- * Como rodar localmente:
- *   bun add -D @playwright/test
- *   bunx playwright install chromium
- *   bunx playwright test           # headless
- *   bunx playwright test --ui      # modo interativo
- *   bunx playwright show-report    # ver resultado
+ * Public/safety smoke tests always run. Authenticated journeys run when the
+ * dedicated E2E credentials are configured.
  *
- * Variáveis necessárias (crie um .env.test ou exporte):
- *   E2E_BASE_URL          → ex: http://localhost:5173 (default) ou https://readifybook.lovable.app
- *   E2E_TEST_EMAIL        → e-mail de um usuário de teste
- *   E2E_TEST_PASSWORD     → senha do usuário de teste
- *
- * IMPORTANTE: crie um usuário só para testes E2E em /auth e use as
- * credenciais dele aqui. NUNCA use sua conta real.
+ * A mesma base web/PWA é validada nos três alvos do produto:
+ * desktop, Android-class Chromium e iOS-class WebKit. Smoke tests nativos de
+ * Capacitor entram em uma etapa separada quando android/ e ios/ forem gerados.
  */
 export default defineConfig({
   testDir: "./e2e",
@@ -24,9 +16,11 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: process.env.CI ? "github" : "html",
+  reporter: process.env.CI
+    ? [["github"], ["html", { open: "never" }]]
+    : [["html", { open: "never" }]],
   timeout: 30_000,
-  expect: { timeout: 5_000 },
+  expect: { timeout: 7_500 },
   use: {
     baseURL: process.env.E2E_BASE_URL || "http://localhost:5173",
     trace: "on-first-retry",
@@ -35,19 +29,16 @@ export default defineConfig({
   },
   projects: [
     {
-      name: "chromium",
+      name: "desktop-chromium",
       use: { ...devices["Desktop Chrome"] },
     },
     {
-      name: "mobile-safari",
-      use: { ...devices["iPhone 13"] },
+      name: "android-chromium",
+      use: { ...devices["Pixel 7"] },
+    },
+    {
+      name: "ios-webkit",
+      use: { ...devices["iPhone 15"] },
     },
   ],
-  // Para rodar contra dev local automaticamente, descomente:
-  // webServer: {
-  //   command: "bun run dev",
-  //   url: "http://localhost:5173",
-  //   reuseExistingServer: !process.env.CI,
-  //   timeout: 60_000,
-  // },
 });

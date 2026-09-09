@@ -31,27 +31,31 @@ export function ClubBookProgress({ clubId, bookTitle, compact, className }: Prop
     let cancelled = false;
     const load = async () => {
       setLoading(true);
-      const { data: rows } = await supabase.rpc("club_book_progress", { _club_id: clubId });
-      if (!cancelled) {
-        setData((rows as ProgressRow[] | null)?.[0] ?? null);
+      const { data: rows, error } = await supabase.rpc("club_book_progress", { _club_id: clubId });
+      if (cancelled) return;
+      if (error) {
+        console.error("[club-progress] load failed", error);
+        setData(null);
         setLoading(false);
+        return;
       }
+      setData((rows as ProgressRow[] | null)?.[0] ?? null);
+      setLoading(false);
     };
     load();
 
-    // Realtime: invalida ao detectar mudanças nos progressos dos membros
-    const ch = supabase
-      .channel(`club-progress:${clubId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "user_books" },
-        () => load(),
-      )
-      .subscribe();
+    // user_books bruto é owner-only. Para progresso coletivo usamos apenas
+    // a RPC agregada/redigida e atualização periódica/foco, sem assinar dados de terceiros.
+    const interval = window.setInterval(() => void load(), 30_000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
 
     return () => {
       cancelled = true;
-      supabase.removeChannel(ch);
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [clubId]);
 

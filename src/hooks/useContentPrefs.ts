@@ -8,6 +8,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { queryClient } from "@/lib/query-client";
+import { getMyProfile } from "@/lib/profile-api";
 import type { ContentType } from "@/types/book";
 
 const DEFAULT: ContentType[] = ["book"];
@@ -20,12 +21,8 @@ export function useContentPrefs() {
     staleTime: 5 * 60 * 1000,
     queryFn: async (): Promise<ContentType[]> => {
       if (!user) return DEFAULT;
-      const { data } = await supabase
-        .from("profiles")
-        .select("content_types")
-        .eq("id", user.id)
-        .maybeSingle();
-      const list = (data?.content_types as ContentType[] | null) ?? DEFAULT;
+      const data = await getMyProfile<{ content_types?: ContentType[] | null }>();
+      const list = data?.content_types ?? DEFAULT;
       return list.length > 0 ? list : DEFAULT;
     },
   });

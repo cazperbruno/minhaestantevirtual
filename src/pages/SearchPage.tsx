@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { AppShell } from "@/components/layout/AppShell";
 import { Loader2, Search, ScanLine, BookOpen, Sparkles, ShoppingCart, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { searchBooksGet, lookupIsbn } from "@/lib/books-api";
@@ -148,7 +147,7 @@ export default function SearchPage() {
   const handleTrending = (term: string) => handleSubmit(term);
 
   return (
-    <AppShell>
+    <>
       <div className="px-5 md:px-10 pt-8 md:pt-12 pb-20 max-w-6xl mx-auto">
         <header className="mb-6 animate-fade-in">
           <h1 className="font-display text-3xl md:text-5xl font-bold leading-tight">
@@ -322,7 +321,7 @@ export default function SearchPage() {
         )}
       </div>
       <SearchTutorialMount />
-    </AppShell>
+    </>
   );
 }
 

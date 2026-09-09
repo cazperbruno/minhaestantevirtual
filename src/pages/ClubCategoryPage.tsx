@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { AppShell } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -163,7 +162,7 @@ export default function ClubCategoryPage() {
 
   if (!isValidCategory) {
     return (
-      <AppShell>
+      <>
         <div className="px-5 md:px-10 pt-8 pb-16 max-w-5xl mx-auto">
           <EmptyState
             icon={<Sparkles />}
@@ -176,12 +175,12 @@ export default function ClubCategoryPage() {
             }
           />
         </div>
-      </AppShell>
+      </>
     );
   }
 
   return (
-    <AppShell>
+    <>
       <div className="px-5 md:px-10 pt-6 pb-16 max-w-5xl mx-auto">
         <Link to="/clubes" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4">
           <ArrowLeft className="w-4 h-4" /> Todas as categorias
@@ -287,7 +286,7 @@ export default function ClubCategoryPage() {
           </div>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }
 

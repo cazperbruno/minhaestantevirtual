@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { AppShell } from "@/components/layout/AppShell";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,27 +16,28 @@ import { VersionTag } from "@/components/pwa/VersionTag";
 import { openTutorial } from "@/hooks/useTutorial";
 import { PrivacyDataPanel } from "@/components/settings/PrivacyDataPanel";
 import { ResetLibraryCard } from "@/components/settings/ResetLibraryCard";
+import { getRuntimePlatform, isNativePlatform } from "@/platform/runtime";
+import { getMyProfile } from "@/lib/profile-api";
 
 type Visibility = "public" | "private" | "followers";
 
 export default function SettingsPage() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
-  const [showProgress, setShowProgress] = useState<boolean>(true);
   const [savingFlag, setSavingFlag] = useState<string | null>(null);
+  const nativeApp = isNativePlatform();
+  const runtimePlatform = getRuntimePlatform();
 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .maybeSingle();
-      setProfile(data);
-      // show_progress is local UI preference (also saved to localStorage)
-      const stored = localStorage.getItem("show_progress");
-      setShowProgress(stored === null ? true : stored === "true");
+      try {
+        const data = await getMyProfile<any>();
+        setProfile(data);
+      } catch (error) {
+        console.error("[Settings] profile read failed", error);
+        toast.error("Não foi possível carregar suas configurações");
+      }
     })();
   }, [user]);
 
@@ -60,11 +60,8 @@ export default function SettingsPage() {
   const setLibraryVisibility = (val: Visibility) =>
     updateProfile({ library_visibility: val }, "library_visibility");
 
-  const toggleProgress = (val: boolean) => {
-    setShowProgress(val);
-    localStorage.setItem("show_progress", String(val));
-    toast.success("Configuração salva");
-  };
+  const toggleProgress = (val: boolean) =>
+    updateProfile({ show_reading_progress: val }, "show_reading_progress");
 
   const logout = async () => {
     await supabase.auth.signOut();
@@ -73,13 +70,13 @@ export default function SettingsPage() {
 
   if (!profile) {
     return (
-      <AppShell>
+      <>
         <div className="px-5 md:px-10 pt-8 pb-16 max-w-2xl mx-auto space-y-6">
           <Skeleton className="h-10 w-48" />
           <Skeleton className="h-64 rounded-2xl" />
           <Skeleton className="h-64 rounded-2xl" />
         </div>
-      </AppShell>
+      </>
     );
   }
 
@@ -87,7 +84,7 @@ export default function SettingsPage() {
   const libraryIsPublic = (profile.library_visibility || "public") === "public";
 
   return (
-    <AppShell>
+    <>
       <div className="px-4 sm:px-6 md:px-10 pt-6 sm:pt-8 pb-16 max-w-2xl mx-auto min-w-0 animate-fade-in">
         <header className="mb-6 flex items-center gap-3">
           <div className="w-11 h-11 rounded-xl bg-primary/15 text-primary flex items-center justify-center">
@@ -185,7 +182,11 @@ export default function SettingsPage() {
                 Mostrar barra de progresso e páginas lidas no seu perfil.
               </p>
             </div>
-            <Switch checked={showProgress} onCheckedChange={toggleProgress} />
+            <Switch
+              checked={profile.show_reading_progress ?? true}
+              disabled={savingFlag === "show_reading_progress"}
+              onCheckedChange={toggleProgress}
+            />
           </div>
         </section>
 
@@ -198,17 +199,30 @@ export default function SettingsPage() {
           <PushNotificationsCard />
         </section>
 
-        {/* Instalação do App */}
-        <section className="mt-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <Download className="w-4 h-4 text-primary" />
-            <h2 className="font-display text-lg font-semibold">Instalar aplicativo</h2>
-          </div>
-          <InstallAppCard />
-          <Button asChild variant="outline" size="sm" className="w-full">
-            <Link to="/instalar">Ver instruções completas</Link>
-          </Button>
-        </section>
+        {/* Instalação / runtime */}
+        {nativeApp ? (
+          <section className="mt-5 glass rounded-2xl p-5 space-y-2">
+            <div className="flex items-center gap-2">
+              <Download className="w-4 h-4 text-primary" />
+              <h2 className="font-display text-lg font-semibold">Aplicativo instalado</h2>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Você está usando o Readify para {runtimePlatform === "ios" ? "iPhone/iPad" : "Android"}.
+              Atualizações serão distribuídas pela {runtimePlatform === "ios" ? "App Store" : "Google Play"}.
+            </p>
+          </section>
+        ) : (
+          <section className="mt-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <Download className="w-4 h-4 text-primary" />
+              <h2 className="font-display text-lg font-semibold">Instalar aplicativo</h2>
+            </div>
+            <InstallAppCard />
+            <Button asChild variant="outline" size="sm" className="w-full">
+              <Link to="/instalar">Ver instruções completas</Link>
+            </Button>
+          </section>
+        )}
 
         {/* Tutorial */}
         <section className="mt-5 glass rounded-2xl p-5">
@@ -275,6 +289,6 @@ export default function SettingsPage() {
           <VersionTag />
         </section>
       </div>
-    </AppShell>
+    </>
   );
 }

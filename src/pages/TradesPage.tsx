@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { AppShell } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -72,7 +71,6 @@ export default function TradesPage() {
   const [activeMatchId, setActiveMatchId] = useState<string | null>(null);
   const tutorial = usePageTutorial("trades");
 
-  // Abre o dialog de match cinemático quando vem com ?match= ; permite ?tab=offers
   useEffect(() => {
     const m = searchParams.get("match");
     const t = searchParams.get("tab");
@@ -177,28 +175,16 @@ export default function TradesPage() {
     const prev = offers;
     setPendingId(id);
     setOffers((arr) => arr.map((o) => (o.id === id ? { ...o, status } : o)));
-    const { error } = await supabase.from("purchase_offers").update({ status }).eq("id", id);
+    const { error } = await supabase.rpc("transition_purchase_offer" as any, {
+      _offer_id: id,
+      _next_status: status,
+    });
     setPendingId(null);
     if (error) {
+      console.error("transition_purchase_offer", error);
       setOffers(prev);
       toast.error("Erro ao atualizar oferta");
       return;
-    }
-    // notifica o ofertante
-    const offer = prev.find((o) => o.id === id);
-    if (offer && status !== "cancelled") {
-      const labels: Record<string, string> = {
-        accepted: "aceitou sua oferta 🎉",
-        declined: "recusou sua oferta",
-      };
-      await supabase.from("notifications").insert({
-        user_id: offer.offerer_id,
-        kind: "purchase_offer_response",
-        title: `${offer.other?.display_name || "A pessoa"} ${labels[status] || "respondeu"}`,
-        body: offer.book?.title ? `Livro: ${offer.book.title}` : null,
-        link: "/trocas?tab=offers",
-        meta: { offer_id: id, status, book_id: offer.book_id },
-      });
     }
     const labels: Record<string, string> = {
       accepted: "Oferta aceita — combine entrega e pagamento",
@@ -212,9 +198,13 @@ export default function TradesPage() {
     const prev = trades;
     setPendingId(id);
     setTrades((arr) => arr.map((t) => (t.id === id ? { ...t, status } : t)));
-    const { error } = await supabase.from("trades").update({ status }).eq("id", id);
+    const { error } = await supabase.rpc("transition_trade" as any, {
+      _trade_id: id,
+      _next_status: status,
+    });
     setPendingId(null);
     if (error) {
+      console.error("transition_trade", error);
       setTrades(prev);
       toast.error("Erro ao atualizar proposta");
       return;
@@ -240,7 +230,7 @@ export default function TradesPage() {
     : [];
 
   return (
-    <AppShell>
+    <>
       <div className="px-5 md:px-10 pt-8 pb-20 max-w-4xl mx-auto">
         <header className="mb-6 animate-fade-in">
           <p className="text-sm text-primary font-medium mb-2 flex items-center gap-2">
@@ -457,7 +447,7 @@ export default function TradesPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="text-center">
                       <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5 font-semibold">
-                        {iAmReceiver ? "Você dá" : "Você dá"}
+                        Você dá
                       </p>
                       {myBook && (
                         <Link to={`/livro/${myBook.id}`} className="block group">
@@ -521,7 +511,7 @@ export default function TradesPage() {
         onClose={() => { setActiveMatchId(null); searchParams.delete("match"); setSearchParams(searchParams); }}
       />
       <SpotlightTutorial open={tutorial.open} steps={getPageTutorial("trades") || []} onClose={tutorial.close} />
-    </AppShell>
+    </>
   );
 }
 

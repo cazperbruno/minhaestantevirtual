@@ -13,10 +13,13 @@
     <!--
       Content Security Policy (camada extra de defesa contra XSS).
       - default-src 'self': qualquer recurso desconhecido é bloqueado.
-      - 'unsafe-inline'/'unsafe-eval' em script-src: necessário para Vite + Lovable tagger
-        em dev e para alguns chunks dinâmicos. Em produção apenas o bundle hashed roda.
-      - img-src amplo: capas vêm de muitas fontes (Google Books, Open Library, AniList...).
-      - connect-src: Supabase + WebSockets de Realtime + Lovable Cloud.
+      - 'unsafe-inline'/'unsafe-eval' ainda existem por compatibilidade do legado e serão
+        removidos em uma onda própria de CSP antes da publicação final.
+      - img-src amplo: capas vêm de várias fontes externas.
+      - connect-src: Supabase, Realtime e serviços externos do Readify.
+      - NÃO usamos upgrade-insecure-requests aqui: páginas HTTPS já carregam URLs relativas
+        por HTTPS, enquanto o directive quebrava preview/teste HTTP em Safari/WebKit ao
+        transformar localhost em https://localhost sem servidor TLS.
     -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
@@ -31,7 +34,6 @@
       object-src 'none';
       base-uri 'self';
       form-action 'self';
-      upgrade-insecure-requests;
     ">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">

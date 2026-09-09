@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { AppShell } from "@/components/layout/AppShell";
 import { fetchFeed } from "@/lib/recommend-api";
 import { track, trackEvent } from "@/lib/track";
 import { BookCover } from "@/components/books/BookCover";
@@ -79,7 +78,7 @@ export default function InfiniteFeedPage() {
   const visible = items.filter((i) => !hidden.has(i.id));
 
   return (
-    <AppShell>
+    <>
       <div className="px-5 md:px-10 pt-8 pb-24 max-w-3xl mx-auto">
         <header className="mb-8 animate-fade-in">
           <p className="text-sm text-primary font-medium mb-2 flex items-center gap-2">
@@ -141,7 +140,7 @@ export default function InfiniteFeedPage() {
           )}
         </div>
       </div>
-    </AppShell>
+    </>
   );
 }
 

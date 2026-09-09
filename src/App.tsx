@@ -6,7 +6,10 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { AuthenticatedAppLayout } from "@/components/layout/AuthenticatedAppLayout";
 import { LazyErrorBoundary } from "@/components/LazyErrorBoundary";
+import { NativeLinkBridge } from "@/components/NativeLinkBridge";
+import { AuthProvider } from "@/providers/AuthProvider";
 import Auth from "./pages/Auth";
 import ScrollToTop from "./components/ScrollToTop";
 
@@ -46,6 +49,8 @@ const InstallAppPage = lazy(() => import("./pages/InstallAppPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const WrappedPage = lazy(() => import("./pages/WrappedPage"));
+const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
+const TermsPage = lazy(() => import("./pages/TermsPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const RouteFallback = () => (
@@ -55,59 +60,74 @@ const RouteFallback = () => (
 );
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner theme="dark" />
-      <BrowserRouter>
-        <ScrollToTop />
-        <LazyErrorBoundary>
-        <Suspense fallback={<RouteFallback />}>
-          <Routes>
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
-            <Route path="/" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
-            <Route path="/buscar" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
-            <Route path="/scanner" element={<ProtectedRoute><ScannerPage /></ProtectedRoute>} />
-            <Route path="/biblioteca" element={<ProtectedRoute><LibraryPage /></ProtectedRoute>} />
-            <Route path="/desejos" element={<ProtectedRoute><WishlistPage /></ProtectedRoute>} />
-            <Route path="/emprestimos" element={<ProtectedRoute><LoansPage /></ProtectedRoute>} />
-            <Route path="/feed" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
-            <Route path="/feed-infinito" element={<ProtectedRoute><InfiniteFeedPage /></ProtectedRoute>} />
-            <Route path="/ranking" element={<ProtectedRoute><RankingPage /></ProtectedRoute>} />
-            <Route path="/metas" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
-            <Route path="/estatisticas" element={<ProtectedRoute><StatsPage /></ProtectedRoute>} />
-            <Route path="/clubes" element={<ProtectedRoute><ClubsPage /></ProtectedRoute>} />
-            <Route path="/clubes/categoria/:slug" element={<ProtectedRoute><ClubCategoryPage /></ProtectedRoute>} />
-            <Route path="/clubes/convite/:token" element={<ClubInviteAcceptPage />} />
-            <Route path="/clubes/:id" element={<ProtectedRoute><ClubDetailPage /></ProtectedRoute>} />
-            <Route path="/clubes/:id/membros" element={<ProtectedRoute><ClubMembersPage /></ProtectedRoute>} />
-            <Route path="/u/:username" element={<ProtectedRoute><PublicProfile /></ProtectedRoute>} />
-            {/* Lista de desejos pública — sem proteção, acessível por qualquer pessoa */}
-            <Route path="/u/:username/desejos" element={<PublicWishlistPage />} />
-            <Route path="/leitores" element={<ProtectedRoute><ReadersPage /></ProtectedRoute>} />
-            <Route path="/trocas" element={<ProtectedRoute><TradesPage /></ProtectedRoute>} />
-            <Route path="/relatorios" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
-            <Route path="/progresso" element={<ProtectedRoute><ProgressPage /></ProtectedRoute>} />
-            <Route path="/progresso/historico" element={<ProtectedRoute><XpHistoryPage /></ProtectedRoute>} />
-            <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-            <Route path="/configuracoes" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-            <Route path="/livro/:id" element={<ProtectedRoute><BookDetail /></ProtectedRoute>} />
-            <Route path="/serie/:id" element={<ProtectedRoute><SeriesDetailPage /></ProtectedRoute>} />
-            <Route path="/series" element={<ProtectedRoute><MySeriesPage /></ProtectedRoute>} />
-            <Route path="/series/gerenciar" element={<ProtectedRoute><ManageSeriesPage /></ProtectedRoute>} />
-            <Route path="/buddy" element={<ProtectedRoute><BuddyReadsPage /></ProtectedRoute>} />
-            <Route path="/buddy/:id" element={<ProtectedRoute><BuddyReadDetailPage /></ProtectedRoute>} />
-            <Route path="/instalar" element={<InstallAppPage />} />
-            <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
-            <Route path="/wrapped" element={<ProtectedRoute><WrappedPage /></ProtectedRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-        </LazyErrorBoundary>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner theme="dark" />
+        <BrowserRouter>
+          <NativeLinkBridge />
+          <ScrollToTop />
+          <LazyErrorBoundary>
+            <Suspense fallback={<RouteFallback />}>
+              <Routes>
+                {/* Rotas públicas essenciais */}
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/privacidade" element={<PrivacyPolicyPage />} />
+                <Route path="/termos" element={<TermsPage />} />
+                <Route path="/clubes/convite/:token" element={<ClubInviteAcceptPage />} />
+                <Route path="/u/:username/desejos" element={<PublicWishlistPage />} />
+                <Route path="/instalar" element={<InstallAppPage />} />
+
+                {/* Uma única boundary de sessão para toda a aplicação autenticada. */}
+                <Route element={<ProtectedRoute />}>
+                  {/* Onboarding é protegido, mas deliberadamente não usa o shell principal. */}
+                  <Route path="/onboarding" element={<Onboarding />} />
+
+                  {/* O shell permanece montado enquanto apenas o Outlet troca de página. */}
+                  <Route element={<AuthenticatedAppLayout />}>
+                    <Route path="/" element={<Discover />} />
+                    <Route path="/buscar" element={<SearchPage />} />
+                    <Route path="/scanner" element={<ScannerPage />} />
+                    <Route path="/biblioteca" element={<LibraryPage />} />
+                    <Route path="/desejos" element={<WishlistPage />} />
+                    <Route path="/emprestimos" element={<LoansPage />} />
+                    <Route path="/feed" element={<FeedPage />} />
+                    <Route path="/feed-infinito" element={<InfiniteFeedPage />} />
+                    <Route path="/ranking" element={<RankingPage />} />
+                    <Route path="/metas" element={<GoalsPage />} />
+                    <Route path="/estatisticas" element={<StatsPage />} />
+                    <Route path="/clubes" element={<ClubsPage />} />
+                    <Route path="/clubes/categoria/:slug" element={<ClubCategoryPage />} />
+                    <Route path="/clubes/:id" element={<ClubDetailPage />} />
+                    <Route path="/clubes/:id/membros" element={<ClubMembersPage />} />
+                    <Route path="/u/:username" element={<PublicProfile />} />
+                    <Route path="/leitores" element={<ReadersPage />} />
+                    <Route path="/trocas" element={<TradesPage />} />
+                    <Route path="/relatorios" element={<ReportsPage />} />
+                    <Route path="/progresso" element={<ProgressPage />} />
+                    <Route path="/progresso/historico" element={<XpHistoryPage />} />
+                    <Route path="/perfil" element={<ProfilePage />} />
+                    <Route path="/configuracoes" element={<SettingsPage />} />
+                    <Route path="/livro/:id" element={<BookDetail />} />
+                    <Route path="/serie/:id" element={<SeriesDetailPage />} />
+                    <Route path="/series" element={<MySeriesPage />} />
+                    <Route path="/series/gerenciar" element={<ManageSeriesPage />} />
+                    <Route path="/buddy" element={<BuddyReadsPage />} />
+                    <Route path="/buddy/:id" element={<BuddyReadDetailPage />} />
+                    <Route path="/admin" element={<AdminPage />} />
+                    <Route path="/wrapped" element={<WrappedPage />} />
+                  </Route>
+                </Route>
+
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </LazyErrorBoundary>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </AuthProvider>
 );
 
 export default App;

@@ -43,7 +43,7 @@ export function NotificationsBell({ compact = false }: { compact?: boolean }) {
           aria-label="Notificações"
           className={cn(
             "relative inline-flex items-center justify-center rounded-lg transition-colors hover:bg-sidebar-accent",
-            compact ? "h-9 w-9" : "h-10 w-10",
+            "h-12 w-12",
           )}
         >
           <Bell className="h-5 w-5" />

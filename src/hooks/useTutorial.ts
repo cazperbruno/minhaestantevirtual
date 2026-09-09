@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
+import { getMyProfile } from "@/lib/profile-api";
 
 const LS_KEY = "tutorial_dismissed_session";
 const OPEN_EVENT = "tutorial:open";
@@ -37,11 +38,10 @@ export function useTutorial() {
     if (!user) return;
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("tutorial_completed_at, tutorial_last_step")
-        .eq("id", user.id)
-        .maybeSingle();
+      const data = await getMyProfile<{
+        tutorial_completed_at?: string | null;
+        tutorial_last_step?: number | null;
+      }>();
       if (cancelled) return;
       const completed_at = (data as { tutorial_completed_at: string | null } | null)?.tutorial_completed_at ?? null;
       const last_step = (data as { tutorial_last_step: number | null } | null)?.tutorial_last_step ?? 0;

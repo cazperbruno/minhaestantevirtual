@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { AppShell } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -314,26 +313,26 @@ export default function ClubDetailPage() {
 
   if (loading)
     return (
-      <AppShell>
+      <>
         <div className="flex justify-center py-20">
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
         </div>
-      </AppShell>
+      </>
     );
   if (!club)
     return (
-      <AppShell>
+      <>
         <div className="px-6 py-20 text-center">
           <p>Clube não encontrado</p>
           <Link to="/clubes" className="text-primary underline">
             Voltar
           </Link>
         </div>
-      </AppShell>
+      </>
     );
 
   return (
-    <AppShell>
+    <>
       <div className="px-5 md:px-10 pt-6 max-w-4xl mx-auto">
         <Link
           to="/clubes"
@@ -893,6 +892,6 @@ export default function ClubDetailPage() {
           </Tabs>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }

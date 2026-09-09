@@ -36,24 +36,33 @@ export function ProposeTradeDialog({ receiverId, receiverName, receiverBookId, t
     if (!open || !user) return;
     (async () => {
       setLoading(true);
-      const [{ data: mine }, { data: theirs }] = await Promise.all([
-        supabase
-          .from("user_books")
-          .select("id, book:books(*)")
-          .eq("user_id", user.id)
-          .eq("available_for_trade", true)
-          .limit(60),
-        supabase
-          .from("user_books")
-          .select("id, book:books(*)")
-          .eq("user_id", receiverId)
-          .eq("available_for_trade", true)
-          .eq("is_public", true)
-          .limit(60),
-      ]);
-      setMyBooks((mine || []) as any);
-      setTheirBooks((theirs || []) as any);
-      setLoading(false);
+      try {
+        const [mineResult, theirsResult] = await Promise.all([
+          supabase
+            .from("user_books")
+            .select("id, book:books(*)")
+            .eq("user_id", user.id)
+            .eq("available_for_trade", true)
+            .limit(60),
+          supabase.rpc("visible_user_library" as any, {
+            _owner: receiverId,
+            _status: null,
+            _available_for_trade_only: true,
+            _limit: 60,
+          }),
+        ]);
+        if (mineResult.error) throw mineResult.error;
+        if (theirsResult.error) throw theirsResult.error;
+        setMyBooks((mineResult.data || []) as any);
+        setTheirBooks((theirsResult.data || []) as any);
+      } catch (error) {
+        console.error("[trade] failed to load available books", error);
+        setMyBooks([]);
+        setTheirBooks([]);
+        toast.error("Não foi possível carregar os livros disponíveis");
+      } finally {
+        setLoading(false);
+      }
     })();
   }, [open, user, receiverId]);
 
@@ -63,16 +72,16 @@ export function ProposeTradeDialog({ receiverId, receiverName, receiverBookId, t
       return;
     }
     setSending(true);
-    const { error } = await supabase.from("trades").insert({
-      proposer_id: user.id,
-      receiver_id: receiverId,
-      proposer_book_id: mineId,
-      receiver_book_id: theirsId,
-      message: message.trim() || null,
+    const { error } = await supabase.rpc("create_trade_proposal" as any, {
+      _receiver_id: receiverId,
+      _proposer_book_id: mineId,
+      _receiver_book_id: theirsId,
+      _message: message.trim() || null,
     });
     setSending(false);
     if (error) {
-      toast.error("Erro ao enviar proposta");
+      console.error("create_trade_proposal", error);
+      toast.error("Não foi possível enviar a proposta");
       return;
     }
     toast.success("Proposta enviada!");

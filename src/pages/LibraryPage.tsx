@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from "react";
-import { AppShell } from "@/components/layout/AppShell";
 import { SmartShelfRow } from "@/components/books/SmartShelfRow";
 import { DiscoveryShelfRow } from "@/components/books/DiscoveryShelfRow";
 import { FollowingReadsShelfRow } from "@/components/books/FollowingReadsShelfRow";
@@ -72,7 +71,7 @@ export default function LibraryPage() {
   }, []);
 
   return (
-    <AppShell>
+    <>
       <PullToRefresh onRefresh={onRefresh}>
       <div className="px-5 md:px-10 pt-8 md:pt-12 pb-20 max-w-7xl mx-auto">
         {/* Header */}
@@ -206,7 +205,7 @@ export default function LibraryPage() {
       </div>
       </PullToRefresh>
       <SpotlightTutorial open={tutorial.open} steps={getPageTutorial("library") || []} onClose={tutorial.close} />
-    </AppShell>
+    </>
   );
 }
 

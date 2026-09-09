@@ -30,14 +30,14 @@ function refetchActive() {
  *   Pessoais  : user_books, books, series, loans, reading_goals, profiles
  *   Realtime  : buddy_read_*, club_messages
  *
- * Plug uma vez no AppShell.
+ * Plug uma vez no boundary autenticado persistente.
  */
 export function useRealtimeInvalidation() {
   const { user } = useAuth();
+  const userId = user?.id ?? null;
 
   useEffect(() => {
-    if (!user) return;
-    const userId = user.id;
+    if (!userId) return;
 
     let channelReady = false;
     let pollingTimer: number | undefined;
@@ -170,7 +170,7 @@ export function useRealtimeInvalidation() {
       // -------- PROFILES (próprio + de quem o usuário vê) --------
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "profiles" },
+        { event: "*", schema: "public", table: "profiles", select: ["id"] },
         (payload: any) => {
           const profileId = payload.new?.id || payload.old?.id;
           // HOT: header do perfil reage na hora (chave parcial cobre id e username)
@@ -289,5 +289,5 @@ export function useRealtimeInvalidation() {
       window.removeEventListener("pageshow", onPageShow);
       window.removeEventListener("online", onOnline);
     };
-  }, [user]);
+  }, [userId]);
 }

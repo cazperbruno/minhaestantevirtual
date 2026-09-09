@@ -5,12 +5,12 @@
  * Modelo de segurança em camadas:
  *  1. Authorization JWT obrigatório (a menos que seja service_role).
  *  2. Usuário precisa ter role 'admin' (RPC has_role).
- *  3. Origin/Referer precisa bater com lista de origens confiáveis
- *     (defesa adicional contra CSRF cross-origin).
- *  4. Header `X-CSRF-Token` precisa bater com um token ativo emitido
- *     por `admin-csrf-token` para esse user_id, e dentro do TTL.
+ *  3. Origin/Referer precisa bater com lista de origens confiáveis.
+ *  4. Header `X-CSRF-Token` precisa bater com token ativo do usuário.
  *
- * Service role chamando entre funções (cron interno) ignora 3 e 4.
+ * Chamadas server-to-server só são aceitas quando apresentam a service role
+ * EXATAMENTE. A chave anon nunca autentica cron/admin e nenhum JWT é aceito
+ * apenas por decodificação de payload sem verificação criptográfica.
  */
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2.45.0";
 
@@ -60,12 +60,25 @@ async function sha256Hex(input: string): Promise<string> {
     .join("");
 }
 
-/** Constant-time string compare (prevents timing leaks on token hash). */
+/** Constant-time string compare (prevents timing leaks on token/hash compare). */
 function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
+}
+
+function isExactServiceCredential(
+  serviceRole: string,
+  bearerToken: string,
+  apiKey: string,
+): boolean {
+  const expected = serviceRole.trim();
+  if (!expected) return false;
+  return (
+    (bearerToken.length === expected.length && timingSafeEqual(bearerToken, expected)) ||
+    (apiKey.length === expected.length && timingSafeEqual(apiKey, expected))
+  );
 }
 
 /**
@@ -81,11 +94,9 @@ export async function requireAdmin(req: Request): Promise<AdminGuardResult> {
   const authHeader = req.headers.get("Authorization") || "";
   const apiKey = req.headers.get("apikey") || "";
   const bearerToken = readBearerToken(authHeader);
-  const isService =
-    bearerToken === SERVICE_ROLE.trim() || apiKey === SERVICE_ROLE.trim();
+  const isService = isExactServiceCredential(SERVICE_ROLE, bearerToken, apiKey);
 
-  // Service role: chamadas server-to-server (cron, fan-out interno).
-  // Não passa por CSRF nem por Origin (não há browser envolvido).
+  // Service role: chamadas server-to-server. Não passa por CSRF/Origin.
   if (isService) {
     return { ok: true, isService: true, sb };
   }
@@ -116,12 +127,7 @@ export async function requireAdmin(req: Request): Promise<AdminGuardResult> {
   const referer = req.headers.get("Referer");
   const sourceOk = isTrustedOrigin(origin) || isTrustedOrigin(referer);
   if (!sourceOk) {
-    return {
-      ok: false,
-      status: 403,
-      error: "CSRF: untrusted origin",
-      sb,
-    };
+    return { ok: false, status: 403, error: "CSRF: untrusted origin", sb };
   }
 
   // ---- Camada 4: token CSRF ----
@@ -152,91 +158,33 @@ export async function requireAdmin(req: Request): Promise<AdminGuardResult> {
   return { ok: true, isService: false, userId: u.user.id, sb };
 }
 
-/** Decode JWT payload without verifying signature (used only as a sanity check
- *  combined with the x-cron-source header). */
-function decodeJwtPayload(jwt: string): Record<string, any> | null {
-  try {
-    const parts = jwt.split(".");
-    if (parts.length !== 3) return null;
-    const padded = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    const json = atob(padded + "==".slice(0, (4 - padded.length % 4) % 4));
-    return JSON.parse(json);
-  } catch {
-    return null;
-  }
-}
-
 /**
- * Variante para endpoints que também são chamados pelo cron interno
- * (pg_net → edge function). Aceita:
- *   1. service_role (server-to-server),
- *   2. admin com CSRF (chamada manual via painel),
- *   3. cron interno: header `x-cron-source: readify-internal` +
- *      Bearer com um JWT do projeto (anon OU service). Validamos o `ref`
- *      do payload contra o projeto atual — robusto a rotação de chaves
- *      (não compara byte-a-byte com env vars que podem estar dessincronizadas).
- *      Esses endpoints só drenam fila (idempotente, sem efeito por usuário).
+ * Variante para endpoints chamados por cron interno e, opcionalmente, por admin.
+ *
+ * Cron interno só é autenticado quando `x-cron-source: readify-internal` está
+ * presente E uma credencial service_role exata é enviada em Authorization/apikey.
+ * Não existe fallback por `anon`, `ref` do projeto ou JWT apenas decodificado.
  */
 export async function requireAdminOrCron(req: Request): Promise<AdminGuardResult> {
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
-
   const cronSource = req.headers.get("x-cron-source");
   const authHeader = req.headers.get("Authorization") || "";
   const apiKey = req.headers.get("apikey") || "";
   const bearerToken = readBearerToken(authHeader);
 
   if (cronSource === "readify-internal") {
-    // Match exato (caminho rápido e mais seguro)
-    const tokens = [bearerToken, apiKey].filter(Boolean);
-    const exactMatch = tokens.some(
-      (t) => t === ANON.trim() || t === SERVICE_ROLE.trim(),
-    );
-
-    // Fallback: aceita JWT do mesmo projeto Supabase (defesa contra
-    // dessincronia entre o token armazenado no cron e o env var da função
-    // após rotação de chaves).
-    let projectMatch = false;
-    let payloadInfo: Record<string, any> | null = null;
-    if (!exactMatch) {
-      const expectedRef = (() => {
-        try { return new URL(SUPABASE_URL).hostname.split(".")[0]; }
-        catch { return ""; }
-      })();
-      for (const t of tokens) {
-        const payload = decodeJwtPayload(t);
-        if (
-          payload &&
-          payload.iss === "supabase" &&
-          payload.ref === expectedRef &&
-          (payload.role === "anon" || payload.role === "service_role")
-        ) {
-          projectMatch = true;
-          payloadInfo = { role: payload.role, ref: payload.ref };
-          break;
-        }
-      }
-    }
-
-    if (exactMatch || projectMatch) {
-      console.log("[requireAdminOrCron] cron OK", {
-        via: exactMatch ? "exact" : "jwt-project-ref",
-        payload: payloadInfo,
-      });
-      const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
-      return { ok: true, isService: true, sb };
-    }
-
-    console.warn("[requireAdminOrCron] cron 401 — token mismatch", {
-      hasAuth: Boolean(authHeader),
-      hasApiKey: Boolean(apiKey),
-      authPrefix: bearerToken.slice(0, 16),
-    });
     const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
-    return { ok: false, status: 401, error: "Cron auth: token mismatch", sb };
+    const isService = isExactServiceCredential(SERVICE_ROLE, bearerToken, apiKey);
+    if (!isService) {
+      console.warn("[requireAdminOrCron] cron rejected: service credential required");
+      return { ok: false, status: 401, error: "Cron auth: service credential required", sb };
+    }
+    return { ok: true, isService: true, sb };
   }
 
+  // Chamadas service-to-service sem header de cron e chamadas admin manuais
+  // continuam passando pelo guard normal.
   return await requireAdmin(req);
 }
 

@@ -1,19 +1,18 @@
-/**
- * Haptic feedback — vibração tátil leve para microinterações.
- *
- * Estratégia:
- * - Usa Vibration API (Android/Chrome). Silencioso onde não há suporte (iOS Safari).
- * - Respeita `prefers-reduced-motion`: usuários sensíveis não recebem vibração.
- * - Padrões curtos (≤30ms) — apenas confirmação tátil, nunca distrativo.
- */
+import {
+  Haptics,
+  ImpactStyle,
+  NotificationType,
+} from "@capacitor/haptics";
+import { isNativePlatform } from "@/platform/runtime";
 
+/** Haptic feedback compartilhado entre Web/PWA, Android e iOS. */
 type Pattern = "tap" | "success" | "error" | "toggle";
 
-const PATTERNS: Record<Pattern, number | number[]> = {
-  tap: 8,           // toque sutil — like, follow
-  toggle: 12,       // troca de estado — bookmark, status
-  success: [10, 40, 20], // confirmação positiva — XP, conquista
-  error: [30, 30, 30],   // alerta de erro
+const WEB_PATTERNS: Record<Pattern, number | number[]> = {
+  tap: 8,
+  toggle: 12,
+  success: [10, 40, 20],
+  error: [30, 30, 30],
 };
 
 let reducedMotion: boolean | null = null;
@@ -25,12 +24,37 @@ function prefersReducedMotion(): boolean {
   return reducedMotion;
 }
 
+async function nativeHaptic(pattern: Pattern) {
+  switch (pattern) {
+    case "success":
+      await Haptics.notification({ type: NotificationType.Success });
+      return;
+    case "error":
+      await Haptics.notification({ type: NotificationType.Error });
+      return;
+    case "toggle":
+      await Haptics.impact({ style: ImpactStyle.Medium });
+      return;
+    case "tap":
+    default:
+      await Haptics.impact({ style: ImpactStyle.Light });
+  }
+}
+
 export function haptic(pattern: Pattern = "tap"): void {
-  if (typeof navigator === "undefined" || !("vibrate" in navigator)) return;
   if (prefersReducedMotion()) return;
+
+  if (isNativePlatform()) {
+    void nativeHaptic(pattern).catch(() => {
+      // Haptics are progressive enhancement; never break the user action.
+    });
+    return;
+  }
+
+  if (typeof navigator === "undefined" || !("vibrate" in navigator)) return;
   try {
-    navigator.vibrate(PATTERNS[pattern]);
+    navigator.vibrate(WEB_PATTERNS[pattern]);
   } catch {
-    /* silent — alguns browsers bloqueiam fora de gesto do usuário */
+    // Alguns browsers bloqueiam vibração fora de gesto do usuário.
   }
 }

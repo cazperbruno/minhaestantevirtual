@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -30,6 +29,7 @@ import { trackEvent } from "@/lib/track";
 import { SpotlightTutorial } from "@/components/onboarding/SpotlightTutorial";
 import { usePageTutorial } from "@/hooks/usePageTutorial";
 import { getPageTutorial } from "@/lib/page-tutorials";
+import { nativeBarcodeScannerEnabled, scanNativeIsbn } from "@/platform/scanner";
 
 type Mode = "barcode" | "cover" | "page";
 
@@ -137,12 +137,13 @@ export default function ScannerPage() {
   const addFoundBookToLibrary = async () => {
     if (!user || !foundBook) return;
     try {
-      await supabase
+      const { error } = await supabase
         .from("user_books")
         .upsert(
           { user_id: user.id, book_id: foundBook.id, status: "not_read" },
           { onConflict: "user_id,book_id" },
         );
+      if (error) throw error;
       void awardXp(user.id, "add_book", { silent: true });
       invalidate.library(user.id);
       haptic("success");
@@ -202,6 +203,32 @@ export default function ScannerPage() {
       setCameraError(null);
       lockRef.current = false;
       markScanStart();
+
+      if (nativeBarcodeScannerEnabled()) {
+        const nativeResult = await scanNativeIsbn();
+        if (!nativeResult) {
+          markScanCancelled();
+          setActive(false);
+          return;
+        }
+
+        const code = nativeResult.code;
+        const now = Date.now();
+        const sinceLast = now - lastScanRef.current.ts;
+        if (lastScanRef.current.code === code && sinceLast < 2500) {
+          setActive(false);
+          return;
+        }
+        lastScanRef.current = { code, ts: now };
+        lockRef.current = true;
+        markScanSuccess(String(nativeResult.format));
+        setScanStats(getScanStats());
+        haptic("success");
+        setDetected(code);
+        setActive(false);
+        await resolveIsbn(code);
+        return;
+      }
 
       // Lazy import do ZXing — economiza ~200KB no bundle inicial
       const [{ BrowserMultiFormatReader }, { BarcodeFormat, DecodeHintType }] = await Promise.all([
@@ -387,10 +414,11 @@ export default function ScannerPage() {
 
           // Modo contínuo: auto-adiciona como 'not_read' e reagenda
           if (scanMode === "continuous") {
-            await supabase.from("user_books").upsert(
+            const { error: addError } = await supabase.from("user_books").upsert(
               { user_id: user.id, book_id: book.id, status: "not_read" },
               { onConflict: "user_id,book_id" },
             );
+            if (addError) throw addError;
             invalidate.library(user.id);
             setSessionLog((log) => [
               { id: book.id, title: book.title, cover_url: (book as any).cover_url },
@@ -524,12 +552,13 @@ export default function ScannerPage() {
       if (saved?.id) {
         // Adicionar à biblioteca pessoal com status NEUTRO (usuário decide quando começar)
         if (user) {
-          await supabase
+          const { error: addError } = await supabase
             .from("user_books")
             .upsert(
               { user_id: user.id, book_id: saved.id, status: "not_read" },
               { onConflict: "user_id,book_id" },
             );
+          if (addError) throw addError;
           void awardXp(user.id, "add_book", { silent: true });
         }
         toast.success("Adicionado à sua biblioteca", {
@@ -548,7 +577,7 @@ export default function ScannerPage() {
   };
 
   return (
-    <AppShell>
+    <>
       <div className="px-5 md:px-10 pt-8 pb-32 md:pb-16 max-w-4xl mx-auto">
         <header className="mb-6 animate-fade-in">
           <p className="text-sm text-primary font-medium mb-2 flex items-center gap-2">
@@ -990,7 +1019,7 @@ export default function ScannerPage() {
         )}
       </div>
       <ScannerTutorialMount />
-    </AppShell>
+    </>
   );
 }
 

@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { getRuntimeCapabilities } from "@/platform/runtime";
+import { toast } from "sonner";
 
-// VAPID public key gerada no setup (segura para client).
+// VAPID public key — por definição pode ser distribuída ao cliente.
 const VAPID_PUBLIC_KEY =
   "BF2xbHxZQ1MNV0sZZ5QZ8sWHfugbLhwEsXvTl7iO1Fp-u6dqcxELBN9JNHzSq6rYhxi0GTQS0tcifmMTYPICcPk";
-
-const SW_URL = "/push-sw.js";
 
 function urlBase64ToUint8Array(base64: string) {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
@@ -17,87 +17,143 @@ function urlBase64ToUint8Array(base64: string) {
   return out;
 }
 
-function isPreviewHost() {
-  const h = typeof window !== "undefined" ? window.location.hostname : "";
-  return h.includes("id-preview--") || h.includes("lovableproject.com");
-}
+export type PushState =
+  | "unsupported"
+  | "native-pending"
+  | "denied"
+  | "default"
+  | "granted-subscribed"
+  | "granted-unsubscribed"
+  | "loading";
 
-export type PushState = "unsupported" | "denied" | "default" | "granted-subscribed" | "granted-unsubscribed" | "loading";
-
+/**
+ * Web Push adapter.
+ *
+ * Native Android/iOS intentionally do not fall back to Web Push inside the
+ * Capacitor WebView. They will use the native APNs/FCM adapter, keeping the
+ * notification model deterministic across stores.
+ */
 export function usePushNotifications() {
   const { user } = useAuth();
-  const [state, setState] = useState<PushState>("loading");
+  const capabilities = useMemo(() => getRuntimeCapabilities(), []);
+  const [state, setState] = useState<PushState>(
+    capabilities.native ? "native-pending" : "loading",
+  );
   const [busy, setBusy] = useState(false);
 
-  const supported = typeof window !== "undefined"
-    && "serviceWorker" in navigator
-    && "PushManager" in window
-    && "Notification" in window
-    && !isPreviewHost();
+  const supported = capabilities.webPush;
+
+  const getPwaRegistration = useCallback(async () => {
+    if (!supported) return undefined;
+    return navigator.serviceWorker.getRegistration("/");
+  }, [supported]);
 
   const refresh = useCallback(async () => {
-    if (!supported) return setState("unsupported");
+    if (capabilities.native) {
+      setState("native-pending");
+      return;
+    }
+    if (!supported) {
+      setState("unsupported");
+      return;
+    }
     if (Notification.permission === "denied") return setState("denied");
     if (Notification.permission === "default") return setState("default");
+
     try {
-      const reg = await navigator.serviceWorker.getRegistration(SW_URL);
+      const reg = await getPwaRegistration();
       const sub = await reg?.pushManager.getSubscription();
       setState(sub ? "granted-subscribed" : "granted-unsubscribed");
     } catch {
       setState("granted-unsubscribed");
     }
-  }, [supported]);
+  }, [capabilities.native, supported, getPwaRegistration]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => { void refresh(); }, [refresh]);
 
   const subscribe = useCallback(async () => {
     if (!supported || !user) return;
     setBusy(true);
     try {
       const perm = await Notification.requestPermission();
-      if (perm !== "granted") { await refresh(); return; }
+      if (perm !== "granted") {
+        await refresh();
+        return;
+      }
 
-      const reg = await navigator.serviceWorker.register(SW_URL, { scope: "/" });
-      await navigator.serviceWorker.ready;
+      // O SW é registrado exclusivamente pelo vite-plugin-pwa/usePwaUpdate.
+      const reg = (await getPwaRegistration()) ?? await navigator.serviceWorker.ready;
 
       let sub = await reg.pushManager.getSubscription();
+      let createdNow = false;
       if (!sub) {
         sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
         });
+        createdNow = true;
       }
 
-      const json = sub.toJSON() as any;
-      await supabase.from("push_subscriptions").upsert({
+      const data = sub.toJSON() as any;
+      const p256dh = data.keys?.p256dh;
+      const auth = data.keys?.auth;
+      if (!p256dh || !auth) throw new Error("push_keys_missing");
+
+      const { error } = await supabase.from("push_subscriptions").upsert({
         user_id: user.id,
         endpoint: sub.endpoint,
-        p256dh: json.keys.p256dh,
-        auth: json.keys.auth,
+        p256dh,
+        auth,
         user_agent: navigator.userAgent.slice(0, 200),
       }, { onConflict: "endpoint" });
 
+      if (error) {
+        if (createdNow) await sub.unsubscribe().catch(() => false);
+        throw error;
+      }
+
+      await refresh();
+    } catch (error) {
+      console.error("[push] subscribe failed", error);
+      toast.error("Não foi possível ativar as notificações");
       await refresh();
     } finally {
       setBusy(false);
     }
-  }, [supported, user, refresh]);
+  }, [supported, user, refresh, getPwaRegistration]);
 
   const unsubscribe = useCallback(async () => {
     if (!supported || !user) return;
     setBusy(true);
     try {
-      const reg = await navigator.serviceWorker.getRegistration(SW_URL);
+      const reg = await getPwaRegistration();
       const sub = await reg?.pushManager.getSubscription();
       if (sub) {
-        await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+        const { error } = await supabase
+          .from("push_subscriptions")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("endpoint", sub.endpoint);
+        if (error) throw error;
         await sub.unsubscribe();
       }
+      await refresh();
+    } catch (error) {
+      console.error("[push] unsubscribe failed", error);
+      toast.error("Não foi possível desativar as notificações");
       await refresh();
     } finally {
       setBusy(false);
     }
-  }, [supported, user, refresh]);
+  }, [supported, user, refresh, getPwaRegistration]);
 
-  return { state, busy, supported, subscribe, unsubscribe };
+  return {
+    state,
+    busy,
+    supported,
+    native: capabilities.native,
+    platform: capabilities.platform,
+    subscribe,
+    unsubscribe,
+  };
 }

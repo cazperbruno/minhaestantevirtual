@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { openAmazon } from "@/lib/amazon";
 import { cn } from "@/lib/utils";
 import type { Book } from "@/types/book";
+import { shareReadify } from "@/platform/share";
 
 interface Profile {
   id: string;
@@ -17,6 +18,8 @@ interface Profile {
   avatar_url: string | null;
   bio: string | null;
   profile_visibility: string;
+  can_view_profile: boolean;
+  can_view_library: boolean;
 }
 
 interface WishItem {
@@ -28,8 +31,8 @@ interface WishItem {
 /**
  * Página pública (sem login) da lista de desejos de um leitor: /u/:username/desejos
  *
- * RLS já filtra: o RLS de `user_books` só retorna registros com is_public=true
- * e profile_visibility='public', então não precisamos validar visibilidade aqui.
+ * A página nunca lê `user_books` diretamente. Perfil e biblioteca passam por
+ * RPCs redigidas que aplicam visibilidade e não expõem progresso oculto.
  */
 export default function PublicWishlistPage() {
   const { username } = useParams();
@@ -43,38 +46,49 @@ export default function PublicWishlistPage() {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      // 1) Busca perfil pelo username (case-insensitive)
-      const { data: prof } = await supabase
-        .from("profiles")
-        .select("id,username,display_name,avatar_url,bio,profile_visibility")
-        .ilike("username", username)
-        .maybeSingle();
+      setNotFound(false);
+      try {
+      // 1) Perfil redigido conforme viewer (anônimo nesta rota pública).
+      const profileResult = await supabase.rpc("profile_for_viewer" as any, { _lookup: username });
+      if (profileResult.error) throw profileResult.error;
+      const prof = (Array.isArray(profileResult.data) ? profileResult.data[0] : profileResult.data) as Profile | null;
       if (cancelled) return;
       if (!prof) { setNotFound(true); setLoading(false); return; }
-      setProfile(prof as Profile);
+      setProfile(prof);
 
-      // 2) Wishlist pública desse perfil
-      const { data: ub } = await supabase
-        .from("user_books")
-        .select("id,created_at,book:books(*)")
-        .eq("user_id", prof.id)
-        .eq("status", "wishlist")
-        .eq("is_public", true)
-        .order("created_at", { ascending: false });
+      // 2) Wishlist através da projeção segura. Se a biblioteca não for pública
+      // para este viewer, a RPC devolve zero linhas sem expor current_page/outros dados.
+      const { data: ub, error: wishError } = await supabase.rpc("visible_user_library" as any, {
+        _owner: prof.id,
+        _status: "wishlist",
+        _available_for_trade_only: false,
+        _limit: 100,
+      });
+      if (wishError) throw wishError;
       if (cancelled) return;
       setItems((ub as WishItem[]) || []);
-      setLoading(false);
+      } catch (error) {
+        console.error("[wishlist] load failed", error);
+        if (!cancelled) {
+          setItems([]);
+          setNotFound(true);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
     return () => { cancelled = true; };
   }, [username]);
 
   const shareLink = async () => {
-    const url = window.location.href;
     const text = `🎁 Lista de desejos de ${profile?.display_name || username} no Readify`;
     try {
-      if (navigator.share) await navigator.share({ title: text, url });
-      else { await navigator.clipboard.writeText(url); toast.success("Link copiado"); }
-    } catch { /* user cancel */ }
+      const result = await shareReadify({ title: text, text, path: window.location.pathname });
+      if (result === "copied") toast.success("Link copiado");
+    } catch (error) {
+      console.error("[wishlist] share failed", error);
+      toast.error("Não foi possível compartilhar agora");
+    }
   };
 
   if (notFound) return <Navigate to="/auth" replace />;
