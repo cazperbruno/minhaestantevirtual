@@ -75,7 +75,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add android
-          git diff --cached --check
+          ! git diff --cached --quiet -- android
+          if git diff --cached --name-only -- android | grep -qE '(^|/)build/'; then
+            echo 'Generated build outputs must not be committed.' >&2
+            exit 1
+          fi
           git commit -m "native: generate and validate Android Capacitor shell"
           git push origin HEAD:readify/native-shells-01
 
@@ -133,6 +137,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add ios
-          git diff --cached --check
+          ! git diff --cached --quiet -- ios
+          if git diff --cached --name-only -- ios | grep -qE '(^|/)build/|DerivedData'; then
+            echo 'Generated iOS build outputs must not be committed.' >&2
+            exit 1
+          fi
           git commit -m "native: generate and validate iOS Capacitor shell"
           git push origin HEAD:readify/native-shells-01
