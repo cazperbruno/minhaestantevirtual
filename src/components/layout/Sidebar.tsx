@@ -1,4 +1,4 @@
-import { Book, BookOpen, Library, Heart, User as UserIcon, LogOut, Search, ScanBarcode, ArrowRightLeft, MessageSquare, Trophy, Users, Repeat, Sparkles, Layers, Download, Settings, Shield } from "lucide-react";
+import { LogOut, Settings, Shield } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -6,101 +6,128 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { NotificationsBell } from "@/components/social/NotificationsBell";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { accountNavigation, navigationSections } from "@/config/navigation";
 import readifyMark from "@/assets/readify-mark-v8.webp";
-
-const items = [
-  { to: "/", label: "Descobrir", icon: Book },
-  { to: "/feed-infinito", label: "Para você", icon: BookOpen },
-  { to: "/biblioteca", label: "Biblioteca", icon: Library },
-  { to: "/series", label: "Minhas séries", icon: Layers },
-  { to: "/desejos", label: "Lista de desejos", icon: Heart },
-  { to: "/emprestimos", label: "Empréstimos", icon: ArrowRightLeft },
-  { to: "/trocas", label: "Trocas", icon: Repeat },
-  { to: "/scanner", label: "Scanner", icon: ScanBarcode },
-  { to: "/feed", label: "Feed social", icon: MessageSquare },
-  { to: "/leitores", label: "Leitores", icon: Users },
-  { to: "/clubes", label: "Clubes", icon: Users },
-  { to: "/buddy", label: "Buddy Reading", icon: BookOpen },
-  { to: "/progresso", label: "Progresso", icon: Sparkles },
-  { to: "/ranking", label: "Ranking", icon: Trophy },
-  { to: "/instalar", label: "Instalar app", icon: Download },
-  { to: "/perfil", label: "Perfil", icon: UserIcon },
-  { to: "/configuracoes", label: "Configurações", icon: Settings },
-];
 
 export function Sidebar() {
   const navigate = useNavigate();
   const { isAdmin } = useIsAdmin();
+
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast.error("Não foi possível sair da conta. Tente novamente.");
+      return;
+    }
     toast.success("Até logo!");
     navigate("/auth");
   };
+
   return (
-    <aside
-      className="hidden md:flex flex-col shrink-0 items-stretch border-r border-border bg-sidebar h-screen max-h-screen sticky top-0 overflow-hidden p-3"
-      style={{ width: "max-content", maxWidth: "80vw" }}
-    >
-      <div className="pb-4 flex items-center justify-between gap-2 shrink-0 px-1">
-        <NavLink to="/" className="flex items-center gap-2 min-w-0">
-          <img src={readifyMark} alt="Readify" className="h-9 w-9 select-none object-contain shrink-0" draggable={false} />
-          <span className="font-display text-lg font-bold tracking-tight">Readify</span>
+    <aside className="sticky top-0 hidden h-screen max-h-screen w-56 shrink-0 flex-col overflow-hidden border-r border-border bg-sidebar p-3 md:flex lg:w-60">
+      <div className="flex shrink-0 items-center justify-between gap-2 px-1 pb-4">
+        <NavLink to="/" className="flex min-w-0 items-center gap-2" aria-label="Readify — Início">
+          <img
+            src={readifyMark}
+            alt="Readify"
+            className="h-9 w-9 shrink-0 select-none object-contain"
+            draggable={false}
+          />
+          <span className="truncate font-display text-lg font-bold tracking-tight">Readify</span>
         </NavLink>
         <NotificationsBell compact />
       </div>
+
       <nav
-        className="flex-1 min-h-0 space-y-1 overflow-y-auto overscroll-contain scroll-smooth [scrollbar-width:thin] [-webkit-overflow-scrolling:touch] pr-1"
+        aria-label="Navegação principal"
+        className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain pr-1 scroll-smooth [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]"
         style={{ WebkitOverflowScrolling: "touch" }}
       >
-        {items.map(({ to, label, icon: Icon }) => (
+        {navigationSections.map((section) => (
+          <section key={section.label} aria-label={section.label}>
+            <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">
+              {section.label}
+            </p>
+            <ul className="space-y-0.5">
+              {section.items.map(({ to, label, icon: Icon, end }) => (
+                <li key={to}>
+                  <NavLink
+                    to={to}
+                    end={end}
+                    className={({ isActive }) =>
+                      cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground",
+                      )
+                    }
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{label}</span>
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </nav>
+
+      <div className="mt-2 shrink-0 space-y-1 border-t border-sidebar-border pt-3">
+        {accountNavigation.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
-            end={to === "/"}
             className={({ isActive }) =>
               cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-primary/15 text-primary shadow-glow"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground",
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
               )
             }
           >
-            <Icon className="h-4 w-4 shrink-0" />
+            <Icon className="h-4 w-4" />
             {label}
           </NavLink>
         ))}
+
         <NavLink
-          to="/buscar"
+          to="/configuracoes"
           className={({ isActive }) =>
             cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
               isActive
-                ? "bg-primary/15 text-primary"
-                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground",
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
             )
           }
         >
-          <Search className="h-4 w-4 shrink-0" /> Buscar livros
+          <Settings className="h-4 w-4" /> Configurações
         </NavLink>
+
         {isAdmin && (
           <NavLink
             to="/admin"
             className={({ isActive }) =>
               cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-primary/15 text-primary shadow-glow"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground",
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
               )
             }
           >
-            <Shield className="h-4 w-4 shrink-0" /> Admin
+            <Shield className="h-4 w-4" /> Admin
           </NavLink>
         )}
-      </nav>
-      <div className="pt-3 mt-2 border-t border-sidebar-border shrink-0">
-        <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={handleLogout}>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start gap-2 text-muted-foreground hover:text-destructive"
+          onClick={handleLogout}
+        >
           <LogOut className="h-4 w-4" /> Sair
         </Button>
       </div>
