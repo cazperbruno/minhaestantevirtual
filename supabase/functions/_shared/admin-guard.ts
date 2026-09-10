@@ -107,9 +107,10 @@ export async function requireAdmin(req: Request): Promise<AdminGuardResult> {
   const authHeader = req.headers.get("Authorization") || "";
   const apiKey = req.headers.get("apikey") || "";
   const bearerToken = readBearerToken(authHeader);
-  const isService = isExactServiceCredential(SERVICE_ROLE, bearerToken, apiKey);
+  const isService = isExactServiceCredential(SERVICE_ROLE, bearerToken, apiKey) ||
+    hasCronSecret(req);
 
-  // Service role: chamadas server-to-server. Não passa por CSRF/Origin.
+  // Service role / cron secret: chamadas server-to-server. Não passa por CSRF/Origin.
   if (isService) {
     return { ok: true, isService: true, sb };
   }
