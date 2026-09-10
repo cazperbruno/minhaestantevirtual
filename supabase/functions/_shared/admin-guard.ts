@@ -187,9 +187,10 @@ export async function requireAdminOrCron(req: Request): Promise<AdminGuardResult
   const apiKey = req.headers.get("apikey") || "";
   const bearerToken = readBearerToken(authHeader);
 
-  if (cronSource === "readify-internal") {
+  if (cronSource === "readify-internal" || hasCronSecret(req)) {
     const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
-    const isService = isExactServiceCredential(SERVICE_ROLE, bearerToken, apiKey);
+    const isService = isExactServiceCredential(SERVICE_ROLE, bearerToken, apiKey) ||
+      hasCronSecret(req);
     if (!isService) {
       console.warn("[requireAdminOrCron] cron rejected: service credential required");
       return { ok: false, status: 401, error: "Cron auth: service credential required", sb };
