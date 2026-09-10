@@ -82,6 +82,19 @@ function isExactServiceCredential(
 }
 
 /**
+ * Credencial dedicada para jobs agendados (pg_cron) e chamadas server-to-server
+ * internas. Independe da service_role key (que pode ser rotacionada e não é
+ * acessível ao banco), então o agendamento não quebra em rotações de chave.
+ * Header: `x-cron-secret: <CRON_SECRET>`.
+ */
+export function hasCronSecret(req: Request): boolean {
+  const expected = (Deno.env.get("CRON_SECRET") || "").trim();
+  if (expected.length < 16) return false;
+  const got = (req.headers.get("x-cron-secret") || "").trim();
+  return got.length === expected.length && timingSafeEqual(got, expected);
+}
+
+/**
  * Use this at the top of every admin-only edge function.
  * Returns either { ok: true, ... } or { ok: false, status, error }.
  */
@@ -94,9 +107,10 @@ export async function requireAdmin(req: Request): Promise<AdminGuardResult> {
   const authHeader = req.headers.get("Authorization") || "";
   const apiKey = req.headers.get("apikey") || "";
   const bearerToken = readBearerToken(authHeader);
-  const isService = isExactServiceCredential(SERVICE_ROLE, bearerToken, apiKey);
+  const isService = isExactServiceCredential(SERVICE_ROLE, bearerToken, apiKey) ||
+    hasCronSecret(req);
 
-  // Service role: chamadas server-to-server. Não passa por CSRF/Origin.
+  // Service role / cron secret: chamadas server-to-server. Não passa por CSRF/Origin.
   if (isService) {
     return { ok: true, isService: true, sb };
   }
@@ -173,9 +187,10 @@ export async function requireAdminOrCron(req: Request): Promise<AdminGuardResult
   const apiKey = req.headers.get("apikey") || "";
   const bearerToken = readBearerToken(authHeader);
 
-  if (cronSource === "readify-internal") {
+  if (cronSource === "readify-internal" || hasCronSecret(req)) {
     const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
-    const isService = isExactServiceCredential(SERVICE_ROLE, bearerToken, apiKey);
+    const isService = isExactServiceCredential(SERVICE_ROLE, bearerToken, apiKey) ||
+      hasCronSecret(req);
     if (!isService) {
       console.warn("[requireAdminOrCron] cron rejected: service credential required");
       return { ok: false, status: 401, error: "Cron auth: service credential required", sb };
