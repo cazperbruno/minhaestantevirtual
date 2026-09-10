@@ -1473,6 +1473,39 @@ export type Database = {
         }
         Relationships: []
       }
+      native_push_devices: {
+        Row: {
+          app_version: string | null
+          created_at: string
+          enabled: boolean
+          id: string
+          last_registered_at: string
+          platform: string
+          token: string
+          user_id: string
+        }
+        Insert: {
+          app_version?: string | null
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          last_registered_at?: string
+          platform: string
+          token: string
+          user_id: string
+        }
+        Update: {
+          app_version?: string | null
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          last_registered_at?: string
+          platform?: string
+          token?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null
@@ -1523,6 +1556,7 @@ export type Database = {
           library_visibility: string
           onboarded_at: string | null
           profile_visibility: string
+          show_reading_progress: boolean
           tiktok: string | null
           tutorial_completed_at: string | null
           tutorial_last_step: number
@@ -1545,6 +1579,7 @@ export type Database = {
           library_visibility?: string
           onboarded_at?: string | null
           profile_visibility?: string
+          show_reading_progress?: boolean
           tiktok?: string | null
           tutorial_completed_at?: string | null
           tutorial_last_step?: number
@@ -1567,6 +1602,7 @@ export type Database = {
           library_visibility?: string
           onboarded_at?: string | null
           profile_visibility?: string
+          show_reading_progress?: boolean
           tiktok?: string | null
           tutorial_completed_at?: string | null
           tutorial_last_step?: number
@@ -2571,6 +2607,7 @@ export type Database = {
         Row: {
           amount: number
           created_at: string
+          dedupe_key: string | null
           id: string
           meta: Json | null
           source: string
@@ -2579,6 +2616,7 @@ export type Database = {
         Insert: {
           amount: number
           created_at?: string
+          dedupe_key?: string | null
           id?: string
           meta?: Json | null
           source: string
@@ -2587,6 +2625,7 @@ export type Database = {
         Update: {
           amount?: number
           created_at?: string
+          dedupe_key?: string | null
           id?: string
           meta?: Json | null
           source?: string
@@ -2789,6 +2828,10 @@ export type Database = {
         Args: { _owner: string; _viewer: string }
         Returns: boolean
       }
+      can_view_profile_content: {
+        Args: { _owner: string; _viewer: string }
+        Returns: boolean
+      }
       check_achievements: {
         Args: { _user_id: string }
         Returns: {
@@ -2899,7 +2942,25 @@ export type Database = {
         }[]
       }
       create_league_finale_notifications: { Args: never; Returns: number }
+      create_purchase_offer: {
+        Args: {
+          _amount_cents: number
+          _book_id: string
+          _message?: string
+          _receiver_id: string
+        }
+        Returns: string
+      }
       create_streak_risk_notifications: { Args: never; Returns: number }
+      create_trade_proposal: {
+        Args: {
+          _message?: string
+          _proposer_book_id: string
+          _receiver_book_id: string
+          _receiver_id: string
+        }
+        Returns: string
+      }
       daily_surprise_status: {
         Args: never
         Returns: {
@@ -2923,6 +2984,7 @@ export type Database = {
           success: boolean
         }[]
       }
+      dismiss_trade_match: { Args: { _match_id: string }; Returns: boolean }
       division_from_xp: { Args: { _xp: number }; Returns: string }
       engagement_depth_summary: {
         Args: { _days?: number }
@@ -3064,6 +3126,7 @@ export type Database = {
           status: string
         }[]
       }
+      get_my_profile: { Args: never; Returns: Json }
       get_similar_users: {
         Args: { target_user_id: string }
         Returns: {
@@ -3074,6 +3137,17 @@ export type Database = {
       grant_xp: {
         Args: { _amount: number; _user_id: string }
         Returns: undefined
+      }
+      grant_xp_event: {
+        Args: {
+          _amount: number
+          _daily_cap?: number
+          _dedupe_key: string
+          _meta?: Json
+          _source: string
+          _user_id: string
+        }
+        Returns: boolean
       }
       has_pending_club_invite: {
         Args: { _club: string; _user: string }
@@ -3144,6 +3218,29 @@ export type Database = {
           volume_num: number
         }[]
       }
+      profile_for_viewer: {
+        Args: { _lookup: string }
+        Returns: {
+          avatar_url: string
+          bio: string
+          can_view_library: boolean
+          can_view_profile: boolean
+          created_at: string
+          display_name: string
+          id: string
+          instagram: string
+          level: number
+          library_visibility: string
+          profile_visibility: string
+          show_reading_progress: boolean
+          tiktok: string
+          twitter: string
+          username: string
+          website: string
+          xp: number
+        }[]
+      }
+      purge_user_data: { Args: { _user_id: string }; Returns: Json }
       reading_streak: { Args: { _user_id: string }; Returns: number }
       recommend_book: {
         Args: {
@@ -3188,6 +3285,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: number
       }
+      recompute_my_challenge_progress: { Args: never; Returns: number }
       recompute_user_weights: {
         Args: { _user_id: string }
         Returns: {
@@ -3212,6 +3310,10 @@ export type Database = {
           message: string
           success: boolean
         }[]
+      }
+      register_my_native_push_device: {
+        Args: { _app_version?: string; _platform: string; _token: string }
+        Returns: string
       }
       reject_club_request: {
         Args: { _request_id: string }
@@ -3301,6 +3403,14 @@ export type Database = {
       track_rec_click: { Args: { _book_id: string }; Returns: undefined }
       track_recs_shown: { Args: { _count: number }; Returns: undefined }
       track_search: { Args: { _query: string }; Returns: undefined }
+      transition_purchase_offer: {
+        Args: { _next_status: string; _offer_id: string }
+        Returns: string
+      }
+      transition_trade: {
+        Args: { _next_status: string; _trade_id: string }
+        Returns: Database["public"]["Enums"]["trade_status"]
+      }
       trending_in_circle: {
         Args: { _limit?: number; _user_id: string }
         Returns: {
@@ -3308,12 +3418,25 @@ export type Database = {
           score: number
         }[]
       }
+      unregister_all_my_native_push_devices: { Args: never; Returns: number }
+      unregister_my_native_push_device: {
+        Args: { _token: string }
+        Returns: boolean
+      }
       update_buddy_progress: {
         Args: { _buddy_id: string; _current_page: number; _percent: number }
         Returns: {
           both_finished: boolean
           message: string
           success: boolean
+        }[]
+      }
+      update_my_streak: {
+        Args: never
+        Returns: {
+          bonus_xp: number
+          current_days: number
+          milestone_hit: number
         }[]
       }
       update_streak: {
@@ -3363,6 +3486,30 @@ export type Database = {
           severity: string
           total_volumes: number
           unnumbered_count: number
+        }[]
+      }
+      visible_user_library: {
+        Args: {
+          _available_for_trade_only?: boolean
+          _limit?: number
+          _owner: string
+          _status?: string
+        }
+        Returns: {
+          available_for_loan: boolean
+          available_for_trade: boolean
+          book: Json
+          book_id: string
+          created_at: string
+          current_page: number
+          finished_at: string
+          id: string
+          is_public: boolean
+          rating: number
+          started_at: string
+          status: Database["public"]["Enums"]["book_status"]
+          updated_at: string
+          user_id: string
         }[]
       }
       weekly_league_for_user: {
@@ -3419,12 +3566,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3448,11 +3595,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3473,11 +3620,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3498,11 +3645,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3515,11 +3662,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
