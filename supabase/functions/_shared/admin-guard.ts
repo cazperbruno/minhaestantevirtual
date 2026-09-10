@@ -82,6 +82,19 @@ function isExactServiceCredential(
 }
 
 /**
+ * Credencial dedicada para jobs agendados (pg_cron) e chamadas server-to-server
+ * internas. Independe da service_role key (que pode ser rotacionada e não é
+ * acessível ao banco), então o agendamento não quebra em rotações de chave.
+ * Header: `x-cron-secret: <CRON_SECRET>`.
+ */
+export function hasCronSecret(req: Request): boolean {
+  const expected = (Deno.env.get("CRON_SECRET") || "").trim();
+  if (expected.length < 16) return false;
+  const got = (req.headers.get("x-cron-secret") || "").trim();
+  return got.length === expected.length && timingSafeEqual(got, expected);
+}
+
+/**
  * Use this at the top of every admin-only edge function.
  * Returns either { ok: true, ... } or { ok: false, status, error }.
  */
